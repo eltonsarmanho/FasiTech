@@ -1,0 +1,204 @@
+# ============================================
+# Python
+# ============================================
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Translations
+*.mo
+*.pot
+
+# ============================================
+# Virtual Environments
+# ============================================
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+.virtualenv/
+
+# ============================================
+# Environment Variables & Secrets
+# ============================================
+.env
+.env.*
+.env.local
+.env.development
+.env.production
+*.env
+
+# Streamlit secrets
+.streamlit/secrets.toml
+.streamlit/credentials.toml
+
+# Google credentials
+credentials/**/*.json
+credentials/**/*.p12
+credentials/**/service-account*.json
+**/google-credentials*.json
+*credentials*.json
+
+# AWS credentials
+.aws/
+*.pem
+
+# ============================================
+# Logs
+# ============================================
+logs/
+*.log
+*.log.*
+log/
+
+# ============================================
+# IDEs & Editors
+# ============================================
+# VS Code
+.vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# PyCharm
+.idea/
+*.iml
+*.iws
+.idea_modules/
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+
+# ============================================
+# OS Files
+# ============================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# ============================================
+# Project Specific
+# ============================================
+# Temporary files
+temp/
+tmp/
+*.tmp
+*.bak
+*.swp
+*.old
+
+# Docker
+docker-compose.override.yml
+.dockerignore
+
+# Local development
+local/
+*.local
+
+# Data files (se houver dados sensíveis)
+data/
+*.csv
+*.xlsx
+*.db
+*.sqlite
+*.sqlite3
+
+# Uploaded files (se armazenar localmente)
+uploads/
+media/
+static/media/
+
+# Archives
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*.7z
+*.sh
+# ============================================
+# Keep Essential Files
+# ============================================
+# Manter arquivos de exemplo/template (descomente se necessário)
+# !credentials/dev/.gitkeep
+# !credentials/prod/.gitkeep
+# !logs/.gitkeep

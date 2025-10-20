@@ -1,0 +1,11 @@
+environment: production
+logging:
+  level: INFO
+  file: logs/prod.log
+google:
+  drive_folder_id: ""
+  sheets_id: ""
+email:
+  smtp_server: smtp.gmail.com
+  from_email: prod@example.com
+  recipients: []

@@ -1,0 +1,11 @@
+environment: development
+logging:
+  level: DEBUG
+  file: logs/dev.log
+google:
+  drive_folder_id: ""
+  sheets_id: ""
+email:
+  smtp_server: smtp.gmail.com
+  from_email: dev@example.com
+  recipients: []

@@ -1,0 +1,14 @@
+streamlit
+fastapi
+uvicorn[standard]
+google-api-python-client
+google-auth
+google-auth-httplib2
+google-auth-oauthlib
+python-dotenv
+pydantic[email]
+requests
+python-dotenv
+reportlab
+Pillow==10.4.0
+PyPDF2==3.0.1
