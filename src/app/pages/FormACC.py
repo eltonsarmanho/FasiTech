@@ -47,6 +47,17 @@ def _render_intro() -> None:
 			#MainMenu {visibility: hidden;}
 			footer {visibility: hidden;}
 			
+			/* Ocultar sidebar completamente */
+			[data-testid="stSidebar"] {
+				display: none;
+			}
+			[data-testid="collapsedControl"] {
+				display: none;
+			}
+			section[data-testid="stSidebar"] {
+				display: none !important;
+			}
+			
 			.acc-hero {
 				background: linear-gradient(135deg, #1a0d2e 0%, #2d1650 50%, #4a1d7a 100%);
 				border-radius: 16px;
@@ -185,22 +196,39 @@ def _render_intro() -> None:
 def _validate_submission(name: str, registration: str, email: str, class_group: str, uploaded_file: Any) -> list[str]:
 	"""Executa validações básicas antes de enviar ao backend."""
 	errors: list[str] = []
+	
+	# Nome obrigatório
 	if not name.strip():
-		errors.append("Informe seu nome completo.")
+		errors.append("Nome completo é obrigatório.")
+	
+	# Matrícula obrigatória
 	if not registration.strip():
-		errors.append("Informe sua matrícula.")
+		errors.append("Matrícula é obrigatória.")
+	
+	# Email obrigatório
 	if not email.strip():
-		errors.append("Informe seu e-mail institucional.")
+		errors.append("E-mail é obrigatório.")
+	elif "@" not in email:
+		errors.append("E-mail inválido.")
+	
+	# Turma obrigatória e deve ser ano no formato numérico (2024, 2025, etc)
 	if not class_group.strip():
-		errors.append("Informe sua turma.")
+		errors.append("Turma é obrigatória.")
+	elif not class_group.strip().isdigit():
+		errors.append("Turma deve ser um ano no formato numérico (ex: 2027, 2026).")
+	elif len(class_group.strip()) != 4:
+		errors.append("Turma deve ter 4 dígitos (ex: 2027, 2026).")
+	
+	# Upload obrigatório
 	if uploaded_file is None:
-		errors.append("Anexe o comprovante único em PDF.")
+		errors.append("Anexo PDF é obrigatório.")
 	else:
 		if uploaded_file.type not in {"application/pdf"}:
-			errors.append("Envie apenas arquivos em PDF.")
+			errors.append("Apenas arquivos PDF são aceitos.")
 		max_bytes = MAX_FILE_SIZE_MB * 1024 * 1024
 		if uploaded_file.size and uploaded_file.size > max_bytes:
-			errors.append("O arquivo excede o limite de 10 MB.")
+			errors.append(f"O arquivo excede o limite de {MAX_FILE_SIZE_MB} MB.")
+	
 	return errors
 
 
@@ -219,21 +247,21 @@ def render_form() -> None:
 	st.markdown('<div class="acc-card">', unsafe_allow_html=True)
 	with st.form("formulario_acc"):
 		st.markdown("<span class='acc-required'>*</span> Campo obrigatório", unsafe_allow_html=True)
+		
 		col1, col2 = st.columns(2)
-		name = col1.text_input("Nome *", placeholder="Seu nome completo")
-		registration = col2.text_input("Matrícula *", placeholder="123456789")
-		email = col1.text_input("Endereço de email *", placeholder="nome@fasitech.edu.br")
-		class_group = col2.text_input("Turma *", placeholder="Curso / Período")
+		name = col1.text_input("Nome Completo *", placeholder="Seu nome completo")
+		registration = col2.text_input("Matrícula *", placeholder="202312345")
+		email = col1.text_input("E-mail *", placeholder="seuemail@ufpa.br")
+		class_group = col2.text_input("Turma (Ano de Ingresso) *", placeholder="2027", max_chars=4)
 
 		uploaded_file = st.file_uploader(
-			"Anexo (PDF único até 10 MB) *",
+			"Anexo PDF *",
 			type=["pdf"],
 			accept_multiple_files=False,
-			help="Faça upload de um arquivo PDF consolidado com todos os certificados.",
+			help="Arquivo PDF consolidado com todos os certificados (máximo 10 MB)",
 		)
 		
 		# Opção para processar com IA
-		st.markdown("---")
 		processar_ia = st.checkbox(
 			"🤖 Processar certificados com IA (recomendado)",
 			value=True,
@@ -288,7 +316,17 @@ def render_form() -> None:
 
 
 def main() -> None:
-	st.set_page_config(page_title="Formulário ACC", layout="centered", page_icon="📝")
+	st.set_page_config(
+		page_title="Formulário ACC", 
+		layout="centered", 
+		page_icon="📝",
+		initial_sidebar_state="collapsed",
+		menu_items={
+			'Get Help': None,
+			'Report a bug': None,
+			'About': None
+		}
+	)
 	render_form()
 
 

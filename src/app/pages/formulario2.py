@@ -20,6 +20,17 @@ def _render_intro() -> None:
             #MainMenu {visibility: hidden;}
             footer {visibility: hidden;}
             
+            /* Ocultar sidebar completamente */
+            [data-testid="stSidebar"] {
+                display: none;
+            }
+            [data-testid="collapsedControl"] {
+                display: none;
+            }
+            section[data-testid="stSidebar"] {
+                display: none !important;
+            }
+            
             .form2-hero {
                 background: linear-gradient(135deg, #1a0d2e 0%, #2d1650 50%, #4a1d7a 100%);
                 border-radius: 16px;
@@ -118,7 +129,12 @@ def main() -> None:
         page_title="Outros Formulários - FasiTech",
         layout="centered",
         page_icon="📄",
-        initial_sidebar_state="collapsed"
+        initial_sidebar_state="collapsed",
+        menu_items={
+            'Get Help': None,
+            'Report a bug': None,
+            'About': None
+        }
     )
     render_form()
 

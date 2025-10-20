@@ -24,6 +24,17 @@ def _render_custom_styles() -> None:
             #MainMenu {visibility: hidden;}
             footer {visibility: hidden;}
             
+            /* Ocultar sidebar completamente */
+            [data-testid="stSidebar"] {
+                display: none;
+            }
+            [data-testid="collapsedControl"] {
+                display: none;
+            }
+            section[data-testid="stSidebar"] {
+                display: none !important;
+            }
+            
             /* Reset de espaçamentos */
             .block-container {
                 padding-top: 2rem;
@@ -321,7 +332,12 @@ def main() -> None:
         page_title="FasiTech Forms Portal",
         layout="wide",
         page_icon="🎓",
-        initial_sidebar_state="collapsed"
+        initial_sidebar_state="collapsed",
+        menu_items={
+            'Get Help': None,
+            'Report a bug': None,
+            'About': None
+        }
     )
     
     _render_custom_styles()
