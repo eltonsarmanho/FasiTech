@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from typing import Any, Dict, Iterable
+import os
+import tempfile
 
 import streamlit as st
 
 from src.models.schemas import AccSubmission
-from src.services.email_service import send_notification
+from src.services.email_service import send_notification, send_email_with_attachments
 from src.services.file_processor import prepare_files, sanitize_submission
 from src.services.google_drive import upload_files
 from src.services.google_sheets import append_rows
@@ -46,8 +48,9 @@ def process_acc_submission(
     drive_folder_id: str = "",
     sheet_id: str = "",
     notification_recipients: Iterable[str] | str | None = None,
+    processar_com_ia: bool = False,
 ) -> AccSubmission:
-    """Processa submissões ACC consolidando fluxo Drive/Sheets/E-mail."""
+    """Processa submissões ACC consolidando fluxo Drive/Sheets/E-mail e opcionalmente IA."""
     from datetime import datetime
     
     if uploaded_file is None:
@@ -76,19 +79,54 @@ def process_acc_submission(
     file_links = [f['webViewLink'] for f in uploaded_files_info]
     file_names = [f['name'] for f in uploaded_files_info]
 
+    # Processar PDF com IA se solicitado
+    txt_path = None
+    total_carga_horaria = None
+    
+    if processar_com_ia:
+        try:
+            print("\n🤖 Processando certificados ACC com IA...")
+            
+            # Salvar PDF temporariamente para processamento
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
+                uploaded_file.seek(0)
+                tmp_file.write(uploaded_file.read())
+                tmp_pdf_path = tmp_file.name
+            
+            # Importar e processar com AccProcessor
+            from src.services.acc_processor import processar_certificados_acc
+            
+            resultado = processar_certificados_acc(
+                pdf_path=tmp_pdf_path,
+                matricula=sanitized["registration"],
+                nome=sanitized["name"]
+            )
+            
+            txt_path = resultado.get("txt_path")
+            total_carga_horaria = resultado.get("total_geral")
+            
+            # Limpar arquivo temporário
+            os.remove(tmp_pdf_path)
+            
+            print(f"✅ Processamento IA concluído: {total_carga_horaria}")
+            
+        except Exception as e:
+            print(f"⚠️ Erro no processamento com IA: {str(e)}")
+            print("   Continuando sem análise de IA...")
+
     # Adicionar dados na planilha
-    append_rows(
-        [
-            {
-                "Nome": sanitized["name"],
-                "Matrícula": sanitized["registration"],
-                "Email": sanitized["email"],
-                "Turma": sanitized["class_group"],
-                "Arquivos": ", ".join(file_links),  # Usar links ao invés de IDs
-            }
-        ],
-        sheet_id,
-    )
+    row_data = {
+        "Nome": sanitized["name"],
+        "Matrícula": sanitized["registration"],
+        "Email": sanitized["email"],
+        "Turma": sanitized["class_group"],
+        "Arquivos": ", ".join(file_links),
+    }
+    
+    if total_carga_horaria:
+        row_data["Carga Horária"] = total_carga_horaria
+    
+    append_rows([row_data], sheet_id)
 
     # Enviar email de notificação formatado
     recipients = _coerce_recipients(notification_recipients)
@@ -102,6 +140,11 @@ def process_acc_submission(
             for name, link in zip(file_names, file_links)
         ])
         
+        # Adicionar informação de carga horária se disponível
+        info_carga = ""
+        if total_carga_horaria:
+            info_carga = f"\n⏱️  {total_carga_horaria}\n"
+        
         subject = "✅ Nova Submissão de ACC Recebida"
         body = f"""\
 Olá,
@@ -112,7 +155,7 @@ Uma nova resposta foi registrada no formulário de Atividades Curriculares Compl
 🎓 Nome: {sanitized['name']}
 🔢 Matrícula: {sanitized['registration']}
 📧 E-mail: {sanitized['email']}
-📌 Turma: {sanitized['class_group']}
+📌 Turma: {sanitized['class_group']}{info_carga}
 
 📎 Anexos: 
 {anexos_formatados}
@@ -122,7 +165,10 @@ Uma nova resposta foi registrada no formulário de Atividades Curriculares Compl
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🤖 Sistema de Automação da FASI
 """
-        send_notification(subject, body, recipients)
+        
+        # Enviar com anexo TXT se disponível
+        attachments = [txt_path] if txt_path else None
+        send_email_with_attachments(subject, body, recipients, attachments)
 
     return AccSubmission(
         name=sanitized["name"],

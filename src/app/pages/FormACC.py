@@ -231,6 +231,14 @@ def render_form() -> None:
 			accept_multiple_files=False,
 			help="Faça upload de um arquivo PDF consolidado com todos os certificados.",
 		)
+		
+		# Opção para processar com IA
+		st.markdown("---")
+		processar_ia = st.checkbox(
+			"🤖 Processar certificados com IA (recomendado)",
+			value=True,
+			help="Utiliza Inteligência Artificial (Gemini) para extrair automaticamente as cargas horárias dos certificados e enviar análise detalhada por email."
+		)
 
 		submit_placeholder = st.container()
 		submitted = submit_placeholder.form_submit_button("Enviar para análise")
@@ -245,7 +253,9 @@ def render_form() -> None:
 		st.error("\n".join(f"• {error}" for error in errors))
 		return
 
-	with st.spinner("Enviando dados ao time de ACC..."):
+	spinner_text = "Enviando e processando certificados com IA..." if processar_ia else "Enviando dados ao time de ACC..."
+	
+	with st.spinner(spinner_text):
 		try:
 			submission = process_acc_submission(
 				{
@@ -258,6 +268,7 @@ def render_form() -> None:
 				drive_folder_id=config["drive_folder_id"],
 				sheet_id=config["sheet_id"],
 				notification_recipients=config["notification_recipients"],
+				processar_com_ia=processar_ia,
 			)
 		except ValueError as validation_error:
 			st.error(str(validation_error))
@@ -267,7 +278,11 @@ def render_form() -> None:
 			st.exception(unexpected)
 			return
 
-	st.success("Formulário ACC enviado com sucesso! Você receberá um e-mail quando o processamento for concluído.")
+	if processar_ia:
+		st.success("✅ Formulário ACC enviado e processado com sucesso! Verifique seu email para ver a análise detalhada das cargas horárias.")
+	else:
+		st.success("✅ Formulário ACC enviado com sucesso! Você receberá um e-mail de confirmação.")
+	
 	st.toast("Envio realizado.")
 	st.session_state.setdefault("last_acc_submission", submission.dict())
 
