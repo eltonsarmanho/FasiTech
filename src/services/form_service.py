@@ -177,3 +177,151 @@ Uma nova resposta foi registrada no formulário de Atividades Curriculares Compl
         class_group=sanitized["class_group"],
         file_ids=file_ids,
     )
+
+
+def process_tcc_submission(
+    form_data: Dict[str, Any],
+    uploaded_files: list[Any],
+    *,
+    drive_folder_id: str = "",
+    sheet_id: str = "",
+    notification_recipients: Iterable[str] | str | None = None,
+) -> Dict[str, Any]:
+    """Processa submissões TCC consolidando fluxo Drive/Sheets/E-mail.
+    
+    Args:
+        form_data: Dados do formulário contendo:
+            - name: Nome completo
+            - registration: Matrícula
+            - email: E-mail
+            - class_group: Turma (ano de ingresso)
+            - orientador: Nome do orientador
+            - titulo: Título do TCC
+            - componente: "TCC 1" ou "TCC 2"
+        uploaded_files: Lista de arquivos PDF para upload
+        drive_folder_id: ID da pasta do Google Drive
+        sheet_id: ID da planilha do Google Sheets
+        notification_recipients: Lista de e-mails para notificação
+        
+    Returns:
+        Dicionário com informações do processamento
+    """
+    from datetime import datetime
+    
+    if not uploaded_files or len(uploaded_files) == 0:
+        raise ValueError("Pelo menos um arquivo é obrigatório.")
+
+    required_fields = ["name", "registration", "email", "class_group", "orientador", "titulo", "componente"]
+    missing = [field for field in required_fields if not str(form_data.get(field, "")).strip()]
+    if missing:
+        raise ValueError(f"Campos obrigatórios ausentes: {', '.join(missing)}")
+
+    # Validar quantidade de arquivos para TCC 2
+    componente = form_data.get("componente", "").strip()
+    if componente == "TCC 2" and len(uploaded_files) < 3:
+        raise ValueError(
+            "TCC 2 requer no mínimo 3 arquivos: "
+            "Declaração de Autoria, Termo de Autorização e TCC Final."
+        )
+
+    sanitized = sanitize_submission(form_data)
+    prepared_files = list(prepare_files(uploaded_files))
+    
+    if not prepared_files:
+        raise ValueError("Nenhum arquivo válido para upload.")
+
+    # Upload com estrutura hierárquica: TCC 1 ou TCC 2 / Turma / Nome do Aluno
+    # Importar função auxiliar para criar pastas hierárquicas
+    from src.services.google_drive import upload_files_tcc
+    
+    uploaded_files_info = upload_files_tcc(
+        prepared_files, 
+        drive_folder_id,
+        componente=componente,  # "TCC 1" ou "TCC 2"
+        turma=sanitized['class_group'],  # "2027"
+        nome_aluno=sanitized['name']  # "João Silva"
+    )
+    
+    # Extrair informações dos arquivos
+    file_ids = [f['id'] for f in uploaded_files_info]
+    file_links = [f['webViewLink'] for f in uploaded_files_info]
+    file_names = [f['name'] for f in uploaded_files_info]
+
+    # Adicionar dados na planilha
+    row_data = {
+        "Nome": sanitized["name"],
+        "Matrícula": sanitized["registration"],
+        "Email": sanitized["email"],
+        "Turma": sanitized["class_group"],
+        "Componente": componente,
+        "Orientador": sanitized.get("orientador", form_data.get("orientador", "")),
+        "Título": sanitized.get("titulo", form_data.get("titulo", "")),
+        "Arquivos": ", ".join(file_links),
+        "Quantidade de Anexos": len(file_names),
+    }
+    
+    # Usar mesma aba que ACC: "Respostas ao formulário 1"
+    append_rows([row_data], sheet_id, range_name="Respostas ao formulário 1")
+
+    # Enviar email de notificação formatado
+    recipients = _coerce_recipients(notification_recipients)
+    if recipients:
+        # Formatar data/hora atual
+        data_formatada = datetime.now().strftime("%d/%m/%Y às %H:%M:%S")
+        
+        # Formatar anexos com links
+        anexos_formatados = "\n".join([
+            f"    {idx}. {name}\n       🔗 {link}"
+            for idx, (name, link) in enumerate(zip(file_names, file_links), 1)
+        ])
+        
+        # Emoji para componente
+        componente_emoji = "📘" if componente == "TCC 1" else "📗"
+        
+        # Adicionar biblioteca para TCC 2
+        if componente == "TCC 2":
+            recipients.append("bibcameta@ufpa.br")
+        
+        # Adicionar email do aluno
+        aluno_email = sanitized["email"]
+        if aluno_email and aluno_email not in recipients:
+            recipients.append(aluno_email)
+        
+        subject = f"✅ Nova Submissão de {componente} Recebida"
+        body = f"""\
+Olá,
+
+Uma nova resposta foi registrada no formulário de Trabalho de Conclusão de Curso ({componente}).
+
+📅 Data: {data_formatada}
+{componente_emoji} Componente: {componente}
+🎓 Nome: {sanitized['name']}
+🔢 Matrícula: {sanitized['registration']}
+📧 E-mail: {sanitized['email']}
+📌 Turma: {sanitized['class_group']}
+👨‍🏫 Orientador(a): {form_data.get('orientador', '')}
+📄 Título: {form_data.get('titulo', '')}
+
+📎 Anexos ({len(file_names)} arquivo(s)): 
+{anexos_formatados}
+
+🔗 Você pode acessar os anexos através dos links fornecidos.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🤖 Sistema de Automação da FASI
+"""
+        
+        send_email_with_attachments(subject, body, recipients)
+
+    return {
+        "name": sanitized["name"],
+        "registration": sanitized["registration"],
+        "email": sanitized["email"],
+        "class_group": sanitized["class_group"],
+        "componente": componente,
+        "orientador": form_data.get("orientador", ""),
+        "titulo": form_data.get("titulo", ""),
+        "file_ids": file_ids,
+        "file_links": file_links,
+        "total_files": len(file_names),
+    }

@@ -299,11 +299,11 @@ def _render_available_forms() -> None:
     
     with col2:
         _render_form_card(
-            title="Outros Formulários",
-            description="Solicitações diversas e processos acadêmicos. Este formulário está em desenvolvimento e em breve estará disponível para uso.",
-            icon="📄",
-            page_name="formulario2.py",
-            key="btn_form2"
+            title="Formulário TCC",
+            description="Submissão de Trabalho de Conclusão de Curso (TCC 1 e TCC 2). Envie os documentos obrigatórios conforme as diretrizes do seu componente curricular.",
+            icon="�",
+            page_name="FormTCC.py",
+            key="btn_tcc"
         )
 
 

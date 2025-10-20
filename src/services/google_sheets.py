@@ -50,7 +50,7 @@ def append_rows(rows: Iterable[Dict[str, Any]], sheet_id: str, range_name: str =
     Args:
         rows: Lista de dicionários com os dados a serem inseridos
         sheet_id: ID da planilha do Google Sheets
-        range_name: Nome da aba/range (padrão: "Respostas ao formulário 1")
+        range_name: Nome da aba/range (padrão: "Respostas ao formulário 1" para ACC, "Respostas TCC" para TCC)
     """
     if not sheet_id:
         raise ValueError("ID da planilha não fornecido")
@@ -66,15 +66,36 @@ def append_rows(rows: Iterable[Dict[str, Any]], sheet_id: str, range_name: str =
             # Adicionar timestamp
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             
-            # Montar linha com ordem específica para ACC
-            row_values = [
-                timestamp,
-                row.get("Nome", ""),
-                row.get("Matrícula", ""),
-                row.get("Email", ""),
-                row.get("Turma", ""),
-                row.get("Arquivos", ""),
-            ]
+            # Verificar se é ACC ou TCC baseado nos campos presentes
+            if "Componente" in row:
+                # Formato TCC - mapeado para os cabeçalhos da planilha existente
+                # Cabeçalhos: Carimbo de data/hora, Nome do aluno, Email, Turma, Matrícula, 
+                #             Orientador, Título do TCC, Componente Curricular, Anexos
+                row_values = [
+                    timestamp,                          # Carimbo de data/hora
+                    row.get("Nome", "").upper(),        # Nome do aluno (Em maiúscula)
+                    row.get("Email", ""),               # Email
+                    row.get("Turma", ""),               # Turma
+                    row.get("Matrícula", ""),           # Matrícula
+                    row.get("Orientador", ""),          # Orientador
+                    row.get("Título", ""),              # Título do TCC
+                    row.get("Componente", ""),          # Componente Curricular
+                    row.get("Arquivos", ""),            # Anexos
+                ]
+            else:
+                # Formato ACC
+                row_values = [
+                    timestamp,
+                    row.get("Nome", ""),
+                    row.get("Matrícula", ""),
+                    row.get("Email", ""),
+                    row.get("Turma", ""),
+                    row.get("Arquivos", ""),
+                ]
+                
+                # Adicionar carga horária se disponível
+                if "Carga Horária" in row:
+                    row_values.append(row.get("Carga Horária", ""))
             
             values_to_append.append(row_values)
         
@@ -91,7 +112,7 @@ def append_rows(rows: Iterable[Dict[str, Any]], sheet_id: str, range_name: str =
             body=body
         ).execute()
         
-        print(f"✅ {result.get('updates').get('updatedRows')} linha(s) adicionada(s) à planilha")
+        print(f"✅ {result.get('updates').get('updatedRows')} linha(s) adicionada(s) à aba '{range_name}'")
         
     except Exception as e:
         print(f"❌ Erro ao escrever no Google Sheets: {str(e)}")

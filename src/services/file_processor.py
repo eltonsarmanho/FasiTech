@@ -43,7 +43,7 @@ def sanitize_text_field(text: str) -> str:
 
 def sanitize_submission(form_data: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Sanitiza dados de submissão de formulário ACC.
+    Sanitiza dados de submissão de formulário (ACC ou TCC).
     
     Args:
         form_data: Dicionário com os dados do formulário
@@ -53,17 +53,21 @@ def sanitize_submission(form_data: Dict[str, Any]) -> Dict[str, Any]:
     """
     sanitized = {}
     
-    # Sanitizar campos de texto
-    for key in ['name', 'email', 'class_group', 'registration']:
+    # Sanitizar campos de texto comuns
+    text_fields = ['name', 'email', 'class_group', 'orientador', 'titulo', 'componente']
+    for key in text_fields:
         value = form_data.get(key, '')
         if isinstance(value, str):
-            if key == 'registration':
-                # Remove caracteres não alfanuméricos de matrícula
-                sanitized[key] = re.sub(r'[^a-zA-Z0-9]', '', value.strip())
-            else:
-                sanitized[key] = sanitize_text_field(value)
+            sanitized[key] = sanitize_text_field(value)
         else:
             sanitized[key] = value
+    
+    # Sanitizar matrícula (remove caracteres não alfanuméricos)
+    registration = form_data.get('registration', '')
+    if isinstance(registration, str):
+        sanitized['registration'] = re.sub(r'[^a-zA-Z0-9]', '', registration.strip())
+    else:
+        sanitized['registration'] = registration
     
     return sanitized
 
