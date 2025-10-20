@@ -1,10 +1,14 @@
 name: CI
 
+# CI desabilitado temporariamente - reativar quando testes forem implementados
 on:
-  pull_request:
-  push:
-    branches:
-      - main
+  workflow_dispatch:  # Permite execução manual apenas
+
+# on:
+#   pull_request:
+#   push:
+#     branches:
+#       - main
 
 jobs:
   test:
