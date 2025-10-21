@@ -301,9 +301,23 @@ def _render_available_forms() -> None:
         _render_form_card(
             title="Formulário TCC",
             description="Submissão de Trabalho de Conclusão de Curso (TCC 1 e TCC 2). Envie os documentos obrigatórios conforme as diretrizes do seu componente curricular.",
-            icon="�",
+            icon="📚",
             page_name="FormTCC.py",
             key="btn_tcc"
+        )
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # Segunda linha - Requerimento TCC centralizado
+    col_left, col_center, col_right = st.columns([1, 2, 1])
+    
+    with col_center:
+        _render_form_card(
+            title="Requerimento de TCC",
+            description="Registro de informações para defesa do TCC. Cadastre os dados da banca examinadora, título, resumo e palavras-chave do seu trabalho de conclusão de curso.",
+            icon="📝",
+            page_name="FormRequerimentoTCC.py",
+            key="btn_requerimento"
         )
 
 

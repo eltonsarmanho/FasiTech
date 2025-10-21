@@ -66,8 +66,29 @@ def append_rows(rows: Iterable[Dict[str, Any]], sheet_id: str, range_name: str =
             # Adicionar timestamp
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             
-            # Verificar se é ACC ou TCC baseado nos campos presentes
-            if "Componente" in row:
+            # Verificar se é Requerimento TCC baseado nos campos presentes
+            if "Título do trabalho" in row:
+                # Formato Requerimento TCC
+                # Cabeçalhos: Carimbo de data/hora, Nome, Matrícula, Email, Título do trabalho,
+                #             Modalidade do Trabalho, Orientador, Membro 1 da Banca, Membro 2 da Banca,
+                #             Membro 3 da Banca (Opcional), Resumo, Palavras-chave, Data
+                row_values = [
+                    timestamp,                                      # Carimbo de data/hora
+                    row.get("Nome", ""),                           # Nome
+                    row.get("Matrícula", ""),                      # Matrícula
+                    row.get("Email", ""),                          # Email
+                    row.get("Título do trabalho", ""),             # Título do trabalho
+                    row.get("Modalidade do Trabalho", ""),         # Modalidade do Trabalho
+                    row.get("Orientador", ""),                     # Orientador
+                    row.get("Membro 1 da Banca", ""),              # Membro 1 da Banca
+                    row.get("Membro 2 da Banca", ""),              # Membro 2 da Banca
+                    row.get("Membro 3 da Banca (Opcional)", ""),   # Membro 3 da Banca (Opcional)
+                    row.get("Resumo", ""),                         # Resumo
+                    row.get("Palavras-chave", ""),                 # Palavras-chave
+                    row.get("Data", ""),                           # Data
+                ]
+            # Verificar se é TCC baseado nos campos presentes
+            elif "Componente" in row:
                 # Formato TCC - mapeado para os cabeçalhos da planilha existente
                 # Cabeçalhos: Carimbo de data/hora, Nome do aluno, Email, Turma, Matrícula, 
                 #             Orientador, Título do TCC, Componente Curricular, Anexos
