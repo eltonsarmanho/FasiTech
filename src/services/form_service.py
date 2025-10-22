@@ -718,13 +718,23 @@ def process_projetos_submission(
     # ===============================================
     # ENVIAR E-MAILS
     # ===============================================
-    # Destinatários: notification_recipients + email do docente (via pareceristas_dict)
+    # Destinatários: notification_recipients + docente + pareceristas (via pareceristas_dict)
     recipients = list(notification_recipients)
     
     # Adicionar email do docente se disponível
     docente_email = pareceristas_dict.get(form_data["docente"])
     if docente_email and docente_email not in recipients:
         recipients.append(docente_email)
+    
+    # Adicionar email do Parecerista 1 se disponível
+    parecerista1_email = pareceristas_dict.get(form_data["parecerista1"])
+    if parecerista1_email and parecerista1_email not in recipients:
+        recipients.append(parecerista1_email)
+    
+    # Adicionar email do Parecerista 2 se disponível
+    parecerista2_email = pareceristas_dict.get(form_data["parecerista2"])
+    if parecerista2_email and parecerista2_email not in recipients:
+        recipients.append(parecerista2_email)
     
     # Preparar anexos de email (PDFs gerados)
     email_attachments = [
