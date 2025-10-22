@@ -142,7 +142,7 @@ graph TD
     C --> G[FastAPI (opcional)]
     D -->|Armazena arquivos| H[Google Drive]
     E -->|Registra dados| I[Google Sheets]
-    F -->|Envia notificações| J["Coordenação/Docente/Aluno"] %% <- Correção aqui
+    F -->|Envia notificações| J[xx] 
     G -->|APIs REST| K[Integrações externas]
 ```
 
