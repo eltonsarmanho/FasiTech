@@ -6,7 +6,12 @@ Solução moderna de formulários web com Streamlit e backend FastAPI, rodando e
 
 - ✅ **Portal centralizado** com múltiplos formulários
 - ✅ **Formulário ACC** para atividades complementares curriculares
-- ✅ **Upload seguro** de arquivos PDF ao Google Drive
+- ✅ **Formulário TCC** para submissão de trabalhos finais
+- ✅ **Formulário Requerimento TCC** para registro de defesa
+- ✅ **Formulário Estágio** para envio de documentos de estágio
+- ✅ **Formulário Plano de Ensino** aceita qualquer tipo de arquivo (PDF, DOC, DOCX, ODT, imagens, etc)
+- ✅ **Formulário Projetos** para submissão de projetos de ensino, pesquisa e extensão
+- ✅ **Upload seguro** de arquivos ao Google Drive
 - ✅ **Registro automático** em Google Sheets
 - ✅ **Notificações por e-mail** para coordenação
 - ✅ **UX moderna** com design responsivo e identidade visual institucional
@@ -29,6 +34,15 @@ Solução moderna de formulários web com Streamlit e backend FastAPI, rodando e
 ├── scripts/            # Scripts de deploy e automação
 └── tests/              # Suite de testes
 ```
+
+## 📝 Formulários disponíveis
+
+- **Formulário ACC**: Upload de certificados consolidados (PDF único, máx 10MB)
+- **Formulário TCC**: Submissão de documentos obrigatórios do TCC 1/2
+- **Formulário Requerimento TCC**: Registro de banca e dados para defesa
+- **Formulário Estágio**: Envio de plano e relatório de estágio
+- **Formulário Plano de Ensino**: Aceita qualquer tipo de arquivo (PDF, DOC, DOCX, ODT, imagens, etc)
+- **Formulário Projetos**: Submissão de projetos de ensino, pesquisa e extensão
 
 ## 🚀 Primeiros passos
 
@@ -114,13 +128,25 @@ docker build -f docker/Dockerfile.prod -t fasitech-forms .
 docker run -p 8501:8501 -p 8000:8000 fasitech-forms
 ```
 
-## 📝 Formulários disponíveis
+## 🧩 Arquitetura do Sistema
 
-### Formulário ACC
-- Upload de certificados consolidados (PDF único, máx 10MB)
-- Validação de matrícula e dados do aluno
-- Integração automática com Google Drive e Sheets
-- Notificação para coordenação acadêmica
+```mermaid
+graph TD
+    subgraph Frontend
+        A[Usuário via navegador] --> B[Streamlit App]
+    end
+    subgraph Backend
+        B --> C[Validação e Processamento]
+        C --> D[Google Drive API]
+        C --> E[Google Sheets API]
+        C --> F[Email Service]
+        C --> G[FastAPI (opcional)]
+    end
+    D -->|Armazena arquivos| H[Google Drive]
+    E -->|Registra dados| I[Google Sheets]
+    F -->|Envia notificações| J[Coordenação/Docente/Aluno]
+    G -->|APIs REST| K[Integrações externas]
+```
 
 ## 🎨 Personalização
 
