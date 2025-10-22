@@ -87,6 +87,16 @@ def append_rows(rows: Iterable[Dict[str, Any]], sheet_id: str, range_name: str =
                     row.get("Palavras-chave", ""),                 # Palavras-chave
                     row.get("Data", ""),                           # Data
                 ]
+            # Verificar se é Plano de Ensino baseado nos campos presentes
+            elif "Nome do Docente Responsável" in row:
+                # Formato Plano de Ensino
+                # Cabeçalhos: Carimbo de data/hora, Nome do Docente Responsável, Semestre, Anexos
+                row_values = [
+                    timestamp,                                      # Carimbo de data/hora
+                    row.get("Nome do Docente Responsável", ""),    # Nome do Docente Responsável
+                    row.get("Semestre", ""),                       # Semestre
+                    row.get("Anexos", ""),                         # Anexos
+                ]
             # Verificar se é Estágio baseado nos campos presentes
             elif "Orientador ou Supervisor" in row:
                 # Formato Estágio

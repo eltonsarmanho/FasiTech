@@ -328,6 +328,20 @@ def _render_available_forms() -> None:
             page_name="FormEstagio.py",
             key="btn_estagio"
         )
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # Terceira linha - Plano de Ensino centralizado
+    col_left, col_center, col_right = st.columns([1, 2, 1])
+    
+    with col_center:
+        _render_form_card(
+            title="Plano de Ensino",
+            description="Submissão de Planos de Ensino por disciplina. Docentes podem enviar os planos de ensino organizados por semestre.",
+            icon="📚",
+            page_name="FormPlanoEnsino.py",
+            key="btn_plano"
+        )
 
 
 def _render_info_section() -> None:

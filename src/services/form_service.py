@@ -460,3 +460,107 @@ Uma nova resposta foi registrada no formulário de Estágio.
         "file_links": file_links,
         "total_files": len(file_names),
     }
+
+
+def process_plano_submission(
+    form_data: Dict[str, Any],
+    uploaded_files: list[Any],
+) -> Dict[str, Any]:
+    """Processa submissões de Plano de Ensino consolidando fluxo Drive/Sheets/E-mail.
+    
+    Args:
+        form_data: Dados do formulário contendo:
+            - docente: Nome do docente responsável
+            - semestre: Semestre (ex: "2025.4", "2026.1")
+        uploaded_files: Lista de arquivos PDF/DOC para upload
+        
+    Returns:
+        Dicionário com informações do processamento
+    """
+    from datetime import datetime
+    import streamlit as st
+    
+    if not uploaded_files or len(uploaded_files) == 0:
+        raise ValueError("Pelo menos um arquivo é obrigatório.")
+
+    required_fields = ["docente", "semestre"]
+    missing = [field for field in required_fields if not str(form_data.get(field, "")).strip()]
+    if missing:
+        raise ValueError(f"Campos obrigatórios ausentes: {', '.join(missing)}")
+
+    # Carregar configurações de plano de ensino
+    try:
+        drive_folder_id = st.secrets["plano"]["drive_folder_id"]
+        sheet_id = st.secrets["plano"]["sheet_id"]
+        notification_recipients = st.secrets["plano"].get("notification_recipients", [])
+    except (KeyError, FileNotFoundError) as e:
+        raise ValueError("Configurações de Plano de Ensino não encontradas em secrets.toml") from e
+
+    prepared_files = list(prepare_files(uploaded_files))
+    
+    if not prepared_files:
+        raise ValueError("Nenhum arquivo válido para upload.")
+
+    # Upload com estrutura hierárquica: Semestre / Arquivos
+    # A pasta do semestre será criada automaticamente
+    uploaded_files_info = upload_files(
+        prepared_files, 
+        drive_folder_id,
+        componente=form_data['semestre']  # Criar pasta com nome do semestre
+    )
+    
+    # Extrair informações dos arquivos
+    file_ids = [f['id'] for f in uploaded_files_info]
+    file_links = [f['webViewLink'] for f in uploaded_files_info]
+    file_names = [f['name'] for f in uploaded_files_info]
+
+    # Adicionar dados na planilha
+    row_data = {
+        "Nome do Docente Responsável": form_data["docente"],
+        "Semestre": form_data["semestre"],
+        "Anexos": ", ".join(file_links),
+    }
+    
+    # Adicionar na aba "Respostas ao formulário 1"
+    append_rows([row_data], sheet_id, range_name="Respostas ao formulário 1")
+
+    # Enviar email de notificação formatado
+    recipients = _coerce_recipients(notification_recipients)
+    if recipients:
+        # Formatar data/hora atual
+        data_formatada = datetime.now().strftime("%d/%m/%Y às %H:%M:%S")
+        
+        # Formatar anexos com links
+        anexos_formatados = "\n".join([
+            f"    {idx}. {name}\n       🔗 {link}"
+            for idx, (name, link) in enumerate(zip(file_names, file_links), 1)
+        ])
+        
+        subject = f"✅ Novo Plano de Ensino Recebido - Semestre {form_data['semestre']}"
+        body = f"""\
+Olá,
+
+Um novo plano de ensino foi registrado no sistema.
+
+📅 Data: {data_formatada}
+📚 Semestre: {form_data['semestre']}
+👨‍🏫 Docente Responsável: {form_data['docente']}
+
+📎 Anexos ({len(file_names)} arquivo(s)): 
+{anexos_formatados}
+
+🔗 Você pode acessar os anexos através dos links fornecidos.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🤖 Sistema de Automação da FASI
+"""
+        
+        send_email_with_attachments(subject, body, recipients)
+
+    return {
+        "docente": form_data["docente"],
+        "semestre": form_data["semestre"],
+        "file_ids": file_ids,
+        "file_links": file_links,
+        "total_files": len(file_names),
+    }
