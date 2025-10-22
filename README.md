@@ -132,16 +132,14 @@ docker run -p 8501:8501 -p 8000:8000 fasitech-forms
 
 ```mermaid
 graph TD
-    subgraph Frontend
-        A[Usuário via navegador] --> B[Streamlit App]
-    end
-    subgraph Backend
-        B --> C[Validação e Processamento]
-        C --> D[Google Drive API]
-        C --> E[Google Sheets API]
-        C --> F[Email Service]
-        C --> G[FastAPI (opcional)]
-    end
+    %% Frontend
+    A[Usuário via navegador] --> B[Streamlit App]
+    %% Backend
+    B --> C[Validação e Processamento]
+    C --> D[Google Drive API]
+    C --> E[Google Sheets API]
+    C --> F[Email Service]
+    C --> G[FastAPI (opcional)]
     D -->|Armazena arquivos| H[Google Drive]
     E -->|Registra dados| I[Google Sheets]
     F -->|Envia notificações| J[Coordenação/Docente/Aluno]
