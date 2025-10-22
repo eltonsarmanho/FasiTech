@@ -418,56 +418,68 @@ def render_form() -> None:
 
 	# Processar submissão
 	if submitted:
-		errors = _validate_submission(
-			name, email, turma, matricula, orientador, titulo, componente, uploaded_files or []
-		)
+		# Verificar se já está processando (evitar cliques múltiplos)
+		if "tcc_processing" not in st.session_state:
+			st.session_state.tcc_processing = False
 		
-		if errors:
-			st.error("**Erros encontrados:**\n\n" + "\n".join(f"• {error}" for error in errors))
-		else:
-			with st.spinner("Processando submissão do TCC..."):
-				try:
-					# Carregar configurações do secrets
-					tcc_settings = _load_tcc_settings()
-					
-					# Preparar dados do formulário
-					form_data = {
-						"name": name,
-						"registration": matricula,
-						"email": email,
-						"class_group": turma,
-						"orientador": orientador,
-						"titulo": titulo,
-						"componente": componente,
-					}
-					
-					# Importar e processar submissão
-					from src.services.form_service import process_tcc_submission
-					
-					result = process_tcc_submission(
-						form_data=form_data,
-						uploaded_files=uploaded_files,
-						drive_folder_id=tcc_settings["drive_folder_id"],
-						sheet_id=tcc_settings["sheet_id"],
-						notification_recipients=tcc_settings["notification_recipients"],
-					)
-					
-					st.success(
-						f"✅ **TCC submetido com sucesso!**\n\n"
-						f"**Resumo:**\n"
-						f"- Nome: {name}\n"
-						f"- Matrícula: {matricula}\n"
-						f"- Componente: {componente}\n"
-						f"- Orientador: {orientador}\n"
-						f"- Arquivos: {result['total_files']} documento(s)\n\n"
-						f"Você receberá um e-mail de confirmação em breve."
-					)
-					
-				except Exception as e:
-					st.error(f"❌ **Erro ao processar submissão:**\n\n{str(e)}")
-					st.info("Por favor, tente novamente ou entre em contato com o suporte.")
-
-
+		if not st.session_state.tcc_processing:
+			# Marcar como processando
+			st.session_state.tcc_processing = True
+			
+			errors = _validate_submission(
+				name, email, turma, matricula, orientador, titulo, componente, uploaded_files or []
+			)
+			
+			if errors:
+				st.error("**Erros encontrados:**\n\n" + "\n".join(f"• {error}" for error in errors))
+				st.session_state.tcc_processing = False  # Resetar flag em caso de erro
+			else:
+				with st.spinner("Processando submissão do TCC..."):
+					try:
+						# Carregar configurações do secrets
+						tcc_settings = _load_tcc_settings()
+						
+						# Preparar dados do formulário
+						form_data = {
+							"name": name,
+							"registration": matricula,
+							"email": email,
+							"class_group": turma,
+							"orientador": orientador,
+							"titulo": titulo,
+							"componente": componente,
+						}
+						
+						# Importar e processar submissão
+						from src.services.form_service import process_tcc_submission
+						
+						result = process_tcc_submission(
+							form_data=form_data,
+							uploaded_files=uploaded_files,
+							drive_folder_id=tcc_settings["drive_folder_id"],
+							sheet_id=tcc_settings["sheet_id"],
+							notification_recipients=tcc_settings["notification_recipients"],
+						)
+						
+						st.success(
+							f"✅ **TCC submetido com sucesso!**\n\n"
+							f"**Resumo:**\n"
+							f"- Nome: {name}\n"
+							f"- Matrícula: {matricula}\n"
+							f"- Componente: {componente}\n"
+							f"- Orientador: {orientador}\n"
+							f"- Arquivos: {result['total_files']} documento(s)\n\n"
+							f"Você receberá um e-mail de confirmação em breve."
+						)
+						
+						# Resetar flag de processamento após sucesso
+						st.session_state.tcc_processing = False
+						
+					except Exception as e:
+						st.error(f"❌ **Erro ao processar submissão:**\n\n{str(e)}")
+						st.info("Por favor, tente novamente ou entre em contato com o suporte.")
+						# Resetar flag de processamento em caso de erro
+						st.session_state.tcc_processing = False
 def main() -> None:
 	st.set_page_config(
 		page_title="Formulário TCC - FasiTech",

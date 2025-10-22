@@ -338,48 +338,66 @@ def render_form() -> None:
     
     # Processar submissão
     if submitted:
-        errors = _validate_submission(
-            nome, email, turma, matricula, orientador, titulo, componente, uploaded_files or []
-        )
+        # Inicializar flag se não existir
+        if "estagio_processing" not in st.session_state:
+            st.session_state.estagio_processing = False
         
-        if errors:
-            st.error("**❌ Erros encontrados:**\n\n" + "\n".join(f"• {error}" for error in errors))
-        else:
-            with st.spinner("Processando envio de documentos de estágio..."):
-                try:
-                    # Preparar dados do formulário
-                    form_data = {
-                        "nome": nome.strip(),
-                        "email": email.strip().lower(),
-                        "turma": turma.strip(),
-                        "matricula": matricula.strip(),
-                        "orientador": orientador.strip(),
-                        "titulo": titulo.strip(),
-                        "componente": componente,
-                    }
-                    
-                    # Processar submissão
-                    _process_estagio_submission(form_data, uploaded_files)
-                    
-                    st.success(
-                        f"✅ **Documentos de estágio enviados com sucesso!**\n\n"
-                        f"**Resumo:**\n"
-                        f"- Nome: {nome}\n"
-                        f"- Matrícula: {matricula}\n"
-                        f"- Turma: {turma}\n"
-                        f"- Componente: {componente}\n"
-                        f"- Arquivo(s): {len(uploaded_files)} documento(s)\n\n"
-                        f"Você receberá um e-mail de confirmação em breve.\n\n"
-                        f"Redirecionando para a tela principal..."
-                    )
-                    
-                    # Aguardar antes de redirecionar
-                    time.sleep(st.secrets["sistema"]["timer"])
-                    st.switch_page("main.py")
-                    
-                except Exception as e:
-                    st.error(f"❌ **Erro ao processar envio:**\n\n{str(e)}")
-                    st.info("Por favor, tente novamente ou entre em contato com o suporte.")
+        if st.session_state.estagio_processing:
+            st.warning("⏳ Processamento em andamento... Por favor, aguarde.")
+        
+        # Processar apenas se não estiver processando
+        if not st.session_state.estagio_processing:
+            # Marcar como processando
+            st.session_state.estagio_processing = True
+            
+            errors = _validate_submission(
+                nome, email, turma, matricula, orientador, titulo, componente, uploaded_files or []
+            )
+            
+            if errors:
+                st.error("**❌ Erros encontrados:**\n\n" + "\n".join(f"• {error}" for error in errors))
+                st.session_state.estagio_processing = False  # Resetar
+            else:
+                with st.spinner("Processando envio de documentos de estágio..."):
+                    try:
+                        # Preparar dados do formulário
+                        form_data = {
+                            "nome": nome.strip(),
+                            "email": email.strip().lower(),
+                            "turma": turma.strip(),
+                            "matricula": matricula.strip(),
+                            "orientador": orientador.strip(),
+                            "titulo": titulo.strip(),
+                            "componente": componente,
+                        }
+                        
+                        # Processar submissão
+                        _process_estagio_submission(form_data, uploaded_files)
+                        
+                        st.success(
+                            f"✅ **Documentos de estágio enviados com sucesso!**\n\n"
+                            f"**Resumo:**\n"
+                            f"- Nome: {nome}\n"
+                            f"- Matrícula: {matricula}\n"
+                            f"- Turma: {turma}\n"
+                            f"- Componente: {componente}\n"
+                            f"- Arquivo(s): {len(uploaded_files)} documento(s)\n\n"
+                            f"Você receberá um e-mail de confirmação em breve.\n\n"
+                            f"Redirecionando para a tela principal..."
+                        )
+                        
+                        # Resetar flag
+                        st.session_state.estagio_processing = False
+                        
+                        # Aguardar antes de redirecionar
+                        time.sleep(st.secrets["sistema"]["timer"])
+                        st.switch_page("main.py")
+                        
+                    except Exception as e:
+                        st.error(f"❌ **Erro ao processar envio:**\n\n{str(e)}")
+                        st.info("Por favor, tente novamente ou entre em contato com o suporte.")
+                        # Resetar flag
+                        st.session_state.estagio_processing = False
 
 
 def main() -> None:
