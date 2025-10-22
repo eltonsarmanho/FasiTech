@@ -241,7 +241,6 @@ def _render_header() -> None:
     
     with col_center:
         if LOGO_PATH.exists():
-            st.markdown('<div class="logo-container">', unsafe_allow_html=True)
             st.image(str(LOGO_PATH), use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
     
@@ -250,7 +249,7 @@ def _render_header() -> None:
         """
         <div class="institutional-header">
             <h1>🎓 Portal de Formulários Acadêmicos</h1>
-            <p>Bem-vindo ao sistema de formulários da FasiTech.</p>
+            <p>Bem-vindo ao sistema de formulários da FASI.</p>
             <p>Selecione o formulário desejado abaixo e preencha com atenção todas as informações solicitadas.</p>
         </div>
         """,
@@ -291,7 +290,7 @@ def _render_available_forms() -> None:
     with col1:
         _render_form_card(
             title="Formulário ACC",
-            description="Submissão de Atividades Complementares Curriculares. Envie seus certificados consolidados em um único arquivo PDF (máximo 10 MB) para análise e validação pela coordenação acadêmica.",
+            description="Submissão de Atividades Complementares Curriculares. Envie seus certificados consolidados em um único arquivo PDF para análise e validação.",
             icon="🎓",
             page_name="FormACC.py",
             key="btn_acc"
@@ -314,7 +313,7 @@ def _render_available_forms() -> None:
     with col3:
         _render_form_card(
             title="Requerimento de TCC",
-            description="Registro de informações para defesa do TCC. Cadastre os dados da banca examinadora, título, resumo e palavras-chave do seu trabalho de conclusão de curso.",
+            description="Registro de informações para defesa do TCC. Cadastre os dados da banca examinadora e informações adicionais sobre seu TCC.",
             icon="📝",
             page_name="FormRequerimentoTCC.py",
             key="btn_requerimento"
@@ -346,7 +345,7 @@ def _render_available_forms() -> None:
     with col_right:
         _render_form_card(
             title="Projetos",
-            description="Submissão de Projetos de Ensino, Pesquisa e Extensão. Registro de novo projeto, renovação ou encerramento com geração automática de documentos.",
+            description="Submissão de Projetos de Ensino, Pesquisa e Extensão. Registre novos projetos, renovações ou encerramentos.",
             icon="🔬",
             page_name="FormProjetos.py",
             key="btn_projetos"
