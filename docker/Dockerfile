@@ -48,4 +48,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD curl --fail http://localhost:8501/_stcore/health || exit 1
 
 # Comando para iniciar a aplicação.
-CMD ["streamlit", "run", "src/app/main.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.headless=true","--server.enableCORS=false"]
+CMD ["streamlit", "run", "--client.showSidebarNavigation=False","src/app/main.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.headless=true","--server.enableCORS=false"]

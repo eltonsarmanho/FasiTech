@@ -500,12 +500,11 @@ def render_form() -> None:
                         f"- Arquivo(s): {len(uploaded_files)} documento(s)\n"
                         f"- PDFs gerados: Parecer e Declaração\n\n"
                         f"Você receberá um e-mail de confirmação com os documentos gerados.\n\n"
-                        f"Redirecionando para a tela principal em 4 segundos..."
+                        f"Redirecionando para a tela principal..."
                     )
-                    st.balloons()
                     
-                    # Aguardar 4 segundos e redirecionar
-                    time.sleep(4)
+                    # Aguardar antes de redirecionar
+                    time.sleep(st.secrets["sistema"]["timer"])
                     st.switch_page("main.py")
                     
                 except Exception as e:

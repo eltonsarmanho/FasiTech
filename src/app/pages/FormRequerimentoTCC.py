@@ -537,7 +537,7 @@ def render_form() -> None:
         st.markdown("<br>", unsafe_allow_html=True)
         
         # Botão de envio
-        submitted = st.form_submit_button("Enviar Requerimento")
+        submitted = st.form_submit_button("Enviar Requerimento", use_container_width=True)
     
     st.markdown('</div>', unsafe_allow_html=True)
     
@@ -596,7 +596,6 @@ def render_form() -> None:
                         f"- Orientador: {orientador_final}\n\n"
                         f"Você receberá um e-mail de confirmação em breve."
                     )
-                    st.balloons()
                     
                 except Exception as e:
                     st.error(f"❌ **Erro ao processar requerimento:**\n\n{str(e)}")

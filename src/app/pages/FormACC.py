@@ -278,7 +278,7 @@ def render_form() -> None:
 		)
 
 		submit_placeholder = st.container()
-		submitted = submit_placeholder.form_submit_button("Enviar para análise")
+		submitted = submit_placeholder.form_submit_button("Enviar para análise", use_container_width=True)
 
 
 	if not submitted:
@@ -289,9 +289,10 @@ def render_form() -> None:
 		st.error("\n".join(f"• {error}" for error in errors))
 		return
 
-	# Mostrar mensagem de processamento
+	# Processar submissão RÁPIDA (sem IA)
 	with st.spinner("📤 Enviando dados..."):
 		try:
+			# Chamar função de processamento rápido (sem IA)
 			submission = process_acc_submission(
 				{
 					"name": name,
@@ -312,17 +313,17 @@ def render_form() -> None:
 			st.exception(unexpected)
 			return
 
-	# Mensagem de sucesso com informação sobre processamento
+	# Mensagem de sucesso IMEDIATA
 	st.success("✅ **Formulário ACC enviado com sucesso!**")
 	st.info(
-		"🤖 **Processamento com IA em andamento**\n\n"
+		"🤖 **Processamento com IA iniciado em background!**\n\n"
 		"Seus certificados estão sendo processados por Inteligência Artificial. "
-		"Você receberá um e-mail com a análise detalhada das cargas horárias em breve."
+		"Você receberá um e-mail com a análise detalhada das cargas horárias assim que o processamento for concluído."
 	)
 
-	# Aguardar 4 segundos e redirecionar
+	# Aguardar antes de redirecionar
 	import time
-	time.sleep(4)
+	time.sleep(st.secrets["sistema"]["timer"])
 	st.switch_page("main.py")
 
 

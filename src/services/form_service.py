@@ -49,10 +49,16 @@ def process_acc_submission(
     sheet_id: str = "",
     notification_recipients: Iterable[str] | str | None = None,
 ) -> AccSubmission:
-    """Processa submissões ACC consolidando fluxo Drive/Sheets/E-mail.
+    """Processa submissões ACC de forma RÁPIDA (sem espera de IA).
     
-    O processamento com IA é SEMPRE executado em background.
-    Se o processamento IA falhar, o sistema envia email sem dados de carga horária.
+    Fluxo:
+    1. Upload para Drive (imediato)
+    2. Salvamento no Sheets (imediato)
+    3. Email de confirmação (imediato)
+    4. Processamento IA em background (thread separada)
+    5. Email adicional quando IA concluir (assíncrono)
+    
+    O usuário NÃO espera o processamento IA.
     """
     from datetime import datetime
     
@@ -82,44 +88,86 @@ def process_acc_submission(
     file_links = [f['webViewLink'] for f in uploaded_files_info]
     file_names = [f['name'] for f in uploaded_files_info]
 
-    # Processar PDF com IA - SEMPRE executado, mas falhas não impedem o envio
-    txt_path = None
-    total_carga_horaria = None
-    processamento_ia_sucesso = False
+    # Processar PDF com IA em BACKGROUND (thread separada)
+    # Criar cópia do arquivo em bytes para processar em background
+    uploaded_file.seek(0)
+    file_bytes = uploaded_file.read()
     
-    try:
-        print("\n🤖 Iniciando processamento de certificados ACC com IA...")
-        
-        # Salvar PDF temporariamente para processamento
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
-            uploaded_file.seek(0)
-            tmp_file.write(uploaded_file.read())
-            tmp_pdf_path = tmp_file.name
-        
-        # Importar e processar com AccProcessor
-        from src.services.acc_processor import processar_certificados_acc
-        
-        resultado = processar_certificados_acc(
-            pdf_path=tmp_pdf_path,
-            matricula=sanitized["registration"],
-            nome=sanitized["name"]
-        )
-        
-        txt_path = resultado.get("txt_path")
-        total_carga_horaria = resultado.get("total_geral")
-        processamento_ia_sucesso = True
-        
-        # Limpar arquivo temporário
-        os.remove(tmp_pdf_path)
-        
-        print(f"✅ Processamento IA concluído com sucesso: {total_carga_horaria}")
-        
-    except Exception as e:
-        print(f"⚠️ AVISO: Erro no processamento com IA: {str(e)}")
-        print("   Sistema continuará e enviará email sem análise de carga horária.")
-        # Não propaga o erro - o sistema continua funcionando
+    def process_ia_background():
+        """Função para processar IA em background."""
+        try:
+            print(f"\n🤖 [BACKGROUND] Iniciando processamento IA para matrícula {sanitized['registration']}...")
+            
+            # Salvar PDF temporariamente
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
+                tmp_file.write(file_bytes)
+                tmp_pdf_path = tmp_file.name
+            
+            # Processar com IA
+            from src.services.acc_processor import processar_certificados_acc
+            
+            resultado = processar_certificados_acc(
+                pdf_path=tmp_pdf_path,
+                matricula=sanitized["registration"],
+                nome=sanitized["name"]
+            )
+            
+            txt_path = resultado.get("txt_path")
+            total_carga_horaria = resultado.get("total_geral")
+            
+            # Limpar arquivo temporário
+            os.remove(tmp_pdf_path)
+            
+            print(f"✅ [BACKGROUND] Processamento IA concluído: {total_carga_horaria}")
+            
+            # Enviar email com resultado da IA
+            if recipients and total_carga_horaria:
+                from datetime import datetime
+                subject_ia = "✅ Análise de ACC com IA Concluída"
+                body_ia = f"""\
+Olá,
 
-    # Adicionar dados na planilha
+O processamento com Inteligência Artificial dos seus certificados ACC foi concluído!
+
+🎓 Nome: {sanitized['name']}
+🔢 Matrícula: {sanitized['registration']}
+⏱️  Carga Horária Total: {total_carga_horaria}
+
+📎 Arquivo de análise detalhada está anexado.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🤖 Sistema de Automação da FASI
+"""
+                attachments = [txt_path] if txt_path else None
+                send_email_with_attachments(subject_ia, body_ia, recipients, attachments)
+                
+                print(f"✅ [BACKGROUND] Email com análise IA enviado para {len(recipients)} destinatário(s)")
+        
+        except Exception as e:
+            print(f"⚠️ [BACKGROUND] Erro no processamento com IA: {str(e)}")
+            # Enviar email informando falha
+            if recipients:
+                subject_erro = "⚠️ Processamento de ACC - IA Indisponível"
+                body_erro = f"""\
+Olá,
+
+O processamento automático com Inteligência Artificial não pôde ser concluído.
+
+🎓 Nome: {sanitized['name']}
+🔢 Matrícula: {sanitized['registration']}
+
+⚠️ Status: Análise manual necessária
+
+📎 Seus arquivos foram salvos com sucesso no Google Drive e podem ser acessados pelos links no email anterior.
+
+Por favor, a coordenação fará a análise manual dos certificados.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🤖 Sistema de Automação da FASI
+"""
+                send_email_with_attachments(subject_erro, body_erro, recipients, None)
+    
+    # Adicionar dados na planilha IMEDIATAMENTE (sem carga horária por enquanto)
     row_data = {
         "Nome": sanitized["name"],
         "Matrícula": sanitized["registration"],
@@ -128,12 +176,9 @@ def process_acc_submission(
         "Arquivos": ", ".join(file_links),
     }
     
-    if total_carga_horaria:
-        row_data["Carga Horária"] = total_carga_horaria
-    
     append_rows([row_data], sheet_id)
 
-    # Enviar email de notificação formatado
+    # Enviar email de confirmação IMEDIATO (sem análise de IA)
     recipients = _coerce_recipients(notification_recipients)
     if recipients:
         # Adicionar email do aluno aos destinatários
@@ -142,6 +187,7 @@ def process_acc_submission(
             recipients.append(aluno_email)
         
         # Formatar data/hora atual
+        from datetime import datetime
         data_formatada = datetime.now().strftime("%d/%m/%Y às %H:%M:%S")
         
         # Formatar anexos com links
@@ -149,16 +195,6 @@ def process_acc_submission(
             f"    • {name}: {link}"
             for name, link in zip(file_names, file_links)
         ])
-        
-        # Adicionar informação de carga horária se disponível
-        info_carga = ""
-        status_ia = ""
-        
-        if processamento_ia_sucesso and total_carga_horaria:
-            info_carga = f"\n⏱️ {total_carga_horaria}\n"
-            status_ia = "✅ Processamento com IA concluído com sucesso"
-        else:
-            status_ia = "⚠️  Processamento com IA não disponível (verifique os anexos manualmente)"
         
         subject = "✅ Nova Submissão de ACC Recebida"
         body = f"""\
@@ -170,12 +206,13 @@ Uma nova resposta foi registrada no formulário de Atividades Curriculares Compl
 🎓 Nome: {sanitized['name']}
 🔢 Matrícula: {sanitized['registration']}
 📧 E-mail: {sanitized['email']}
-📌 Turma: {sanitized['class_group']}{info_carga}
+📌 Turma: {sanitized['class_group']}
 
 📎 Anexos: 
 {anexos_formatados}
 
-🤖 Status IA: {status_ia}
+🤖 Status IA: Processamento em andamento... 
+   Você receberá um novo email com a análise de carga horária assim que o processamento for concluído.
 
 🔗 Você pode acessar os anexos através dos links fornecidos.
 
@@ -183,9 +220,13 @@ Uma nova resposta foi registrada no formulário de Atividades Curriculares Compl
 🤖 Sistema de Automação da FASI
 """
         
-        # Enviar com anexo TXT se disponível (apenas se processamento IA foi bem-sucedido)
-        attachments = [txt_path] if (processamento_ia_sucesso and txt_path) else None
-        send_email_with_attachments(subject, body, recipients, attachments)
+        send_email_with_attachments(subject, body, recipients, None)
+    
+    # Iniciar thread em background
+    import threading
+    thread = threading.Thread(target=process_ia_background, daemon=True)
+    thread.start()
+    print(f"🚀 Thread de processamento IA iniciada em background (Thread ID: {thread.ident})")
 
     return AccSubmission(
         name=sanitized["name"],

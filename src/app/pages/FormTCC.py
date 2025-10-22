@@ -412,10 +412,10 @@ def render_form() -> None:
 		st.markdown("<br>", unsafe_allow_html=True)
 		
 		# Botão de envio
-		submitted = st.form_submit_button("Enviar TCC para Análise")
-	
+		submitted = st.form_submit_button("Enviar TCC para Análise", use_container_width=True)
+
 	st.markdown('</div>', unsafe_allow_html=True)
-	
+
 	# Processar submissão
 	if submitted:
 		errors = _validate_submission(
@@ -462,7 +462,6 @@ def render_form() -> None:
 						f"- Arquivos: {result['total_files']} documento(s)\n\n"
 						f"Você receberá um e-mail de confirmação em breve."
 					)
-					st.balloons()
 					
 				except Exception as e:
 					st.error(f"❌ **Erro ao processar submissão:**\n\n{str(e)}")
