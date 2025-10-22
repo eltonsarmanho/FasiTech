@@ -120,20 +120,36 @@ def process_acc_submission(
             
             print(f"✅ [BACKGROUND] Processamento IA concluído: {total_carga_horaria}")
             
-            # Enviar email com resultado da IA
+            # Enviar email ÚNICO com resultado da IA
             if recipients and total_carga_horaria:
                 from datetime import datetime
-                subject_ia = "✅ Análise de ACC com IA Concluída"
+                data_formatada = datetime.now().strftime("%d/%m/%Y às %H:%M:%S")
+                
+                # Formatar anexos com links
+                anexos_formatados = "\n".join([
+                    f"    • {name}: {link}"
+                    for name, link in zip(file_names_for_email, file_links_for_email)
+                ])
+                
+                subject_ia = "✅ Análise de ACC Concluída"
                 body_ia = f"""\
 Olá,
 
-O processamento com Inteligência Artificial dos seus certificados ACC foi concluído!
+Sua submissão de Atividades Curriculares Complementares (ACC) foi processada com sucesso!
 
+📅 Data: {data_formatada}
 🎓 Nome: {sanitized['name']}
 🔢 Matrícula: {sanitized['registration']}
+📧 E-mail: {sanitized['email']}
+📌 Turma: {sanitized['class_group']}
+
+📎 Anexos enviados:
+{anexos_formatados}
+
+🤖 Análise com IA:
 ⏱️  Carga Horária Total: {total_carga_horaria}
 
-📎 Arquivo de análise detalhada está anexado.
+� Arquivo com análise detalhada está anexado.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🤖 Sistema de Automação da FASI
@@ -145,22 +161,36 @@ O processamento com Inteligência Artificial dos seus certificados ACC foi concl
         
         except Exception as e:
             print(f"⚠️ [BACKGROUND] Erro no processamento com IA: {str(e)}")
-            # Enviar email informando falha
+            # Enviar email ÚNICO informando que IA falhou (análise manual necessária)
             if recipients:
-                subject_erro = "⚠️ Processamento de ACC - IA Indisponível"
+                from datetime import datetime
+                data_formatada = datetime.now().strftime("%d/%m/%Y às %H:%M:%S")
+                
+                # Formatar anexos com links
+                anexos_formatados = "\n".join([
+                    f"    • {name}: {link}"
+                    for name, link in zip(file_names_for_email, file_links_for_email)
+                ])
+                
+                subject_erro = "⚠️ Submissão de ACC Recebida - Análise Manual Necessária"
                 body_erro = f"""\
 Olá,
 
-O processamento automático com Inteligência Artificial não pôde ser concluído.
+Sua submissão de Atividades Curriculares Complementares (ACC) foi recebida com sucesso!
 
+📅 Data: {data_formatada}
 🎓 Nome: {sanitized['name']}
 🔢 Matrícula: {sanitized['registration']}
+📧 E-mail: {sanitized['email']}
+📌 Turma: {sanitized['class_group']}
 
-⚠️ Status: Análise manual necessária
+📎 Anexos enviados:
+{anexos_formatados}
 
-📎 Seus arquivos foram salvos com sucesso no Google Drive e podem ser acessados pelos links no email anterior.
+⚠️ Status: O processamento automático com IA não pôde ser concluído.
+A coordenação fará a análise manual dos seus certificados.
 
-Por favor, a coordenação fará a análise manual dos certificados.
+🔗 Você pode acessar os anexos através dos links fornecidos.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🤖 Sistema de Automação da FASI
@@ -178,51 +208,19 @@ Por favor, a coordenação fará a análise manual dos certificados.
     
     append_rows([row_data], sheet_id)
 
-    # Enviar email de confirmação IMEDIATO (sem análise de IA)
+    # Preparar lista de destinatários para o email final (com resultado IA)
     recipients = _coerce_recipients(notification_recipients)
     if recipients:
         # Adicionar email do aluno aos destinatários
         aluno_email = sanitized["email"]
         if aluno_email and aluno_email not in recipients:
             recipients.append(aluno_email)
-        
-        # Formatar data/hora atual
-        from datetime import datetime
-        data_formatada = datetime.now().strftime("%d/%m/%Y às %H:%M:%S")
-        
-        # Formatar anexos com links
-        anexos_formatados = "\n".join([
-            f"    • {name}: {link}"
-            for name, link in zip(file_names, file_links)
-        ])
-        
-        subject = "✅ Nova Submissão de ACC Recebida"
-        body = f"""\
-Olá,
-
-Uma nova resposta foi registrada no formulário de Atividades Curriculares Complementares (ACC).
-
-📅 Data: {data_formatada}
-🎓 Nome: {sanitized['name']}
-🔢 Matrícula: {sanitized['registration']}
-📧 E-mail: {sanitized['email']}
-📌 Turma: {sanitized['class_group']}
-
-📎 Anexos: 
-{anexos_formatados}
-
-🤖 Status IA: Processamento em andamento... 
-   Você receberá um novo email com a análise de carga horária assim que o processamento for concluído.
-
-🔗 Você pode acessar os anexos através dos links fornecidos.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🤖 Sistema de Automação da FASI
-"""
-        
-        send_email_with_attachments(subject, body, recipients, None)
     
-    # Iniciar thread em background
+    # Variáveis para usar no background
+    file_names_for_email = file_names.copy()
+    file_links_for_email = file_links.copy()
+    
+    # Iniciar thread em background (email será enviado APENAS após processamento IA)
     import threading
     thread = threading.Thread(target=process_ia_background, daemon=True)
     thread.start()
