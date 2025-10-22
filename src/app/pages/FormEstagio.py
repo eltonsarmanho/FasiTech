@@ -342,10 +342,7 @@ def render_form() -> None:
         if "estagio_processing" not in st.session_state:
             st.session_state.estagio_processing = False
         
-        if st.session_state.estagio_processing:
-            st.warning("⏳ Processamento em andamento... Por favor, aguarde.")
-        
-        # Processar apenas se não estiver processando
+        # Processar apenas se não estiver processando (previne múltiplos cliques)
         if not st.session_state.estagio_processing:
             # Marcar como processando
             st.session_state.estagio_processing = True

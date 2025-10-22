@@ -464,10 +464,7 @@ def render_form() -> None:
         if "projetos_processing" not in st.session_state:
             st.session_state.projetos_processing = False
         
-        if st.session_state.projetos_processing:
-            st.warning("⏳ Processamento em andamento... Por favor, aguarde.")
-        
-        # Processar apenas se não estiver processando
+        # Processar apenas se não estiver processando (previne múltiplos cliques)
         if not st.session_state.projetos_processing:
             # Marcar como processando
             st.session_state.projetos_processing = True

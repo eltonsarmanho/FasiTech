@@ -798,12 +798,6 @@ def process_projetos_submission(
         pdf_declaracao_path,
     ]
     
-    # Debug: Verificar se os arquivos existem
-    print(f"📄 DEBUG - Verificando anexos do email:")
-    print(f"   Parecer: {pdf_parecer_path} - Existe: {os.path.exists(pdf_parecer_path)}")
-    print(f"   Declaração: {pdf_declaracao_path} - Existe: {os.path.exists(pdf_declaracao_path)}")
-    print(f"   Lista de anexos: {email_attachments}")
-    
     # Assunto e corpo do email
     subject = f"Novo Projeto Submetido - {form_data['nome_projeto']}"
     body = f"""

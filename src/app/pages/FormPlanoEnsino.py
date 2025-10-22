@@ -313,10 +313,7 @@ def render_form() -> None:
         if "plano_processing" not in st.session_state:
             st.session_state.plano_processing = False
         
-        if st.session_state.plano_processing:
-            st.warning("⏳ Processamento em andamento... Por favor, aguarde.")
-        
-        # Processar apenas se não estiver processando
+        # Processar apenas se não estiver processando (previne múltiplos cliques)
         if not st.session_state.plano_processing:
             # Marcar como processando
             st.session_state.plano_processing = True
