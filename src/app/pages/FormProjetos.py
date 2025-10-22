@@ -349,15 +349,69 @@ def render_form() -> None:
     # Renderizar info box baseado na solicitação
     _render_solicitacao_info(solicitacao)
     
-    st.markdown("<br><hr><br>", unsafe_allow_html=True)
-    
-    # ============================================
-    # SEÇÃO FORA DO FORM: Edital (para campo "Outro:" dinâmico)
-    # ============================================
-    st.markdown("### 📢 Edital")
-    st.markdown("<span class='projetos-required'>*</span> Selecione o edital", unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
     
+    # ============================================
+    # DOCENTE RESPONSÁVEL
+    # ============================================
+    st.markdown("### 👨‍🏫 Nome do Docente Responsável")
+    docente = st.radio(
+        "Nome do Docente Responsável *",
+        options=PROFESSORES,
+        key="docente_select",
+        label_visibility="collapsed"
+    )
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # ============================================
+    # PARECERISTAS
+    # ============================================
+    st.markdown("### 📝 Pareceristas")
+    parecerista1 = st.radio(
+        "Nome do Parecerista 1 *",
+        options=PROFESSORES,
+        key="parecerista1"
+    )
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    parecerista2 = st.radio(
+        "Nome do Parecerista 2 *",
+        options=PROFESSORES,
+        key="parecerista2"
+    )
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # ============================================
+    # INFORMAÇÕES DO PROJETO
+    # ============================================
+    st.markdown("### 📊 Informações do Projeto")
+    
+    nome_projeto = st.text_input(
+        "Nome do Projeto *",
+        placeholder="Sua resposta",
+        help="Digite o nome completo do projeto"
+    )
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # Carga Horária
+    st.markdown("**Carga Horária** <span class='projetos-required'>*</span>", unsafe_allow_html=True)
+    carga_horaria = st.radio(
+        "Carga Horária *",
+        options=CARGAS_HORARIAS,
+        horizontal=True,
+        label_visibility="collapsed"
+    )
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # ============================================
+    # EDITAL
+    # ============================================
+    st.markdown("**Edital** <span class='projetos-required'>*</span>", unsafe_allow_html=True)
     edital = st.radio(
         "Edital *",
         options=EDITAIS + ["Outro:"],
@@ -375,75 +429,37 @@ def render_form() -> None:
             help="Informe o nome do edital que não está na lista"
         )
     
-    st.markdown("<br><hr><br>", unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
     
     # ============================================
-    # FORMULÁRIO PRINCIPAL
+    # NATUREZA
+    # ============================================
+    st.markdown("**Natureza** <span class='projetos-required'>*</span>", unsafe_allow_html=True)
+    natureza = st.radio(
+        "Natureza *",
+        options=NATUREZAS,
+        horizontal=True,
+        label_visibility="collapsed"
+    )
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # ============================================
+    # ANO DO EDITAL
+    # ============================================
+    ano_edital = st.text_input(
+        "Ano do Edital *",
+        placeholder="2025",
+        max_chars=4,
+        help="Ano com 4 dígitos (ex: 2025)"
+    )
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # ============================================
+    # FORMULÁRIO - APENAS ANEXOS E BOTÃO ENVIAR
     # ============================================
     with st.form("formulario_projetos"):
-        st.markdown("<span class='projetos-required'>*</span> Todos os campos são obrigatórios", unsafe_allow_html=True)
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        # Nome do Docente Responsável
-        st.markdown("### 👨‍🏫 Nome do Docente Responsável")
-        docente = st.radio(
-            "Nome do Docente Responsável *",
-            options=PROFESSORES,
-            label_visibility="collapsed"
-        )
-        
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        # Pareceristas
-        st.markdown("### 📝 Pareceristas")
-        parecerista1 = st.radio(
-            "Nome do Parecerista 1 *",
-            options=PROFESSORES,
-            key="parecerista1"
-        )
-        
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        parecerista2 = st.radio(
-            "Nome do Parecerista 2 *",
-            options=PROFESSORES,
-            key="parecerista2"
-        )
-        
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        # Nome do Projeto
-        st.markdown("### 📊 Informações do Projeto")
-        nome_projeto = st.text_input(
-            "Nome do Projeto *",
-            placeholder="Sua resposta",
-            help="Digite o nome completo do projeto"
-        )
-        
-        # Carga Horária
-        carga_horaria = st.radio(
-            "Carga Horária *",
-            options=CARGAS_HORARIAS,
-            horizontal=True
-        )
-        
-        # Natureza
-        natureza = st.radio(
-            "Natureza *",
-            options=NATUREZAS,
-            horizontal=True
-        )
-        
-        # Ano do Edital
-        ano_edital = st.text_input(
-            "Ano do Edital *",
-            placeholder="2025",
-            max_chars=4,
-            help="Ano com 4 dígitos (ex: 2025)"
-        )
-        
-        st.markdown("<br>", unsafe_allow_html=True)
-        
         # Anexos
         st.markdown("### 📎 Anexos")
         st.markdown(
