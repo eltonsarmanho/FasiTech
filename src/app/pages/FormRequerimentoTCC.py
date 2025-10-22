@@ -248,6 +248,13 @@ def _render_intro() -> None:
     )
 
 
+def _validate_email(email: str) -> bool:
+    """Valida formato de email usando regex."""
+    import re
+    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return re.match(pattern, email) is not None
+
+
 def _validate_submission(
     nome: str,
     matricula: str,
@@ -277,8 +284,8 @@ def _validate_submission(
     # Email obrigatório e válido
     if not email.strip():
         errors.append("E-mail é obrigatório.")
-    elif "@" not in email or "." not in email.split("@")[-1]:
-        errors.append("E-mail inválido. Use um formato válido (exemplo@dominio.com).")
+    elif not _validate_email(email):
+        errors.append("E-mail inválido. Use um formato válido (exemplo@ufpa.br).")
     
     # Título obrigatório
     if not titulo.strip():
