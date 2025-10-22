@@ -87,6 +87,22 @@ def append_rows(rows: Iterable[Dict[str, Any]], sheet_id: str, range_name: str =
                     row.get("Palavras-chave", ""),                 # Palavras-chave
                     row.get("Data", ""),                           # Data
                 ]
+            # Verificar se é Estágio baseado nos campos presentes
+            elif "Orientador ou Supervisor" in row:
+                # Formato Estágio
+                # Cabeçalhos: Carimbo de data/hora, Nome do Aluno, Email, Turma, Matrícula,
+                #             Orientador ou Supervisor, Título, Componente Curricular, Anexos
+                row_values = [
+                    timestamp,                                      # Carimbo de data/hora
+                    row.get("Nome do Aluno", ""),                  # Nome do Aluno
+                    row.get("Email", ""),                          # Email
+                    row.get("Turma", ""),                          # Turma
+                    row.get("Matrícula", ""),                      # Matrícula
+                    row.get("Orientador ou Supervisor", ""),       # Orientador ou Supervisor
+                    row.get("Título", ""),                         # Título
+                    row.get("Componente Curricular", ""),          # Componente Curricular
+                    row.get("Anexos", ""),                         # Anexos
+                ]
             # Verificar se é TCC baseado nos campos presentes
             elif "Componente" in row:
                 # Formato TCC - mapeado para os cabeçalhos da planilha existente

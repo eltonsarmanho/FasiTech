@@ -90,7 +90,8 @@ def upload_files(
     files: Iterable[Any], 
     destination_folder: str,
     turma: str = None,
-    matricula: str = None
+    matricula: str = None,
+    componente: str = None
 ) -> list[Dict[str, str]]:
     """
     Faz upload de arquivos para o Google Drive com estrutura de pastas.
@@ -100,6 +101,7 @@ def upload_files(
         destination_folder: ID da pasta raiz no Google Drive
         turma: Turma do aluno (ex: "2027", "2028")
         matricula: Matrícula do aluno
+        componente: Componente curricular (ex: "Plano de Estágio", "Relatório Final")
         
     Returns:
         Lista de dicionários com 'id', 'name' e 'webViewLink' dos arquivos enviados
@@ -133,8 +135,12 @@ def upload_files(
             )
             raise ValueError(error_msg)
         
-        # Criar estrutura de pastas: raiz/turma/matricula
+        # Criar estrutura de pastas
         target_folder_id = destination_folder
+        
+        # Se componente for informado, criar pasta do componente primeiro
+        if componente:
+            target_folder_id = find_or_create_folder(componente, target_folder_id)
         
         if turma:
             # Criar/encontrar pasta da turma

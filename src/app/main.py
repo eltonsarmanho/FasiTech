@@ -308,16 +308,25 @@ def _render_available_forms() -> None:
     
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # Segunda linha - Requerimento TCC centralizado
-    col_left, col_center, col_right = st.columns([1, 2, 1])
+    # Segunda linha - 2 formulários
+    col3, col4 = st.columns(2, gap="large")
     
-    with col_center:
+    with col3:
         _render_form_card(
             title="Requerimento de TCC",
             description="Registro de informações para defesa do TCC. Cadastre os dados da banca examinadora, título, resumo e palavras-chave do seu trabalho de conclusão de curso.",
             icon="📝",
             page_name="FormRequerimentoTCC.py",
             key="btn_requerimento"
+        )
+    
+    with col4:
+        _render_form_card(
+            title="Formulário de Estágio",
+            description="Envio de documentos de Estágio I e Estágio II. Submeta o Plano de Estágio ou Relatório Final conforme o componente curricular.",
+            icon="📋",
+            page_name="FormEstagio.py",
+            key="btn_estagio"
         )
 
 

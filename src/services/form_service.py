@@ -325,3 +325,138 @@ Uma nova resposta foi registrada no formulário de Trabalho de Conclusão de Cur
         "file_links": file_links,
         "total_files": len(file_names),
     }
+
+
+def process_estagio_submission(
+    form_data: Dict[str, Any],
+    uploaded_files: list[Any],
+) -> Dict[str, Any]:
+    """Processa submissões de Estágio consolidando fluxo Drive/Sheets/E-mail.
+    
+    Args:
+        form_data: Dados do formulário contendo:
+            - nome: Nome completo
+            - email: E-mail
+            - turma: Turma (ano de ingresso)
+            - matricula: Matrícula
+            - orientador: Nome do orientador ou supervisor
+            - titulo: Título do documento
+            - componente: "Plano de Estágio (Estágio I)" ou "Relatório Final (Estágio II)"
+        uploaded_files: Lista de arquivos PDF para upload
+        
+    Returns:
+        Dicionário com informações do processamento
+    """
+    from datetime import datetime
+    import streamlit as st
+    
+    if not uploaded_files or len(uploaded_files) == 0:
+        raise ValueError("Pelo menos um arquivo é obrigatório.")
+
+    required_fields = ["nome", "email", "turma", "matricula", "orientador", "titulo", "componente"]
+    missing = [field for field in required_fields if not str(form_data.get(field, "")).strip()]
+    if missing:
+        raise ValueError(f"Campos obrigatórios ausentes: {', '.join(missing)}")
+
+    # Carregar configurações de estágio
+    try:
+        drive_folder_id = st.secrets["estagio"]["drive_folder_id"]
+        sheet_id = st.secrets["estagio"]["sheet_id"]
+        notification_recipients = st.secrets["estagio"].get("notification_recipients", [])
+    except (KeyError, FileNotFoundError) as e:
+        raise ValueError("Configurações de Estágio não encontradas em secrets.toml") from e
+
+    prepared_files = list(prepare_files(uploaded_files))
+    
+    if not prepared_files:
+        raise ValueError("Nenhum arquivo válido para upload.")
+
+    # Upload com estrutura hierárquica: Componente Curricular / Turma / Arquivos
+    # Extrair componente simplificado (Plano de Estágio ou Relatório Final)
+    componente_simplificado = form_data["componente"].split(" (")[0]  # "Plano de Estágio" ou "Relatório Final"
+    
+    uploaded_files_info = upload_files(
+        prepared_files, 
+        drive_folder_id,
+        turma=form_data['turma'],
+        componente=componente_simplificado
+    )
+    
+    # Extrair informações dos arquivos
+    file_ids = [f['id'] for f in uploaded_files_info]
+    file_links = [f['webViewLink'] for f in uploaded_files_info]
+    file_names = [f['name'] for f in uploaded_files_info]
+
+    # Adicionar dados na planilha
+    row_data = {
+        "Nome do Aluno": form_data["nome"],
+        "Email": form_data["email"],
+        "Turma": form_data["turma"],
+        "Matrícula": form_data["matricula"],
+        "Orientador ou Supervisor": form_data["orientador"],
+        "Título": form_data["titulo"],
+        "Componente Curricular": form_data["componente"],
+        "Anexos": ", ".join(file_links),
+    }
+    
+    # Adicionar na aba "Respostas ao formulário 1"
+    append_rows([row_data], sheet_id, range_name="Respostas ao formulário 1")
+
+    # Enviar email de notificação formatado
+    recipients = _coerce_recipients(notification_recipients)
+    if recipients:
+        # Formatar data/hora atual
+        data_formatada = datetime.now().strftime("%d/%m/%Y às %H:%M:%S")
+        
+        # Formatar anexos com links
+        anexos_formatados = "\n".join([
+            f"    {idx}. {name}\n       🔗 {link}"
+            for idx, (name, link) in enumerate(zip(file_names, file_links), 1)
+        ])
+        
+        # Emoji para componente
+        componente_emoji = "📘" if "Plano" in form_data["componente"] else "📗"
+        
+        # Adicionar email do aluno
+        aluno_email = form_data["email"]
+        if aluno_email and aluno_email not in recipients:
+            recipients.append(aluno_email)
+        
+        subject = f"✅ Nova Submissão de Estágio Recebida - {componente_simplificado}"
+        body = f"""\
+Olá,
+
+Uma nova resposta foi registrada no formulário de Estágio.
+
+📅 Data: {data_formatada}
+{componente_emoji} Componente: {form_data['componente']}
+🎓 Nome: {form_data['nome']}
+🔢 Matrícula: {form_data['matricula']}
+📧 E-mail: {form_data['email']}
+📌 Turma: {form_data['turma']}
+👨‍🏫 Orientador/Supervisor: {form_data['orientador']}
+📄 Título: {form_data['titulo']}
+
+📎 Anexos ({len(file_names)} arquivo(s)): 
+{anexos_formatados}
+
+🔗 Você pode acessar os anexos através dos links fornecidos.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🤖 Sistema de Automação da FASI
+"""
+        
+        send_email_with_attachments(subject, body, recipients)
+
+    return {
+        "nome": form_data["nome"],
+        "email": form_data["email"],
+        "turma": form_data["turma"],
+        "matricula": form_data["matricula"],
+        "componente": form_data["componente"],
+        "orientador": form_data["orientador"],
+        "titulo": form_data["titulo"],
+        "file_ids": file_ids,
+        "file_links": file_links,
+        "total_files": len(file_names),
+    }
