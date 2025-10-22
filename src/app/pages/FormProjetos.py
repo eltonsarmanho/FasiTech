@@ -92,15 +92,25 @@ def _render_intro() -> None:
             #MainMenu {visibility: hidden;}
             footer {visibility: hidden;}
             
-            /* Ocultar sidebar completamente */
+            /* Ocultar sidebar completamente - aplicação imediata */
             [data-testid="stSidebar"] {
-                display: none;
+                display: none !important;
+                visibility: hidden !important;
+                width: 0 !important;
+                min-width: 0 !important;
+                max-width: 0 !important;
             }
             [data-testid="collapsedControl"] {
-                display: none;
+                display: none !important;
+                visibility: hidden !important;
             }
             section[data-testid="stSidebar"] {
                 display: none !important;
+                visibility: hidden !important;
+            }
+            [data-testid="stSidebarNav"] {
+                display: none !important;
+                visibility: hidden !important;
             }
             
             .projetos-hero {
