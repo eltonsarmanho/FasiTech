@@ -261,7 +261,6 @@ def render_form() -> None:
 			"Configure `drive_folder_id` e `sheet_id` para habilitar o envio completo."
 		)
 	
-	st.markdown('<div class="acc-card">', unsafe_allow_html=True)
 	with st.form("formulario_acc"):
 		st.markdown("<span class='acc-required'>*</span> Campo obrigatório", unsafe_allow_html=True)
 		
@@ -277,18 +276,10 @@ def render_form() -> None:
 			accept_multiple_files=False,
 			help="Arquivo PDF consolidado com todos os certificados (máximo 10 MB)",
 		)
-		
-		# Opção para processar com IA
-		processar_ia = st.checkbox(
-			"🤖 Processar certificados com IA (recomendado)",
-			value=True,
-			help="Utiliza Inteligência Artificial (Gemini) para extrair automaticamente as cargas horárias dos certificados e enviar análise detalhada por email."
-		)
 
 		submit_placeholder = st.container()
 		submitted = submit_placeholder.form_submit_button("Enviar para análise")
 
-	st.markdown('</div>', unsafe_allow_html=True)
 
 	if not submitted:
 		return
@@ -298,9 +289,8 @@ def render_form() -> None:
 		st.error("\n".join(f"• {error}" for error in errors))
 		return
 
-	spinner_text = "Enviando e processando certificados com IA..." if processar_ia else "Enviando dados ao time de ACC..."
-	
-	with st.spinner(spinner_text):
+	# Mostrar mensagem de processamento
+	with st.spinner("📤 Enviando dados..."):
 		try:
 			submission = process_acc_submission(
 				{
@@ -313,7 +303,6 @@ def render_form() -> None:
 				drive_folder_id=config["drive_folder_id"],
 				sheet_id=config["sheet_id"],
 				notification_recipients=config["notification_recipients"],
-				processar_com_ia=processar_ia,
 			)
 		except ValueError as validation_error:
 			st.error(str(validation_error))
@@ -323,13 +312,18 @@ def render_form() -> None:
 			st.exception(unexpected)
 			return
 
-	if processar_ia:
-		st.success("✅ Formulário ACC enviado e processado com sucesso! Verifique seu email para ver a análise detalhada das cargas horárias.")
-	else:
-		st.success("✅ Formulário ACC enviado com sucesso! Você receberá um e-mail de confirmação.")
-	
-	st.toast("Envio realizado.")
-	st.session_state.setdefault("last_acc_submission", submission.dict())
+	# Mensagem de sucesso com informação sobre processamento
+	st.success("✅ **Formulário ACC enviado com sucesso!**")
+	st.info(
+		"🤖 **Processamento com IA em andamento**\n\n"
+		"Seus certificados estão sendo processados por Inteligência Artificial. "
+		"Você receberá um e-mail com a análise detalhada das cargas horárias em breve."
+	)
+
+	# Aguardar 4 segundos e redirecionar
+	import time
+	time.sleep(4)
+	st.switch_page("main.py")
 
 
 def main() -> None:

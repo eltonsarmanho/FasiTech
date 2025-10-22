@@ -48,9 +48,12 @@ def process_acc_submission(
     drive_folder_id: str = "",
     sheet_id: str = "",
     notification_recipients: Iterable[str] | str | None = None,
-    processar_com_ia: bool = False,
 ) -> AccSubmission:
-    """Processa submissões ACC consolidando fluxo Drive/Sheets/E-mail e opcionalmente IA."""
+    """Processa submissões ACC consolidando fluxo Drive/Sheets/E-mail.
+    
+    O processamento com IA é SEMPRE executado em background.
+    Se o processamento IA falhar, o sistema envia email sem dados de carga horária.
+    """
     from datetime import datetime
     
     if uploaded_file is None:
@@ -79,40 +82,42 @@ def process_acc_submission(
     file_links = [f['webViewLink'] for f in uploaded_files_info]
     file_names = [f['name'] for f in uploaded_files_info]
 
-    # Processar PDF com IA se solicitado
+    # Processar PDF com IA - SEMPRE executado, mas falhas não impedem o envio
     txt_path = None
     total_carga_horaria = None
+    processamento_ia_sucesso = False
     
-    if processar_com_ia:
-        try:
-            print("\n🤖 Processando certificados ACC com IA...")
-            
-            # Salvar PDF temporariamente para processamento
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
-                uploaded_file.seek(0)
-                tmp_file.write(uploaded_file.read())
-                tmp_pdf_path = tmp_file.name
-            
-            # Importar e processar com AccProcessor
-            from src.services.acc_processor import processar_certificados_acc
-            
-            resultado = processar_certificados_acc(
-                pdf_path=tmp_pdf_path,
-                matricula=sanitized["registration"],
-                nome=sanitized["name"]
-            )
-            
-            txt_path = resultado.get("txt_path")
-            total_carga_horaria = resultado.get("total_geral")
-            
-            # Limpar arquivo temporário
-            os.remove(tmp_pdf_path)
-            
-            print(f"✅ Processamento IA concluído: {total_carga_horaria}")
-            
-        except Exception as e:
-            print(f"⚠️ Erro no processamento com IA: {str(e)}")
-            print("   Continuando sem análise de IA...")
+    try:
+        print("\n🤖 Iniciando processamento de certificados ACC com IA...")
+        
+        # Salvar PDF temporariamente para processamento
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
+            uploaded_file.seek(0)
+            tmp_file.write(uploaded_file.read())
+            tmp_pdf_path = tmp_file.name
+        
+        # Importar e processar com AccProcessor
+        from src.services.acc_processor import processar_certificados_acc
+        
+        resultado = processar_certificados_acc(
+            pdf_path=tmp_pdf_path,
+            matricula=sanitized["registration"],
+            nome=sanitized["name"]
+        )
+        
+        txt_path = resultado.get("txt_path")
+        total_carga_horaria = resultado.get("total_geral")
+        processamento_ia_sucesso = True
+        
+        # Limpar arquivo temporário
+        os.remove(tmp_pdf_path)
+        
+        print(f"✅ Processamento IA concluído com sucesso: {total_carga_horaria}")
+        
+    except Exception as e:
+        print(f"⚠️ AVISO: Erro no processamento com IA: {str(e)}")
+        print("   Sistema continuará e enviará email sem análise de carga horária.")
+        # Não propaga o erro - o sistema continua funcionando
 
     # Adicionar dados na planilha
     row_data = {
@@ -131,6 +136,11 @@ def process_acc_submission(
     # Enviar email de notificação formatado
     recipients = _coerce_recipients(notification_recipients)
     if recipients:
+        # Adicionar email do aluno aos destinatários
+        aluno_email = sanitized["email"]
+        if aluno_email and aluno_email not in recipients:
+            recipients.append(aluno_email)
+        
         # Formatar data/hora atual
         data_formatada = datetime.now().strftime("%d/%m/%Y às %H:%M:%S")
         
@@ -142,8 +152,13 @@ def process_acc_submission(
         
         # Adicionar informação de carga horária se disponível
         info_carga = ""
-        if total_carga_horaria:
-            info_carga = f"\n⏱️  {total_carga_horaria}\n"
+        status_ia = ""
+        
+        if processamento_ia_sucesso and total_carga_horaria:
+            info_carga = f"\n⏱️ {total_carga_horaria}\n"
+            status_ia = "✅ Processamento com IA concluído com sucesso"
+        else:
+            status_ia = "⚠️  Processamento com IA não disponível (verifique os anexos manualmente)"
         
         subject = "✅ Nova Submissão de ACC Recebida"
         body = f"""\
@@ -160,14 +175,16 @@ Uma nova resposta foi registrada no formulário de Atividades Curriculares Compl
 📎 Anexos: 
 {anexos_formatados}
 
+🤖 Status IA: {status_ia}
+
 🔗 Você pode acessar os anexos através dos links fornecidos.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🤖 Sistema de Automação da FASI
 """
         
-        # Enviar com anexo TXT se disponível
-        attachments = [txt_path] if txt_path else None
+        # Enviar com anexo TXT se disponível (apenas se processamento IA foi bem-sucedido)
+        attachments = [txt_path] if (processamento_ia_sucesso and txt_path) else None
         send_email_with_attachments(subject, body, recipients, attachments)
 
     return AccSubmission(

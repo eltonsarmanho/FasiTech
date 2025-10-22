@@ -263,6 +263,10 @@ elif turma and len(turma) != 4:
 - [x] Implementar máscara de email em todos os forms ✅
 - [x] Implementar máscara de turma (4 dígitos) ✅
 - [x] Validação visual em tempo real ✅
+- [x] Remover checkbox de IA do FormACC ✅
+- [x] Processamento IA sempre ativo (background) ✅
+- [x] Redirecionamento automático após 4 segundos ✅
+- [x] Email resiliente (envia mesmo se IA falhar) ✅
 
 ### Sprint 2 - Testes (3 dias)
 - [ ] Testar FormACC end-to-end
