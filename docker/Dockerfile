@@ -7,7 +7,7 @@ WORKDIR /app
 
 # Instala as dependências em um local separado para facilitar a cópia
 RUN pip install --upgrade pip
-COPY ../requirements.txt .
+COPY requirements.txt .
 # --wheel-dir cria "wheels" pré-compilados, otimizando a instalação no próximo estágio.
 RUN pip wheel --no-cache-dir --wheel-dir /app/wheels -r requirements.txt
 
