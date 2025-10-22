@@ -131,19 +131,102 @@ docker run -p 8501:8501 -p 8000:8000 fasitech-forms
 ## 🧩 Arquitetura do Sistema
 
 ```mermaid
-graph TD
-    %% Frontend
-    A[Usuário via navegador] --> B[Streamlit App]
-    %% Backend
-    B --> C[Validação e Processamento]
-    C --> D[Google Drive API]
-    C --> E[Google Sheets API]
-    C --> F[Email Service]
-    C --> G[FastAPI (opcional)]
-    D -->|Armazena arquivos| H[Google Drive]
-    E -->|Registra dados| I[Google Sheets]
-    F -->|Envia notificações| J[xx] 
-    G -->|APIs REST| K[Integrações externas]
+flowchart LR
+    %% Camada do Usuário
+    User["👤 Usuário<br/>Docente/Aluno"]
+    Form["📝 Streamlit Web<br/>Formulário"]
+
+    %% Camada de Entrada de Dados
+    FormData[("📋 Dados Submetidos<br/>• Informações<br/>• Anexos")]
+
+    %% Camada Oracle VM
+    VM["🖥️ Oracle VM<br/>Servidor Linux"]
+    App["⚙️ FasiTech App<br/>Streamlit + FastAPI"]
+
+    %% Camada de Processamento
+    Router{"🔀 Identificar<br/>Tipo de Formulário"}
+
+    %% Tipos de Formulário
+    FormACC["📋 ACC<br/>Atividades Complementares"]
+    FormPROJ["🔬 Projetos<br/>Pesquisa/Extensão"]
+    FormTCC["📝 TCC<br/>Trabalho de Conclusão"]
+    FormESTAGIO["💼 Estágio<br/>Obrigatório/Não-Obrigatório"]
+    FormPLANO["📚 Plano de Ensino<br/>Disciplinas"]
+
+    %% Destinatários
+    subgraph Recipients ["📬 Destinatários"]
+        direction TB
+        Coord["👔 Gestores FASI"]
+        Parecer["👨‍🏫 Pareceristas<br/>Docentes avaliadores"]
+        Student["🎓 Alunos<br/>Cópia de confirmação"]
+    end
+
+    %% Armazenamento
+    subgraph Storage ["💾 Armazenamento Organizado"]
+        direction TB
+        DriveACC["📁 ACC/<br/>Turma/Matrícula"]
+        DrivePROJ["📁 Projetos/<br/>Edital/Ano/Docente/Tipo"]
+        DriveTCC["📁 TCC/<br/>Tipo/Turma/Aluno"]
+        DriveEST["📁 Estágio/<br/>Tipo/Turma/Aluno"]
+        DrivePLANO["📁 Plano de Ensino/<br/>Semestre"]
+    end
+
+    %% Fluxo de Dados Principal
+    User -->|"Preenche"| Form
+    Form -->|"Submete dados"| FormData
+    FormData -->|"POST"| VM
+    VM --> App
+    App -->|"Analisa"| Router
+
+    %% Roteamento por tipo
+    Router -->|"ACC"| FormACC
+    Router -->|"Projetos"| FormPROJ
+    Router -->|"TCC"| FormTCC
+    Router -->|"Estágio"| FormESTAGIO
+    Router -->|"Plano de Ensino"| FormPLANO
+
+    %% Processamento Paralelo
+    subgraph Processing ["⚙️ Processamento Paralelo"]
+        direction TB
+        Email["📧 Envio de Email<br/>• Notificação aos responsáveis<br/>• Anexa documentos gerados"]
+
+        subgraph DocGen ["📝 Processamento de Dados"]
+            direction TB
+            PDF["📄 Geração de PDFs<br/>• Parecer técnico<br/>• Declaração (se Extensão)"]
+            IA["🧠 LLM<br/>• Extração de dados<br/>• Analisa as Informações"]
+        end
+
+        Drive["☁️ Google Drive<br/>• Organiza anexos<br/>• Cria estrutura de pastas"]
+    end
+
+    %% Processamento de cada tipo
+    FormACC --> Processing
+    FormPROJ --> Processing
+    FormTCC --> Processing
+    FormESTAGIO --> Processing
+    FormPLANO --> Processing
+
+    %% Ações paralelas
+    Email -.->|"Notifica"| Recipients
+    Drive -.->|"Salva"| Storage
+
+    %% Estilos
+    classDef userLayer fill:#E1F5FE,stroke:#01579B,stroke-width:3px,color:#000
+    classDef dataLayer fill:#F3E5F5,stroke:#4A148C,stroke-width:2px,color:#000
+    classDef vmLayer fill:#FFF3E0,stroke:#E65100,stroke-width:3px,color:#000
+    classDef formType fill:#E8F5E9,stroke:#1B5E20,stroke-width:2px,color:#000
+    classDef processing fill:#E0F2F1,stroke:#004D40,stroke-width:2px,color:#000
+    classDef recipients fill:#FCE4EC,stroke:#880E4F,stroke-width:2px,color:#000
+    classDef storage fill:#FFF9C4,stroke:#F57F17,stroke-width:2px,color:#000
+
+    class User,Form userLayer
+    class FormData dataLayer
+    class VM,App vmLayer
+    class Router vmLayer
+    class FormACC,FormPROJ,FormTCC,FormESTAGIO,FormPLANO formType
+    class Email,IA,PDF,Drive processing
+    class Coord,Parecer,Student recipients
+    class DriveACC,DrivePROJ,DriveTCC,DriveEST,DrivePLANO storage
 ```
 
 ## 🎨 Personalização
