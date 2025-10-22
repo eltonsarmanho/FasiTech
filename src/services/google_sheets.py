@@ -87,6 +87,25 @@ def append_rows(rows: Iterable[Dict[str, Any]], sheet_id: str, range_name: str =
                     row.get("Palavras-chave", ""),                 # Palavras-chave
                     row.get("Data", ""),                           # Data
                 ]
+            # Verificar se é Projetos baseado nos campos presentes
+            elif "Nome do Parecerista 1" in row:
+                # Formato Projetos
+                # Cabeçalhos: Carimbo de data/hora, Nome do Docente Responsável, Nome do Parecerista 1,
+                #             Nome do Parecerista 2, Nome do Projeto, Carga Horária, Edital,
+                #             Natureza, Ano do Edital, Solicitação, Anexos
+                row_values = [
+                    timestamp,                                      # Carimbo de data/hora
+                    row.get("Nome do Docente Responsável", ""),    # Nome do Docente Responsável
+                    row.get("Nome do Parecerista 1", ""),          # Nome do Parecerista 1
+                    row.get("Nome do Parecerista 2", ""),          # Nome do Parecerista 2
+                    row.get("Nome do Projeto", ""),                # Nome do Projeto
+                    row.get("Carga Horária", ""),                  # Carga Horária
+                    row.get("Edital", ""),                         # Edital
+                    row.get("Natureza", ""),                       # Natureza
+                    row.get("Ano do Edital", ""),                  # Ano do Edital
+                    row.get("Solicitação", ""),                    # Solicitação
+                    row.get("Anexos", ""),                         # Anexos
+                ]
             # Verificar se é Plano de Ensino baseado nos campos presentes
             elif "Nome do Docente Responsável" in row:
                 # Formato Plano de Ensino
@@ -164,3 +183,4 @@ def append_rows(rows: Iterable[Dict[str, Any]], sheet_id: str, range_name: str =
     except Exception as e:
         print(f"❌ Erro ao escrever no Google Sheets: {str(e)}")
         raise
+

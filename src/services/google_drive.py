@@ -91,7 +91,11 @@ def upload_files(
     destination_folder: str,
     turma: str = None,
     matricula: str = None,
-    componente: str = None
+    componente: str = None,
+    edital: str = None,
+    ano_edital: str = None,
+    docente: str = None,
+    solicitacao: str = None,
 ) -> list[Dict[str, str]]:
     """
     Faz upload de arquivos para o Google Drive com estrutura de pastas.
@@ -102,6 +106,10 @@ def upload_files(
         turma: Turma do aluno (ex: "2027", "2028")
         matricula: Matrícula do aluno
         componente: Componente curricular (ex: "Plano de Estágio", "Relatório Final")
+        edital: Nome do edital (para projetos)
+        ano_edital: Ano do edital (para projetos)
+        docente: Nome do docente (para projetos)
+        solicitacao: Tipo de solicitação (para projetos)
         
     Returns:
         Lista de dicionários com 'id', 'name' e 'webViewLink' dos arquivos enviados
@@ -138,8 +146,18 @@ def upload_files(
         # Criar estrutura de pastas
         target_folder_id = destination_folder
         
-        # Se componente for informado, criar pasta do componente primeiro
-        if componente:
+        # Estrutura para Projetos: Edital / Ano do Edital / Nome do Docente / Solicitação
+        if edital:
+            target_folder_id = find_or_create_folder(edital, target_folder_id)
+            if ano_edital:
+                target_folder_id = find_or_create_folder(ano_edital, target_folder_id)
+                if docente:
+                    target_folder_id = find_or_create_folder(docente, target_folder_id)
+                    if solicitacao:
+                        target_folder_id = find_or_create_folder(solicitacao, target_folder_id)
+        # Estrutura para outros formulários
+        elif componente:
+            # Se componente for informado, criar pasta do componente primeiro
             target_folder_id = find_or_create_folder(componente, target_folder_id)
         
         if turma:

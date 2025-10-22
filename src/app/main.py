@@ -331,16 +331,25 @@ def _render_available_forms() -> None:
     
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # Terceira linha - Plano de Ensino centralizado
-    col_left, col_center, col_right = st.columns([1, 2, 1])
+    # Terceira linha - Plano de Ensino e Projetos
+    col_left, col_right = st.columns(2)
     
-    with col_center:
+    with col_left:
         _render_form_card(
             title="Plano de Ensino",
             description="Submissão de Planos de Ensino por disciplina. Docentes podem enviar os planos de ensino organizados por semestre.",
             icon="📚",
             page_name="FormPlanoEnsino.py",
             key="btn_plano"
+        )
+    
+    with col_right:
+        _render_form_card(
+            title="Projetos",
+            description="Submissão de Projetos de Ensino, Pesquisa e Extensão. Registro de novo projeto, renovação ou encerramento com geração automática de documentos.",
+            icon="🔬",
+            page_name="FormProjetos.py",
+            key="btn_projetos"
         )
 
 

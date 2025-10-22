@@ -564,3 +564,241 @@ Um novo plano de ensino foi registrado no sistema.
         "file_links": file_links,
         "total_files": len(file_names),
     }
+
+
+def process_projetos_submission(
+    form_data: Dict[str, Any],
+    uploaded_files: list,
+) -> Dict[str, Any]:
+    """
+    Processa submissão do formulário de Projetos.
+    
+    Args:
+        form_data: Dados do formulário (docente, pareceristas, projeto, etc.)
+        uploaded_files: Lista de arquivos enviados
+        
+    Returns:
+        Dict contendo IDs e links dos arquivos enviados
+    """
+    from src.utils.PDFGenerator import gerar_pdf_projetos, gerar_pdf_declaracao_projeto
+    
+    # Validar campos obrigatórios
+    required_fields = [
+        "docente", "parecerista1", "parecerista2", "nome_projeto",
+        "carga_horaria", "edital", "natureza", "ano_edital", "solicitacao"
+    ]
+    for field in required_fields:
+        if not form_data.get(field):
+            raise ValueError(f"Campo obrigatório ausente: {field}")
+    
+    # Carregar configurações de secrets
+    drive_folder_id = st.secrets["projetos"]["drive_folder_id"]
+    sheet_id = st.secrets["projetos"]["sheet_id"]
+    notification_recipients = _coerce_recipients(
+        st.secrets["projetos"].get("notification_recipients", [])
+    )
+    pareceristas_str = st.secrets["projetos"].get("pareceristas", "")
+    
+    # Parse do dicionário de pareceristas
+    pareceristas_dict = {}
+    if pareceristas_str:
+        pares = pareceristas_str.split(",")
+        for par in pares:
+            if ":" in par:
+                nome, email = par.split(":", 1)
+                pareceristas_dict[nome.strip()] = email.strip()
+    
+    # ===============================================
+    # GERAR PDFs: Parecer e Declaração
+    # ===============================================
+    # Preparar dados para o gerador de PDF (formato esperado: lista)
+    # Os métodos esperam: [timestamp, docente, parecerista1, parecerista2, projeto, 
+    #                      carga_horaria, edital, natureza, ano_edital, solicitacao]
+    from datetime import datetime
+    timestamp = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+    
+    pdf_data = [
+        timestamp,
+        form_data["docente"],
+        form_data["parecerista1"],
+        form_data["parecerista2"],
+        form_data["nome_projeto"],
+        form_data["carga_horaria"],
+        form_data["edital"],
+        form_data["natureza"],
+        form_data["ano_edital"],
+        form_data["solicitacao"],
+    ]
+    
+    # Gerar PDFs
+    pdf_parecer_path = gerar_pdf_projetos(pdf_data)
+    pdf_declaracao_path = gerar_pdf_declaracao_projeto(pdf_data)
+    
+    # ===============================================
+    # PREPARAR ARQUIVOS PARA UPLOAD
+    # ===============================================
+    # Coletar nomes dos arquivos enviados pelo usuário
+    user_file_names = [f.name for f in uploaded_files if hasattr(f, 'name')]
+    
+    # Criar lista combinada: arquivos do usuário + PDFs gerados
+    all_files_to_upload = list(uploaded_files)  # Converter para lista se necessário
+    
+    # Adicionar PDFs gerados à lista de arquivos
+    # Criar objetos BytesIO para os PDFs que serão tratados como arquivos
+    from io import BytesIO
+    
+    # Ler PDF do parecer
+    with open(pdf_parecer_path, "rb") as f:
+        pdf_parecer_content = f.read()
+    
+    pdf_parecer_file = BytesIO(pdf_parecer_content)
+    pdf_parecer_file.name = os.path.basename(pdf_parecer_path)
+    pdf_parecer_file.type = "application/pdf"
+    
+    # Ler PDF da declaração
+    with open(pdf_declaracao_path, "rb") as f:
+        pdf_declaracao_content = f.read()
+    
+    pdf_declaracao_file = BytesIO(pdf_declaracao_content)
+    pdf_declaracao_file.name = os.path.basename(pdf_declaracao_path)
+    pdf_declaracao_file.type = "application/pdf"
+    
+    # Adicionar PDFs à lista de upload
+    all_files_to_upload.append(pdf_parecer_file)
+    all_files_to_upload.append(pdf_declaracao_file)
+    
+    # Lista de todos os nomes de arquivos
+    all_file_names = user_file_names + [
+        os.path.basename(pdf_parecer_path),
+        os.path.basename(pdf_declaracao_path)
+    ]
+    
+    # ===============================================
+    # UPLOAD NO GOOGLE DRIVE
+    # ===============================================
+    # Estrutura: Edital / Ano do Edital / Nome do Docente / Solicitação
+    uploaded_files_info = upload_files(
+        all_files_to_upload,
+        drive_folder_id,
+        edital=form_data["edital"],
+        ano_edital=form_data["ano_edital"],
+        docente=form_data["docente"],
+        solicitacao=form_data["solicitacao"],
+    )
+    
+    # Extrair informações dos arquivos
+    file_ids = [f['id'] for f in uploaded_files_info]
+    file_links = [f['webViewLink'] for f in uploaded_files_info]
+    
+    # ===============================================
+    # SALVAR NO GOOGLE SHEETS
+    # ===============================================
+    # Formato: Carimbo, Docente, Parecerista1, Parecerista2, Nome Projeto,
+    #          Carga Horária, Edital, Natureza, Ano Edital, Solicitação, Anexos
+    anexos_formatados = "\n".join(
+        f"{name}: {link}" for name, link in zip(all_file_names, file_links)
+    )
+    
+    row_data = {
+        "Carimbo de data/hora": timestamp,
+        "Nome do Docente Responsável": form_data["docente"],
+        "Nome do Parecerista 1": form_data["parecerista1"],
+        "Nome do Parecerista 2": form_data["parecerista2"],
+        "Nome do Projeto": form_data["nome_projeto"],
+        "Carga Horária": form_data["carga_horaria"],
+        "Edital": form_data["edital"],
+        "Natureza": form_data["natureza"],
+        "Ano do Edital": form_data["ano_edital"],
+        "Solicitação": form_data["solicitacao"],
+        "Anexos": anexos_formatados,
+    }
+    
+    append_rows([row_data], sheet_id)
+    
+    # ===============================================
+    # ENVIAR E-MAILS
+    # ===============================================
+    # Destinatários: notification_recipients + email do docente (via pareceristas_dict)
+    recipients = list(notification_recipients)
+    
+    # Adicionar email do docente se disponível
+    docente_email = pareceristas_dict.get(form_data["docente"])
+    if docente_email and docente_email not in recipients:
+        recipients.append(docente_email)
+    
+    # Preparar anexos de email (PDFs gerados)
+    email_attachments = [
+        pdf_parecer_path,
+        pdf_declaracao_path,
+    ]
+    
+    # Assunto e corpo do email
+    subject = f"Novo Projeto Submetido - {form_data['nome_projeto']}"
+    body = f"""
+Prezado(a),
+
+Um novo projeto foi submetido através do Sistema de Automação da FASI.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📋 INFORMAÇÕES DO PROJETO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+👨‍🏫 Docente Responsável: {form_data['docente']}
+
+📝 Pareceristas:
+   • Parecerista 1: {form_data['parecerista1']}
+   • Parecerista 2: {form_data['parecerista2']}
+
+📊 Projeto: {form_data['nome_projeto']}
+
+⏱️ Carga Horária: {form_data['carga_horaria']} horas
+
+📢 Edital: {form_data['edital']}
+
+🎯 Natureza: {form_data['natureza']}
+
+📅 Ano do Edital: {form_data['ano_edital']}
+
+📋 Tipo de Solicitação: {form_data['solicitacao']}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📎 ANEXOS ({len(all_file_names)} arquivo(s))
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+{anexos_formatados}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📄 DOCUMENTOS GERADOS AUTOMATICAMENTE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ Parecer do Projeto (PDF anexado)
+✅ Declaração do Projeto (PDF anexado)
+
+Os documentos gerados foram anexados a este e-mail e também salvos no Google Drive junto com os demais anexos.
+
+🔗 Você pode acessar todos os documentos através dos links fornecidos acima.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🤖 Sistema de Automação da FASI
+"""
+    
+    # Enviar email com anexos (PDFs gerados)
+    send_email_with_attachments(subject, body, recipients, attachments=email_attachments)
+    
+    # Limpar arquivos temporários
+    try:
+        os.remove(pdf_parecer_path)
+        os.remove(pdf_declaracao_path)
+    except:
+        pass
+    
+    return {
+        "docente": form_data["docente"],
+        "nome_projeto": form_data["nome_projeto"],
+        "file_ids": file_ids,
+        "file_links": file_links,
+        "total_files": len(all_file_names),
+        "pdf_parecer": os.path.basename(pdf_parecer_path),
+        "pdf_declaracao": os.path.basename(pdf_declaracao_path),
+    }
+
