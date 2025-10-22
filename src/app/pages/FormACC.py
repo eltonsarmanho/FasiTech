@@ -251,35 +251,29 @@ def _validate_submission(name: str, registration: str, email: str, class_group: 
 
 def render_form() -> None:
 	_render_intro()
-	
+
+	# Inicializar variáveis para evitar UnboundLocalError
+	submitted = False
+	name = registration = email = class_group = ""
+	uploaded_file = None
+
 	# Verificar se configurações foram carregadas
 	config = _load_acc_settings()
-	if not config["drive_folder_id"] or not config["sheet_id"]:
-		st.warning(
-			"⚠️ **Configuração Incompleta**: O arquivo `.streamlit/secrets.toml` não está totalmente configurado. "
-			"Os dados serão validados mas não serão enviados ao Google Drive/Sheets. "
-			"Configure `drive_folder_id` e `sheet_id` para habilitar o envio completo."
-		)
-	
+
 	with st.form("formulario_acc"):
 		st.markdown("<span class='acc-required'>*</span> Campo obrigatório", unsafe_allow_html=True)
-		
 		col1, col2 = st.columns(2)
 		name = col1.text_input("Nome Completo *", placeholder="Seu nome completo")
 		registration = col2.text_input("Matrícula *", placeholder="202312345")
 		email = col1.text_input("E-mail *", placeholder="seuemail@ufpa.br")
 		class_group = col2.text_input("Turma (Ano de Ingresso) *", placeholder="2027", max_chars=4)
-
 		uploaded_file = st.file_uploader(
 			"Anexo PDF *",
 			type=["pdf"],
 			accept_multiple_files=False,
 			help="Arquivo PDF consolidado com todos os certificados (máximo 10 MB)",
 		)
-
-	submit_placeholder = st.container()
-	submitted = submit_placeholder.form_submit_button("Enviar para análise", use_container_width=True)
-
+		submitted = st.form_submit_button("Enviar para análise", use_container_width=True)
 
 	if not submitted:
 		return
