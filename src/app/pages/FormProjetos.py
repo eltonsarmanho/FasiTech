@@ -447,7 +447,6 @@ def render_form() -> None:
         
         uploaded_files = st.file_uploader(
             "Adicionar arquivo",
-            type=["pdf", "doc", "docx"],
             accept_multiple_files=True,
             help=f"Selecione um ou mais arquivos (máximo {MAX_FILE_SIZE_MB} MB cada)",
             label_visibility="collapsed"
