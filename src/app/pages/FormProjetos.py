@@ -149,15 +149,6 @@ def _render_intro() -> None:
                 opacity: 0.95;
             }
             
-            .projetos-card {
-                background: #ffffff;
-                border-radius: 16px;
-                padding: 36px;
-                box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
-                border: 1px solid #e2e8f0;
-                margin-bottom: 24px;
-            }
-            
             .projetos-required {
                 color: #ef4444;
                 font-weight: 700;
@@ -341,8 +332,6 @@ def _process_projetos_submission(form_data: dict[str, Any], files: list) -> None
 def render_form() -> None:
     _render_intro()
     
-    st.markdown('<div class="projetos-card">', unsafe_allow_html=True)
-    
     # ============================================
     # SOLICITAÇÃO
     # ============================================
@@ -468,8 +457,6 @@ def render_form() -> None:
         
         # Botão de envio
         submitted = st.form_submit_button("Enviar", use_container_width=True)
-    
-    st.markdown('</div>', unsafe_allow_html=True)
     
     # Processar submissão
     if submitted:

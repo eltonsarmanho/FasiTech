@@ -231,31 +231,6 @@ def _render_intro() -> None:
 		""",
 		unsafe_allow_html=True,
 	)
-	
-	
-	
-	# Informações obrigatórias
-	st.markdown(
-		"""
-		<div class="info-box">
-			<h3>📋 Estrutura Obrigatória do TCC</h3>
-			<p>Independentemente do formato do trabalho (memorial, artigo, relatório ou outro tipo de documento), é obrigatório incluir <strong>nessa ordem</strong>:</p>
-			<ol>
-				<li>Capa</li>
-				<li>Contracapa</li>
-				<li>
-					Ficha Catalográfica<br>
-					<a href="https://bcficat.ufpa.br/" target="_blank">
-						🔗 Gerar Ficha Catalográfica
-					</a>
-				</li>
-				<li>Folha de Assinatura da Banca (Obrigatório)</li>
-			</ol>
-			<p style="margin-top: 12px;"><strong>Certifique-se de seguir essas orientações para garantir a entrega correta do seu TCC.</strong></p>
-		</div>
-		""",
-		unsafe_allow_html=True,
-	)
 
 
 def _validate_email(email: str) -> bool:
@@ -360,7 +335,7 @@ def render_form() -> None:
 			"- 📄 ANEXO II das Diretrizes do TCC\n\n"
 			"**Mínimo:** 2 arquivos PDF"
 		)
-	else:
+	else:  # TCC 2
 		st.warning(
 			"**📗 TCC 2 - Documentos Obrigatórios:**\n\n"
 			"⚠️ **ATENÇÃO:** Para TCC 2, você deve anexar **3 arquivos separados**:\n\n"
@@ -369,6 +344,29 @@ def render_form() -> None:
 			"3. 📄 **Versão Final do TCC**\n\n"
 			"**Mínimo:** 3 arquivos PDF obrigatórios\n\n"
 			"💡 **Importante:** A biblioteca (bibcameta@ufpa.br) receberá uma cópia da sua submissão."
+		)
+		
+		# Estrutura Obrigatória do TCC - SOMENTE para TCC 2
+		st.markdown(
+			"""
+			<div class="info-box">
+				<h3>📋 Estrutura Obrigatória do TCC</h3>
+				<p>Independentemente do formato do trabalho (memorial, artigo, relatório ou outro tipo de documento), é obrigatório incluir <strong>nessa ordem</strong>:</p>
+				<ol>
+					<li>Capa</li>
+					<li>Contracapa</li>
+					<li>
+						Ficha Catalográfica<br>
+						<a href="https://bcficat.ufpa.br/" target="_blank">
+							🔗 Gerar Ficha Catalográfica
+						</a>
+					</li>
+					<li>Folha de Assinatura da Banca (Obrigatório)</li>
+				</ol>
+				<p style="margin-top: 12px;"><strong>Certifique-se de seguir essas orientações para garantir a entrega correta do seu TCC.</strong></p>
+			</div>
+			""",
+			unsafe_allow_html=True,
 		)
 	
 	st.markdown("<br>", unsafe_allow_html=True)
