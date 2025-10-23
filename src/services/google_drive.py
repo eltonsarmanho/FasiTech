@@ -67,7 +67,7 @@ def find_or_create_folder(folder_name: str, parent_folder_id: str) -> str:
     folders = results.get('files', [])
     
     if folders:
-        print(f"📁 Pasta '{folder_name}' encontrada: {folders[0]['id']}")
+        # print(f"📁 Pasta '{folder_name}' encontrada: {folders[0]['id']}")
         return folders[0]['id']
     
     # Criar pasta se não existir
@@ -82,7 +82,7 @@ def find_or_create_folder(folder_name: str, parent_folder_id: str) -> str:
         fields='id, name'
     ).execute()
     
-    print(f"📂 Pasta '{folder_name}' criada: {folder.get('id')}")
+    # print(f"📂 Pasta '{folder_name}' criada: {folder.get('id')}")
     return folder.get('id')
 
 
@@ -127,7 +127,7 @@ def upload_files(
                 fileId=destination_folder,
                 fields='id, name'
             ).execute()
-            print(f"📁 Pasta raiz encontrada: {folder.get('name')}")
+            # print(f"📁 Pasta raiz encontrada: {folder.get('name')}")
         except Exception as folder_error:
             error_msg = (
                 f"❌ A conta de serviço não tem acesso à pasta do Google Drive.\n"
@@ -215,8 +215,8 @@ def upload_files(
                 'webViewLink': file.get('webViewLink')
             })
             
-            print(f"✅ Arquivo '{file_name}' enviado com ID: {file.get('id')}")
-            print(f"   Link: {file.get('webViewLink')}")
+            # print(f"✅ Arquivo '{file_name}' enviado com ID: {file.get('id')}")
+            # print(f"   Link: {file.get('webViewLink')}")
         
         return uploaded_files
         
@@ -262,7 +262,7 @@ def upload_files_tcc(
                 fileId=destination_folder,
                 fields='id, name'
             ).execute()
-            print(f"📁 Pasta raiz TCC encontrada: {folder.get('name')}")
+            # print(f"📁 Pasta raiz TCC encontrada: {folder.get('name')}")
         except Exception as folder_error:
             error_msg = (
                 f"❌ A conta de serviço não tem acesso à pasta do Google Drive.\n"
@@ -282,15 +282,15 @@ def upload_files_tcc(
         target_folder_id = destination_folder
         
         # 1. Criar/encontrar pasta do componente (TCC 1 ou TCC 2)
-        print(f"📂 Criando/encontrando pasta: {componente}")
+    # print(f"📂 Criando/encontrando pasta: {componente}")
         target_folder_id = find_or_create_folder(componente, target_folder_id)
         
         # 2. Criar/encontrar pasta da turma
-        print(f"📂 Criando/encontrando pasta: {turma}")
+    # print(f"📂 Criando/encontrando pasta: {turma}")
         target_folder_id = find_or_create_folder(turma, target_folder_id)
         
         # 3. Criar/encontrar pasta com nome do aluno
-        print(f"📂 Criando/encontrando pasta: {nome_aluno}")
+    # print(f"📂 Criando/encontrando pasta: {nome_aluno}")
         target_folder_id = find_or_create_folder(nome_aluno, target_folder_id)
         
         uploaded_files: list[Dict[str, str]] = []
@@ -340,10 +340,10 @@ def upload_files_tcc(
                 'webViewLink': file.get('webViewLink')
             })
             
-            print(f"✅ Arquivo '{file_name}' enviado com ID: {file.get('id')}")
-            print(f"   Link: {file.get('webViewLink')}")
+            # print(f"✅ Arquivo '{file_name}' enviado com ID: {file.get('id')}")
+            # print(f"   Link: {file.get('webViewLink')}")
         
-        print(f"\n🎉 Estrutura criada: {componente}/{turma}/{nome_aluno}/")
+    # print(f"\n🎉 Estrutura criada: {componente}/{turma}/{nome_aluno}/")
         return uploaded_files
         
     except ValueError:

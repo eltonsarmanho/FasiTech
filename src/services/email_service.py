@@ -70,7 +70,7 @@ def send_email_with_attachments(
         if attachments:
             for attachment_path in attachments:
                 if not os.path.exists(attachment_path):
-                    print(f"⚠️ Anexo não encontrado: {attachment_path}")
+                    # print(f"⚠️ Anexo não encontrado: {attachment_path}")
                     continue
                 
                 try:
@@ -90,7 +90,7 @@ def send_email_with_attachments(
                     )
                     
                     msg.attach(part)
-                    print(f"📎 Anexo adicionado: {filename}")
+                    # print(f"📎 Anexo adicionado: {filename}")
                     
                 except Exception as e:
                     print(f"❌ Erro ao anexar arquivo {attachment_path}: {str(e)}")
@@ -101,7 +101,7 @@ def send_email_with_attachments(
             server.login(email_sender, email_password)
             server.send_message(msg)
         
-        print(f"✅ E-mail enviado com sucesso para: {', '.join(recipients_list)}")
+    # print(f"✅ E-mail enviado com sucesso para: {', '.join(recipients_list)}")
         
     except Exception as e:
         print(f"❌ Erro ao enviar e-mail: {str(e)}")

@@ -178,7 +178,7 @@ def append_rows(rows: Iterable[Dict[str, Any]], sheet_id: str, range_name: str =
             body=body
         ).execute()
         
-        print(f"✅ {result.get('updates').get('updatedRows')} linha(s) adicionada(s) à aba '{range_name}'")
+    # print(f"✅ {result.get('updates').get('updatedRows')} linha(s) adicionada(s) à aba '{range_name}'")
         
     except Exception as e:
         print(f"❌ Erro ao escrever no Google Sheets: {str(e)}")
