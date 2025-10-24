@@ -381,7 +381,7 @@ def render_form() -> None:
 		name = col1.text_input("Nome Completo *", placeholder="Seu nome completo")
 		email = col2.text_input("E-mail *", placeholder="seuemail@ufpa.br")
 		turma = col1.text_input("Turma (Ano de Ingresso) *", placeholder="2027", max_chars=4)
-		matricula = col2.text_input("Matrícula *", placeholder="202312345")
+		matricula = col2.text_input("Matrícula *", placeholder="202312345", max_chars=12)
 		orientador = col1.text_input("Orientador(a) *", placeholder="Prof. Dr. Nome do Orientador")
 		titulo = st.text_input("Título do TCC *", placeholder="Digite o título completo do seu TCC")
 		

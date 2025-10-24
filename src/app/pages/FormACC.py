@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 from typing import Any, Dict
+import re
 
 import streamlit as st
 
@@ -203,12 +204,20 @@ def _render_intro() -> None:
 	)
 
 
+def _validate_turma(turma: str) -> bool:
+    """Valida se a turma tem exatamente 4 dígitos numéricos."""
+    return bool(re.match(r'^\d{4}$', turma))
+
 def _validate_email(email: str) -> bool:
 	"""Valida formato de email usando regex."""
 	import re
 	pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
 	return re.match(pattern, email) is not None
 
+def _validate_matricula(matricula: str) -> bool:
+    """Valida se a matrícula possui exatamente 12 dígitos numéricos."""
+    import re
+    return bool(re.fullmatch(r"\d{12}", matricula))
 
 def _validate_submission(name: str, registration: str, email: str, class_group: str, uploaded_file: Any) -> list[str]:
 	"""Executa validações básicas antes de enviar ao backend."""
@@ -264,9 +273,17 @@ def render_form() -> None:
 		st.markdown("<span class='acc-required'>*</span> Campo obrigatório", unsafe_allow_html=True)
 		col1, col2 = st.columns(2)
 		name = col1.text_input("Nome Completo *", placeholder="Seu nome completo")
-		registration = col2.text_input("Matrícula *", placeholder="202312345")
+		registration = col2.text_input("Matrícula *", placeholder="202312345", max_chars=12)
+		
+		if registration and not _validate_matricula(registration):
+			st.warning("A matrícula deve conter exatamente 12 dígitos numéricos.")
+		
 		email = col1.text_input("E-mail *", placeholder="seuemail@ufpa.br")
+		
 		class_group = col2.text_input("Turma (Ano de Ingresso) *", placeholder="2027", max_chars=4)
+		if class_group and not _validate_turma(class_group):
+			st.warning("A turma deve conter exatamente 4 dígitos numéricos.")
+
 		uploaded_file = st.file_uploader(
 			"Anexo PDF *",
 			type=["pdf"],

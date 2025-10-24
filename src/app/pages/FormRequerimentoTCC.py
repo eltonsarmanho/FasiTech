@@ -491,7 +491,7 @@ def render_form() -> None:
         col1, col2 = st.columns(2)
         
         nome = col1.text_input("Nome Completo *", placeholder="Seu nome completo")
-        matricula = col2.text_input("Matrícula *", placeholder="202312345")
+        matricula = col2.text_input("Matrícula *", placeholder="202312345", max_chars=12)
         email = st.text_input("E-mail *", placeholder="seuemail@ufpa.br")
         
         st.markdown("<br>", unsafe_allow_html=True)

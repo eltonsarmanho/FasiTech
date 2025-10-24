@@ -283,16 +283,12 @@ def render_form() -> None:
             max_chars=4,
             help="Ano de ingresso (4 dígitos numéricos, ex: 2027)"
         )
-        if turma and not _validate_turma(turma):
-            st.warning("A turma deve conter exatamente 4 dígitos numéricos.")
         
         matricula = col4.text_input("Matrícula * (12 dígitos)",
                                     help="Sua matrícula no SIGAA",
                                     max_chars=12,
                                     placeholder="202312345678")
-        if matricula and not _validate_matricula(matricula):
-            st.warning("A matrícula deve conter exatamente 12 dígitos numéricos.")
-
+        
         
         st.markdown("<br>", unsafe_allow_html=True)
         
