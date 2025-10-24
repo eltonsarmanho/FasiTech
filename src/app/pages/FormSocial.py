@@ -1,20 +1,36 @@
-# -*- coding: utf-8 -*-
-from timeit import main
+
 import streamlit as st
 import datetime
-
-	# --- INÍCIO PADRÃO VISUAL INSTITUCIONAL ---
 import sys
 from pathlib import Path
+from typing import Any, Dict
 
+# --- INÍCIO PADRÃO VISUAL INSTITUCIONAL ---
 ROOT_DIR = Path(__file__).resolve().parents[3]
 if str(ROOT_DIR) not in sys.path:
-    sys.path.insert(0, str(ROOT_DIR))
+	sys.path.insert(0, str(ROOT_DIR))
 
-from src.services.form_service import process_acc_submission
+from src.services.google_sheets import append_rows
+from src.services.email_service import send_notification
 
 LOGO_PATH = Path(__file__).resolve().parents[2] / "resources" / "fasiOficial.png"
 MAX_FILE_SIZE_MB = 10
+
+def _load_social_settings() -> Dict[str, Any]:
+	"""Resgata configurações específicas do formulário social via secrets/env."""
+	try:
+		social_settings = st.secrets.get("social", {}) if hasattr(st, "secrets") else {}
+	except FileNotFoundError:
+		social_settings = {}
+	except Exception:
+		social_settings = {}
+	recipients = social_settings.get("notification_recipients", [])
+	if isinstance(recipients, str):
+		recipients = [email.strip() for email in recipients.split(",") if email.strip()]
+	return {
+		"sheet_id": social_settings.get("sheet_id", ""),
+		"notification_recipients": recipients,
+	}
 
 def get_periodo_atual():
 		import datetime
@@ -138,184 +154,216 @@ def get_periodo_atual():
 		
 
 def render_form():
-		# Logo
-		col_left, col_center, col_right = st.columns([1, 2, 1])
-		with col_center:
-			if LOGO_PATH.exists():
-				st.markdown('<div class="logo-container">', unsafe_allow_html=True)
-				st.image(str(LOGO_PATH), use_container_width=True)
-				st.markdown('</div>', unsafe_allow_html=True)
+	config = _load_social_settings()
 
-		# Hero section
-		st.markdown(
-			f"""
-			<div class='social-hero'>
-				<h1>🤝 Formulário Social, Acadêmico e Saúde</h1>
-				<p style='font-size: 1rem; margin-bottom: 16px;'>
-					Questionário institucional para políticas de inclusão, diversidade, saúde mental e acompanhamento estudantil.<br>
-					<b>Período de referência: {get_periodo_atual()}</b>
-				</p>
-				<ul style='font-size:0.98rem; margin-top:10px; padding-left:20px;'>
-					<li>Preencha todos os campos com atenção.</li>
-					<li>Os dados são confidenciais e utilizados apenas para fins institucionais.</li>
-				</ul>
-			</div>
-			""",
-			unsafe_allow_html=True,
-		)
-
-		with st.form("form_social"):
-			st.markdown('<span style="color:#dc2626;font-weight:600;">*</span> Campo obrigatório', unsafe_allow_html=True)
-			matricula = st.text_input("Matrícula *", max_chars=20)
-
-			st.markdown('<div class="form-section-title">1. Perfil Pessoal (Inclusão e Diversidade)</div>', unsafe_allow_html=True)
-			cor_etnia = st.radio(
-				"Qual sua cor ou etnia/identidade racial?",
-				[
-					"Branco",
-					"Preto",
-					"Pardo",
-					"Amarelo",
-					"Indígena",
-					"Quilombola",
-					"Outra etnia",
-					"Prefiro não responder"
-				]
-			)
-
-			pcd = st.radio(
-				"Você se considera Pessoa com Deficiência (PCD)?",
-				["Sim", "Não", "Prefiro não responder"]
-			)
-			tipo_deficiencia = []
-			if pcd == "Sim":
-				tipo_deficiencia = st.multiselect(
-					"Se 'Sim', qual o tipo de deficiência?",
-					["Física", "Visual", "Auditiva", "Intelectual", "Múltipla", "Outra"]
-				)
-
-			st.markdown('<div class="form-section-title">2. Situação Socioeconômica</div>', unsafe_allow_html=True)
-			renda = st.radio(
-				f"Qual a renda familiar mensal total no período {get_periodo_atual()}?",
-				[
-					"Até 1 salário mínimo",
-					"1 a 3 salários mínimos",
-					"3 a 5 salários mínimos",
-					"Acima de 5 a 10 salários mínimos",
-					"Mais de 10 salários mínimos"
-				]
-			)
-
-			st.markdown('<div class="form-section-title">3. Condições de Acesso e Deslocamento</div>', unsafe_allow_html=True)
-			deslocamento = st.radio(
-				f"Como você se desloca para a universidade no período {get_periodo_atual()}?",
-				[
-					"Transporte público (ônibus, trem, metrô, etc.)",
-					"Transporte por aplicativo/táxi",
-					"Carro/Moto próprio",
-					"Carona/Fretado",
-					"Bicicleta/A pé"
-				]
-			)
-
-			st.markdown('<div class="form-section-title">4. Trabalho e Acadêmico</div>', unsafe_allow_html=True)
-			trabalho = st.radio(
-				f"Você trabalhava no período {get_periodo_atual()}?",
-				[
-					"Sim, estágio remunerado",
-					"Sim, CLT/Concurso",
-					"Sim, autônomo/informal",
-					"Não"
-				]
-			)
-
-			st.markdown('<div class="form-section-title">5. Saúde e Bem-Estar (Saúde Mental)</div>', unsafe_allow_html=True)
-			saude_mental = st.radio(
-				f"Em geral, como você avalia sua saúde mental no período {get_periodo_atual()}?",
-				[
-					"Muito boa",
-					"Boa",
-					"Regular",
-					"Ruim",
-					"Muito ruim",
-					"Prefiro não responder"
-				]
-			)
-
-			estresse = st.radio(
-				f"Você sentiu ansiedade ou estresse elevado que interferiu nos seus estudos no período {get_periodo_atual()}?",
-				[
-					"Não",
-					"Sim, ocasionalmente",
-					"Sim, frequentemente",
-					"Sim, a maior parte do tempo"
-				]
-			)
-
-			acompanhamento = st.radio(
-				"Você já buscou ou recebe acompanhamento psicológico/psiquiátrico?",
-				[
-					"Sim, atualmente",
-					"Sim, no passado",
-					"Nunca"
-				]
-			)
-
-			st.markdown('<div class="form-section-title">6. Escolaridade dos Pais</div>', unsafe_allow_html=True)
-			escolaridade_pai = st.selectbox(
-				"Escolaridade do pai",
-				[
-					"Analfabeto",
-					"Ensino Fundamental incompleto",
-					"Ensino Fundamental completo",
-					"Ensino Médio incompleto",
-					"Ensino Médio completo",
-					"Ensino Superior incompleto",
-					"Ensino Superior completo",
-					"Pós-graduação",
-					"Não sei/Prefiro não responder"
-				]
-			)
-			escolaridade_mae = st.selectbox(
-				"Escolaridade da mãe",
-				[
-					"Analfabeto",
-					"Ensino Fundamental incompleto",
-					"Ensino Fundamental completo",
-					"Ensino Médio incompleto",
-					"Ensino Médio completo",
-					"Ensino Superior incompleto",
-					"Ensino Superior completo",
-					"Pós-graduação",
-					"Não sei/Prefiro não responder"
-				]
-			)
-
-			st.markdown('<div class="form-section-title">7. Acesso à Internet e Moradia</div>', unsafe_allow_html=True)
-			acesso_internet = st.radio(
-				"Você possui acesso à internet em casa?",
-				["Sim", "Não", "Às vezes", "Prefiro não responder"]
-			)
-			tipo_moradia = st.radio(
-				"Tipo de moradia",
-				[
-					"Própria",
-					"Alugada",
-					"Cedida",
-					"República/Estudantil",
-					"Outra",
-					"Prefiro não responder"
-				]
-			)
-
-			submitted = st.form_submit_button("Salvar", use_container_width=True)
+	# Logo
+	col_left, col_center, col_right = st.columns([1, 2, 1])
+	with col_center:
+		if LOGO_PATH.exists():
+			st.markdown('<div class="logo-container">', unsafe_allow_html=True)
+			st.image(str(LOGO_PATH), use_container_width=True)
 			st.markdown('</div>', unsafe_allow_html=True)
 
-		if submitted:
-			if not matricula.strip():
-				st.error("Por favor, preencha o campo Matrícula.")
-			else:
-				st.success("Formulário enviado com sucesso! (Integração com Google Sheets e e-mail será implementada)")
+	# Hero section
+	st.markdown(
+		f"""
+		<div class='social-hero'>
+			<h1>🤝 Formulário Social, Acadêmico e Saúde</h1>
+			<p style='font-size: 1rem; margin-bottom: 16px;'>
+				Questionário institucional para políticas de inclusão, diversidade, saúde mental e acompanhamento estudantil.<br>
+				<b>Período de referência: {get_periodo_atual()}</b>
+			</p>
+			<ul style='font-size:0.98rem; margin-top:10px; padding-left:20px;'>
+				<li>Preencha todos os campos com atenção.</li>
+				<li>Os dados são confidenciais e utilizados apenas para fins institucionais.</li>
+			</ul>
+		</div>
+		""",
+		unsafe_allow_html=True,
+	)
+
+	with st.form("form_social"):
+		st.markdown('<span style="color:#dc2626;font-weight:600;">*</span> Campo obrigatório', unsafe_allow_html=True)
+		matricula = st.text_input("Matrícula *", max_chars=20)
+
+		st.markdown('<div class="form-section-title">1. Perfil Pessoal (Inclusão e Diversidade)</div>', unsafe_allow_html=True)
+		cor_etnia = st.radio(
+			"Qual sua cor ou etnia/identidade racial?",
+			[
+				"Branco",
+				"Preto",
+				"Pardo",
+				"Amarelo",
+				"Indígena",
+				"Quilombola",
+				"Outra etnia",
+				"Prefiro não responder"
+			]
+		)
+
+		pcd = st.radio(
+			"Você se considera Pessoa com Deficiência (PCD)?",
+			["Sim", "Não", "Prefiro não responder"]
+		)
+		tipo_deficiencia = []
+		if pcd == "Sim":
+			tipo_deficiencia = st.multiselect(
+				"Se 'Sim', qual o tipo de deficiência?",
+				["Física", "Visual", "Auditiva", "Intelectual", "Múltipla", "Outra"]
+			)
+
+		st.markdown('<div class="form-section-title">2. Situação Socioeconômica</div>', unsafe_allow_html=True)
+		renda = st.radio(
+			f"Qual a renda familiar mensal total no período {get_periodo_atual()}?",
+			[
+				"Até 1 salário mínimo",
+				"1 a 3 salários mínimos",
+				"3 a 5 salários mínimos",
+				"Acima de 5 a 10 salários mínimos",
+				"Mais de 10 salários mínimos"
+			]
+		)
+
+		st.markdown('<div class="form-section-title">3. Condições de Acesso e Deslocamento</div>', unsafe_allow_html=True)
+		deslocamento = st.radio(
+			f"Como você se desloca para a universidade no período {get_periodo_atual()}?",
+			[
+				"Transporte público (ônibus, trem, metrô, etc.)",
+				"Transporte por aplicativo/táxi",
+				"Carro/Moto próprio",
+				"Carona/Fretado",
+				"Bicicleta/A pé"
+			]
+		)
+
+		st.markdown('<div class="form-section-title">4. Trabalho e Acadêmico</div>', unsafe_allow_html=True)
+		trabalho = st.radio(
+			f"Você trabalhava no período {get_periodo_atual()}?",
+			[
+				"Sim, estágio remunerado",
+				"Sim, CLT/Concurso",
+				"Sim, autônomo/informal",
+				"Não"
+			]
+		)
+
+		st.markdown('<div class="form-section-title">5. Saúde e Bem-Estar (Saúde Mental)</div>', unsafe_allow_html=True)
+		saude_mental = st.radio(
+			f"Em geral, como você avalia sua saúde mental no período {get_periodo_atual()}?",
+			[
+				"Muito boa",
+				"Boa",
+				"Regular",
+				"Ruim",
+				"Muito ruim",
+				"Prefiro não responder"
+			]
+		)
+
+		estresse = st.radio(
+			f"Você sentiu ansiedade ou estresse elevado que interferiu nos seus estudos no período {get_periodo_atual()}?",
+			[
+				"Não",
+				"Sim, ocasionalmente",
+				"Sim, frequentemente",
+				"Sim, a maior parte do tempo"
+			]
+		)
+
+		acompanhamento = st.radio(
+			"Você já buscou ou recebe acompanhamento psicológico/psiquiátrico?",
+			[
+				"Sim, atualmente",
+				"Sim, no passado",
+				"Nunca"
+			]
+		)
+
+		st.markdown('<div class="form-section-title">6. Escolaridade dos Pais</div>', unsafe_allow_html=True)
+		escolaridade_pai = st.selectbox(
+			"Escolaridade do pai",
+			[
+				"Analfabeto",
+				"Ensino Fundamental incompleto",
+				"Ensino Fundamental completo",
+				"Ensino Médio incompleto",
+				"Ensino Médio completo",
+				"Ensino Superior incompleto",
+				"Ensino Superior completo",
+				"Pós-graduação",
+				"Não sei/Prefiro não responder"
+			]
+		)
+		escolaridade_mae = st.selectbox(
+			"Escolaridade da mãe",
+			[
+				"Analfabeto",
+				"Ensino Fundamental incompleto",
+				"Ensino Fundamental completo",
+				"Ensino Médio incompleto",
+				"Ensino Médio completo",
+				"Ensino Superior incompleto",
+				"Ensino Superior completo",
+				"Pós-graduação",
+				"Não sei/Prefiro não responder"
+			]
+		)
+
+		st.markdown('<div class="form-section-title">7. Acesso à Internet e Moradia</div>', unsafe_allow_html=True)
+		acesso_internet = st.radio(
+			"Você possui acesso à internet em casa?",
+			["Sim", "Não", "Às vezes", "Prefiro não responder"]
+		)
+		tipo_moradia = st.radio(
+			"Tipo de moradia",
+			[
+				"Própria",
+				"Alugada",
+				"Cedida",
+				"República/Estudantil",
+				"Outra",
+				"Prefiro não responder"
+			]
+		)
+
+		submitted = st.form_submit_button("Salvar", use_container_width=True)
+		st.markdown('</div>', unsafe_allow_html=True)
+
+	if submitted:
+		if not matricula.strip():
+			st.error("Por favor, preencha o campo Matrícula.")
+		else:
+			# Montar dados para salvar
+			row_data = {
+				"Matrícula": matricula.strip(),
+				"Cor/Etnia": cor_etnia,
+				"PCD": pcd,
+				"Tipo de Deficiência": ", ".join(tipo_deficiencia) if tipo_deficiencia else "",
+				"Renda": renda,
+				"Deslocamento": deslocamento,
+				"Trabalho": trabalho,
+				"Saúde Mental": saude_mental,
+				"Estresse": estresse,
+				"Acompanhamento": acompanhamento,
+				"Escolaridade Pai": escolaridade_pai,
+				"Escolaridade Mãe": escolaridade_mae,
+				"Acesso Internet": acesso_internet,
+				"Tipo Moradia": tipo_moradia,
+				"Data/Hora": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+			}
+			try:
+				append_rows([row_data], config["sheet_id"])
+			except Exception as e:
+				st.error(f"Erro ao salvar no Google Sheets: {e}")
+				return
+			# Enviar notificação por email
+			try:
+				subject = "[FASI] Nova resposta no Formulário Social"
+				body = f"Matrícula: {matricula}\nCor/Etnia: {cor_etnia}\nPCD: {pcd}\nRenda: {renda}\nDeslocamento: {deslocamento}\nTrabalho: {trabalho}\nSaúde Mental: {saude_mental}\nEstresse: {estresse}\nAcompanhamento: {acompanhamento}\nEscolaridade Pai: {escolaridade_pai}\nEscolaridade Mãe: {escolaridade_mae}\nAcesso Internet: {acesso_internet}\nTipo Moradia: {tipo_moradia}\nData/Hora: {row_data['Data/Hora']}"
+				send_notification(subject, body, config["notification_recipients"])
+			except Exception as e:
+				st.warning(f"Formulário salvo, mas falha ao enviar e-mail: {e}")
+			st.success("Formulário enviado com sucesso!")
 
 def main():
 		st.set_page_config(
