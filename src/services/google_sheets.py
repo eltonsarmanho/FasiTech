@@ -148,6 +148,26 @@ def append_rows(rows: Iterable[Dict[str, Any]], sheet_id: str, range_name: str =
                     row.get("Componente", ""),          # Componente Curricular
                     row.get("Arquivos", ""),            # Anexos
                 ]
+            elif "Cor/Etnia" in row and "PCD" in row and "Tipo de Deficiência" in row:
+                # Formato Social
+                # Cabeçalhos: Matrícula, Cor/Etnia, PCD, Tipo de Deficiência, Renda, Deslocamento, Trabalho, Saúde Mental, Estresse, Acompanhamento, Escolaridade Pai, Escolaridade Mãe, Acesso Internet, Tipo Moradia, Data/Hora
+                row_values = [
+                    row.get("Matrícula", ""),
+                    row.get("Cor/Etnia", ""),
+                    row.get("PCD", ""),
+                    row.get("Tipo de Deficiência", ""),
+                    row.get("Renda", ""),
+                    row.get("Deslocamento", ""),
+                    row.get("Trabalho", ""),
+                    row.get("Saúde Mental", ""),
+                    row.get("Estresse", ""),
+                    row.get("Acompanhamento", ""),
+                    row.get("Escolaridade Pai", ""),
+                    row.get("Escolaridade Mãe", ""),
+                    row.get("Acesso Internet", ""),
+                    row.get("Tipo Moradia", ""),
+                    row.get("Data/Hora", timestamp),
+                ]
             else:
                 # Formato ACC
                 row_values = [
@@ -158,7 +178,6 @@ def append_rows(rows: Iterable[Dict[str, Any]], sheet_id: str, range_name: str =
                     row.get("Turma", ""),
                     row.get("Arquivos", ""),
                 ]
-                
                 # Adicionar carga horária se disponível
                 if "Carga Horária" in row:
                     row_values.append(row.get("Carga Horária", ""))
