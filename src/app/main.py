@@ -251,7 +251,7 @@ def _render_header() -> None:
     
     with col_center:
         if LOGO_PATH.exists():
-            st.image(str(LOGO_PATH), use_container_width=True)
+            st.image(str(LOGO_PATH), width='stretch')
             st.markdown('</div>', unsafe_allow_html=True)
     
     # Hero section
@@ -285,8 +285,14 @@ def _render_form_card(
         """,
         unsafe_allow_html=True,
     )
-    
-    if st.button(f"Acessar {title}", key=key, use_container_width=True):
+    if title == "Ofertas de Disciplinas":
+        title = "Ofertas"
+    # title contem termo Formulário
+    if "Formulário" in title:
+        title = "Formulário"
+    if "Requerimento" in title:
+        title = "Requerimento"
+    if st.button(f"Acessar {title}", key=key, width='stretch'):
         st.switch_page(f"pages/{page_name}")
 
 
@@ -294,18 +300,17 @@ def _render_available_forms() -> None:
     """Renderiza a grade de formulários disponíveis."""
     st.markdown('<h2 class="section-title">📝 Formulários Disponíveis</h2>', unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
-    
-    col1, col2 = st.columns(2, gap="large")
-    
+
+    # Primeira linha: FormACC | FormTCC | FormEstagio
+    col1, col2, col3 = st.columns(3, gap="large")
     with col1:
         _render_form_card(
-            title="Formulário ACC",
+            title="Formulário de ACC",
             description="Submissão de Atividades Complementares Curriculares. Envie seus certificados consolidados em um único arquivo PDF para análise e validação.",
             icon="🎓",
             page_name="FormACC.py",
             key="btn_acc"
         )
-    
     with col2:
         _render_form_card(
             title="Formulário TCC",
@@ -314,22 +319,7 @@ def _render_available_forms() -> None:
             page_name="FormTCC.py",
             key="btn_tcc"
         )
-    
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    # Segunda linha - 2 formulários
-    col3, col4 = st.columns(2, gap="large")
-    
     with col3:
-        _render_form_card(
-            title="Requerimento de TCC",
-            description="Registro de informações para defesa do TCC. Cadastre os dados da banca examinadora e informações adicionais sobre seu TCC.",
-            icon="📝",
-            page_name="FormRequerimentoTCC.py",
-            key="btn_requerimento"
-        )
-    
-    with col4:
         _render_form_card(
             title="Formulário de Estágio",
             description="Envio de documentos de Estágio I e Estágio II. Submeta o Plano de Estágio ou Relatório Final conforme o componente curricular.",
@@ -337,22 +327,28 @@ def _render_available_forms() -> None:
             page_name="FormEstagio.py",
             key="btn_estagio"
         )
-    
+
     st.markdown("<br>", unsafe_allow_html=True)
-    
-    # Terceira linha - Plano de Ensino, Projetos e Social
-    col_left, col_center, col_right = st.columns(3)
 
-    with col_left:
+    # Segunda linha: Requerimento TCC | Ofertas de Disciplinas | Formulário Social
+    col4, col5, col6 = st.columns(3, gap="large")
+    with col4:
         _render_form_card(
-            title="Plano de Ensino",
-            description="Submissão de Planos de Ensino por disciplina. Docentes podem enviar os planos de ensino organizados por semestre.",
-            icon="📚",
-            page_name="FormPlanoEnsino.py",
-            key="btn_plano"
+            title="Requerimento de TCC",
+            description="Registro de informações para defesa do TCC. Cadastre os dados da banca examinadora e informações adicionais sobre seu TCC.",
+            icon="📝",
+            page_name="FormRequerimentoTCC.py",
+            key="btn_requerimento"
         )
-
-    with col_center:
+    with col5:
+        _render_form_card(
+            title="Ofertas de Disciplinas",
+            description="Cadastro e consulta das ofertas de disciplinas do semestre. Novo recurso para docentes e coordenação.",
+            icon="📑",
+            page_name="OfertasDisciplinas.py",
+            key="btn_ofertas"
+        )
+    with col6:
         _render_form_card(
             title="Formulário Social",
             description="Questionário de perfil social, acadêmico, inclusão, diversidade e saúde mental. Dados para políticas institucionais e acompanhamento estudantil.",
@@ -361,7 +357,19 @@ def _render_available_forms() -> None:
             key="btn_social"
         )
 
-    with col_right:
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # Terceira linha: Plano de Ensino | Projetos
+    col7, col8 = st.columns(2, gap="large")
+    with col7:
+        _render_form_card(
+            title="Plano de Ensino",
+            description="Submissão de Planos de Ensino por disciplina. Docentes podem enviar os planos de ensino organizados por semestre.",
+            icon="📚",
+            page_name="FormPlanoEnsino.py",
+            key="btn_plano"
+        )
+    with col8:
         _render_form_card(
             title="Projetos",
             description="Submissão de Projetos de Ensino, Pesquisa e Extensão. Docente podem registrar novos projetos, renovações ou encerramentos.",
@@ -425,5 +433,5 @@ if __name__ == '__main__':
     if runtime.exists():
         main()
     else:
-        sys.argv = ["streamlit", "run", sys.argv[0]]
+        sys.argv = ["streamlit", "run",  "--client.showSidebarNavigation=False",sys.argv[0]]
         sys.exit(stcli.main())

@@ -173,8 +173,7 @@ def render_form():
     col_left, col_center, col_right = st.columns([1, 2, 1])
     with col_center:
         if LOGO_PATH.exists():
-            st.markdown('<div class="logo-container">', unsafe_allow_html=True)
-            st.image(str(LOGO_PATH), use_container_width=True)
+            st.image(str(LOGO_PATH), width='stretch')
             st.markdown('</div>', unsafe_allow_html=True)
 
     # Hero section
@@ -343,8 +342,8 @@ def render_form():
             ]
         )
 
-        submitted = st.form_submit_button("Salvar", use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+    submitted = st.form_submit_button("Salvar", width='stretch')
+    st.markdown('</div>', unsafe_allow_html=True)
 
     if "social_processing" not in st.session_state:
         st.session_state.social_processing = False
