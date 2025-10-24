@@ -352,3 +352,20 @@ def upload_files_tcc(
     except Exception as e:
         print(f"❌ Erro ao fazer upload TCC para Google Drive: {str(e)}")
         raise
+
+
+def get_file_metadata(file_id: str) -> Dict[str, Any]:
+    """Busca os metadados de um arquivo no Google Drive."""
+    credentials = _get_credentials()
+    service = build('drive', 'v3', credentials=credentials)
+    
+    try:
+        # Usar fields='id, name, mimeType, webViewLink' para obter os metadados essenciais
+        file_metadata = service.files().get(
+            fileId=file_id,
+            fields='id, name, mimeType, webViewLink'
+        ).execute()
+        return file_metadata
+    except Exception as e:
+        print(f"❌ Erro ao buscar metadados do arquivo {file_id}: {str(e)}")
+        raise ValueError(f"Não foi possível encontrar ou acessar o arquivo com ID: {file_id}")

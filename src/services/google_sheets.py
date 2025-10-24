@@ -1,5 +1,4 @@
-from __future__ import annotations
-
+import pandas as pd
 import os
 from datetime import datetime
 from typing import Any, Dict, Iterable
@@ -16,8 +15,41 @@ except ImportError:
 
 # Importar CredentialsEncoder
 from src.utils.CredentialsEncoder import convertBase64ToJson
+from src.services.google_drive import get_file_metadata
 
+def get_sheet_tabs(sheet_id: str) -> list:
+    """Retorna a lista de abas (sheets) de uma planilha Google."""
+    # Verificar o tipo de arquivo primeiro
+    try:
+        file_metadata = get_file_metadata(sheet_id)
+        mime_type = file_metadata.get("mimeType")
 
+        if mime_type != "application/vnd.google-apps.spreadsheet":
+            raise ValueError(
+                f"O arquivo com ID '{sheet_id}' não é uma planilha Google nativa. "
+                f"Seu formato é '{mime_type}'. Por favor, converta o arquivo para o formato Google Sheets."
+            )
+    except ValueError as e:
+        # Adicionar contexto ao erro se a busca de metadados falhar
+        raise ValueError(f"Erro ao verificar o arquivo no Google Drive: {e}")
+
+    credentials = _get_credentials()
+    service = build('sheets', 'v4', credentials=credentials)
+    spreadsheet = service.spreadsheets().get(spreadsheetId=sheet_id).execute()
+    return [sheet['properties']['title'] for sheet in spreadsheet['sheets']]
+def read_sheet_tab(sheet_id: str, tab_name: str) -> pd.DataFrame:
+    """Lê os dados de uma aba específica e retorna como DataFrame."""
+    credentials = _get_credentials()
+    service = build('sheets', 'v4', credentials=credentials)
+    result = service.spreadsheets().values().get(
+        spreadsheetId=sheet_id,
+        range=tab_name
+    ).execute()
+    values = result.get('values', [])
+    if not values:
+        return pd.DataFrame()
+    header, *rows = values
+    return pd.DataFrame(rows, columns=header)
 def _get_credentials():
     """Carrega credenciais da conta de serviço do Google a partir do .env (base64)."""
     credentials_base64 = os.getenv("GOOGLE_CLOUD_CREDENTIALS_FASI_BASE64") or os.getenv("GOOGLE_CLOUD_CREDENTIALS_BASE64")
