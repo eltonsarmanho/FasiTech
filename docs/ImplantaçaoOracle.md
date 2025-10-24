@@ -21,6 +21,6 @@ rsync -avz --progress \
   --exclude '.DS_Store' \
   --exclude 'Thumbs.db' \
   --exclude '*~' \
-  -e "ssh -i /home/eltonss/Downloads/ssh-key-2025-10-21.key" \
+  -e "ssh -i chave.key" \
   /home/eltonss/Documents/VS\ CODE/FasiTech/ \
-  opc@137.131.154.248:/home/opc/appStreamLit/
+  opc@IP:/home/opc/appStreamLit/

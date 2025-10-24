@@ -369,11 +369,11 @@ def _render_info_section() -> None:
         <div class="info-section">
             <h4>ℹ️ Informações Importantes</h4>
             <ul>
-                <li>Todos os formulários exigem dados pessoais e documentos em formato PDF</li>
+                <li>Todos os formulários exigem dados pessoais e documentos em formato PDF ou DOC</li>
                 <li>Certifique-se de que sua matrícula está ativa no SIGAA antes de enviar qualquer solicitação</li>
                 <li>Você receberá confirmação por e-mail após o processamento da sua solicitação</li>
                 <li>Os documentos são armazenados de forma segura no Google Drive institucional</li>
-                <li>Em caso de dúvidas, entre em contato com a secretaria acadêmica</li>
+                <li>Em caso de dúvidas, entre em contato com a secretaria acadêmica (fasicuntins@ufpa.br)</li>
             </ul>
         </div>
         """,
@@ -399,6 +399,17 @@ def main() -> None:
     _render_header()
     _render_available_forms()
     _render_info_section()
+    
+    # Rodapé com autor e LinkedIn
+    st.markdown(
+        '''<div style="text-align:center; margin-top:40px; color:#888; font-size:0.95rem;">
+            Sistema desenvolvido por <strong>Elton Sarmanho</strong>
+            <a href="https://www.linkedin.com/in/elton-sarmanho-836553185/" target="_blank" style="margin-left:8px; text-decoration:none; vertical-align:middle;">
+                <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/linkedin.svg" alt="LinkedIn" style="width:20px; height:20px; display:inline; vertical-align:middle; filter: grayscale(1) brightness(0.5); margin-bottom:2px;"> 
+            </a>
+        </div>''',
+        unsafe_allow_html=True
+    )
 
 
 if __name__ == '__main__':
