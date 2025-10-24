@@ -18,6 +18,11 @@ from src.services.email_service import send_notification
 LOGO_PATH = Path(__file__).resolve().parents[2] / "resources" / "fasiOficial.png"
 MAX_FILE_SIZE_MB = 10
 
+def _validate_matricula(matricula: str) -> bool:
+    """Valida se a matrícula possui exatamente 12 dígitos numéricos."""
+    import re
+    return bool(re.fullmatch(r"\d{12}", matricula))
+
 def _load_social_settings() -> Dict[str, Any]:
     """Resgata configurações específicas do formulário social via secrets/env."""
     try:
@@ -194,7 +199,9 @@ def render_form():
     # Formulário principal (apenas uma vez)
     with st.form("form_social"):
         st.markdown('<span style="color:#dc2626;font-weight:600;">*</span> Campo obrigatório', unsafe_allow_html=True)
-        matricula = st.text_input("Matrícula *", max_chars=20)
+        matricula = st.text_input("Matrícula * (12 dígitos)", max_chars=12)
+        if matricula and not _validate_matricula(matricula):
+            st.warning("A matrícula deve conter exatamente 12 dígitos numéricos.")
 
         st.markdown('<div class="form-section-title">1. Perfil Pessoal (Inclusão e Diversidade)</div>', unsafe_allow_html=True)
         cor_etnia = st.radio(
@@ -346,6 +353,10 @@ def render_form():
         st.session_state.social_processing = True
         if not matricula.strip():
             st.error("Por favor, preencha o campo Matrícula.")
+            st.session_state.social_processing = False
+        elif not _validate_matricula(matricula):
+            st.error("A matrícula deve conter exatamente 12 dígitos numéricos.")
+            st.session_state.social_processing = False
             st.session_state.social_processing = False
         else:
             import time

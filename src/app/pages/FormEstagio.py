@@ -168,7 +168,9 @@ def _validate_email(email: str) -> bool:
     """Valida formato de email."""
     pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
     return re.match(pattern, email) is not None
-
+def _validate_matricula(matricula: str) -> bool:
+    """Valida se a matrícula possui exatamente 12 dígitos numéricos."""
+    return bool(re.fullmatch(r"\d{12}", matricula))
 
 def _validate_turma(turma: str) -> bool:
     """Valida se a turma tem exatamente 4 dígitos numéricos."""
@@ -189,6 +191,11 @@ def _validate_submission(
     errors: list[str] = []
     
     # Nome obrigatório
+    if not matricula.strip():
+        errors.append("Matrícula é obrigatória.")
+    elif not _validate_matricula(matricula):
+        errors.append("Matrícula deve ter exatamente 12 dígitos numéricos (ex: 202312345678).")
+        
     if not nome.strip():
         errors.append("Nome completo é obrigatório.")
     
@@ -276,12 +283,16 @@ def render_form() -> None:
             max_chars=4,
             help="Ano de ingresso (4 dígitos numéricos, ex: 2027)"
         )
+        if turma and not _validate_turma(turma):
+            st.warning("A turma deve conter exatamente 4 dígitos numéricos.")
         
-        matricula = col4.text_input(
-            "Matrícula *",
-            placeholder="202312345",
-            help="Sua matrícula no SIGAA"
-        )
+        matricula = col4.text_input("Matrícula * (12 dígitos)",
+                                    help="Sua matrícula no SIGAA",
+                                    max_chars=12,
+                                    placeholder="202312345678")
+        if matricula and not _validate_matricula(matricula):
+            st.warning("A matrícula deve conter exatamente 12 dígitos numéricos.")
+
         
         st.markdown("<br>", unsafe_allow_html=True)
         
