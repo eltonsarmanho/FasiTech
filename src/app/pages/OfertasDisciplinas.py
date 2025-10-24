@@ -86,6 +86,15 @@ def _render_custom_styles():
         unsafe_allow_html=True,
     )
 
+def style_periodo(row, color_map):
+    periodo = row.get('Período')
+    if pd.notna(periodo):
+        # Acessar o mapa de cores com o valor float do período
+        color = color_map.get(periodo, '')
+        if color:
+            return [f'background-color: {color}'] * len(row)
+    return [''] * len(row)
+
 def main():
     st.set_page_config(
         page_title="Ofertas de Disciplinas",
@@ -103,7 +112,6 @@ def main():
     col_left, col_center, col_right = st.columns([1,2,1])
     with col_center:
         if LOGO_PATH.exists():
-            st.markdown('<div class="logo-container">', unsafe_allow_html=True)
             st.image(str(LOGO_PATH), width='stretch')
             st.markdown('</div>', unsafe_allow_html=True)
     # Header
@@ -126,11 +134,38 @@ def main():
     if grade_tabs:
         tab_grade = st.selectbox("Selecione a grade curricular:", grade_tabs, key="grade_tab")
         df_grade = read_sheet_tab(SHEET_ID, tab_grade)
-        st.dataframe(df_grade, use_container_width=True)
+        df_grade.dropna(how='all', inplace=True)
+        
+        if not df_grade.empty and 'Período' in df_grade.columns:
+            # Limpeza e conversão da coluna 'Período'
+            df_grade.dropna(subset=['Período'], inplace=True)
+            # Converte para numérico, tratando erros e floats, sem converter para int
+            df_grade['Período'] = pd.to_numeric(df_grade['Período'], errors='coerce')
+            df_grade.dropna(subset=['Período'], inplace=True)
+
+            # Criar mapa de cores
+            unique_periods = sorted(df_grade['Período'].unique())
+            # Paleta de cores em tons de roxo, de claro a escuro
+            palette = [
+                '#f2e7fe', '#e5d0fb', '#d8b9f8', '#ca9ff5', '#bc85f1', 
+                '#ae6cee', '#a152ea', '#9338e6', '#861ee2', '#7804de'
+            ]
+            
+            color_map = {
+                period: palette[i % len(palette)] 
+                for i, period in enumerate(unique_periods)
+            }
+
+            styled_grade = df_grade.style.apply(style_periodo, color_map=color_map, axis=1).format({'Período': '{:.1f}'})
+            st.dataframe(styled_grade, use_container_width=True)
+        else:
+            st.dataframe(df_grade, use_container_width=True)
+
     st.markdown('<div class="tab-title">Ofertas de Disciplinas</div>', unsafe_allow_html=True)
     if oferta_tabs:
         tab_oferta = st.selectbox("Selecione o período de ofertas:", oferta_tabs, key="oferta_tab")
         df_oferta = read_sheet_tab(SHEET_ID, tab_oferta)
+        df_oferta.dropna(how='all', inplace=True)
         st.dataframe(df_oferta, use_container_width=True)
 
 if __name__ == "__main__":
