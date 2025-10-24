@@ -340,9 +340,9 @@ def _render_available_forms() -> None:
     
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # Terceira linha - Plano de Ensino e Projetos
-    col_left, col_right = st.columns(2)
-    
+    # Terceira linha - Plano de Ensino, Projetos e Social
+    col_left, col_center, col_right = st.columns(3)
+
     with col_left:
         _render_form_card(
             title="Plano de Ensino",
@@ -351,11 +351,20 @@ def _render_available_forms() -> None:
             page_name="FormPlanoEnsino.py",
             key="btn_plano"
         )
-    
+
+    with col_center:
+        _render_form_card(
+            title="Formulário Social",
+            description="Questionário de perfil social, acadêmico, inclusão, diversidade e saúde mental. Dados para políticas institucionais e acompanhamento estudantil.",
+            icon="🤝",
+            page_name="FormSocial.py",
+            key="btn_social"
+        )
+
     with col_right:
         _render_form_card(
             title="Projetos",
-            description="Submissão de Projetos de Ensino, Pesquisa e Extensão. Registre novos projetos, renovações ou encerramentos.",
+            description="Submissão de Projetos de Ensino, Pesquisa e Extensão. Docente podem registrar novos projetos, renovações ou encerramentos.",
             icon="🔬",
             page_name="FormProjetos.py",
             key="btn_projetos"
