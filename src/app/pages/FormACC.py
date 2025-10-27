@@ -289,66 +289,66 @@ def render_form() -> None:
 			accept_multiple_files=False,
 			help="Arquivo PDF consolidado com todos os certificados (máximo 10 MB)",
 		)
-	submitted = st.form_submit_button("Enviar para análise", width='stretch')
+		submitted = st.form_submit_button("Enviar para análise", width='stretch')
 
-	if not submitted:
-		return
-
-	# Verificar se já está processando (evitar cliques múltiplos)
-	if "acc_processing" not in st.session_state:
-		st.session_state.acc_processing = False
-	
-	if not st.session_state.acc_processing:
-		# Marcar como processando apenas se não estiver processando
-		st.session_state.acc_processing = True
-
-		errors = _validate_submission(name, registration, email, class_group, uploaded_file)
-		if errors:
-			st.error("\n".join(f"• {error}" for error in errors))
-			st.session_state.acc_processing = False  # Resetar em caso de erro
+		if not submitted:
 			return
 
-		# Processar submissão RÁPIDA (sem IA)
-		with st.spinner("📤 Enviando dados..."):
-			try:
-				# Chamar função de processamento rápido (sem IA)
-				submission = process_acc_submission(
-					{
-						"name": name,
-						"registration": registration,
-						"email": email,
-						"class_group": class_group,
-					},
-					uploaded_file,
-					drive_folder_id=config["drive_folder_id"],
-					sheet_id=config["sheet_id"],
-					notification_recipients=config["notification_recipients"],
-				)
-			except ValueError as validation_error:
-				st.error(str(validation_error))
-				st.session_state.acc_processing = False  # Resetar em caso de erro
-				return
-			except Exception as unexpected:
-				st.error("Não foi possível concluir o envio. Tente novamente em instantes.")
-				st.exception(unexpected)
-				st.session_state.acc_processing = False  # Resetar em caso de erro
-				return
-
-		# Mensagem de sucesso IMEDIATA
-		st.success("✅ **Formulário ACC enviado com sucesso!**")
-		st.info(
-			"🤖 **Processamento com IA iniciado em background!**\n\n"
-			"Seus certificados estão sendo processados por Inteligência Artificial. "
-			"Você receberá um e-mail com a análise detalhada das cargas horárias assim que o processamento for concluído."
-		)
-
-		# Resetar flag de processamento
-		st.session_state.acc_processing = False
+		# Verificar se já está processando (evitar cliques múltiplos)
+		if "acc_processing" not in st.session_state:
+			st.session_state.acc_processing = False
 		
-		# Aguardar antes de redirecionar
-		import time
-		time.sleep(st.secrets["sistema"]["timer"])
-		st.switch_page("main.py")
+		if not st.session_state.acc_processing:
+			# Marcar como processando apenas se não estiver processando
+			st.session_state.acc_processing = True
+
+			errors = _validate_submission(name, registration, email, class_group, uploaded_file)
+			if errors:
+				st.error("\n".join(f"• {error}" for error in errors))
+				st.session_state.acc_processing = False  # Resetar em caso de erro
+				return
+
+			# Processar submissão RÁPIDA (sem IA)
+			with st.spinner("📤 Enviando dados..."):
+				try:
+					# Chamar função de processamento rápido (sem IA)
+					submission = process_acc_submission(
+						{
+							"name": name,
+							"registration": registration,
+							"email": email,
+							"class_group": class_group,
+						},
+						uploaded_file,
+						drive_folder_id=config["drive_folder_id"],
+						sheet_id=config["sheet_id"],
+						notification_recipients=config["notification_recipients"],
+					)
+				except ValueError as validation_error:
+					st.error(str(validation_error))
+					st.session_state.acc_processing = False  # Resetar em caso de erro
+					return
+				except Exception as unexpected:
+					st.error("Não foi possível concluir o envio. Tente novamente em instantes.")
+					st.exception(unexpected)
+					st.session_state.acc_processing = False  # Resetar em caso de erro
+					return
+
+			# Mensagem de sucesso IMEDIATA
+			st.success("✅ **Formulário ACC enviado com sucesso!**")
+			st.info(
+				"🤖 **Processamento com IA iniciado em background!**\n\n"
+				"Seus certificados estão sendo processados por Inteligência Artificial. "
+				"Você receberá um e-mail com a análise detalhada das cargas horárias assim que o processamento for concluído."
+			)
+
+			# Resetar flag de processamento
+			st.session_state.acc_processing = False
+			
+			# Aguardar antes de redirecionar
+			import time
+			time.sleep(st.secrets["sistema"]["timer"])
+			st.switch_page("main.py")
 
 
 def main() -> None:

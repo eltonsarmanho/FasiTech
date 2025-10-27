@@ -342,59 +342,59 @@ def render_form():
             ]
         )
 
-    submitted = st.form_submit_button("Salvar", width='stretch')
-    st.markdown('</div>', unsafe_allow_html=True)
+        submitted = st.form_submit_button("Salvar", width='stretch')
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    if "social_processing" not in st.session_state:
-        st.session_state.social_processing = False
+        if "social_processing" not in st.session_state:
+            st.session_state.social_processing = False
 
-    if submitted and not st.session_state.social_processing:
-        st.session_state.social_processing = True
-        if not matricula.strip():
-            st.error("Por favor, preencha o campo Matrícula.")
-            st.session_state.social_processing = False
-        elif not _validate_matricula(matricula):
-            st.error("A matrícula deve conter exatamente 12 dígitos numéricos.")
-            st.session_state.social_processing = False
-            st.session_state.social_processing = False
-        else:
-            import time
-            # Processamento (spinner)
-            with st.spinner("Aguarde, processando envio..."):
-                row_data = {
-                    "Matrícula": matricula.strip(),
-                    "Cor/Etnia": cor_etnia,
-                    "PCD": pcd,
-                    "Tipo de Deficiência": ", ".join(tipo_deficiencia) if tipo_deficiencia else "",
-                    "Renda": renda,
-                    "Deslocamento": deslocamento,
-                    "Trabalho": trabalho,
-                    "Saúde Mental": saude_mental,
-                    "Estresse": estresse,
-                    "Acompanhamento": acompanhamento,
-                    "Escolaridade Pai": escolaridade_pai,
-                    "Escolaridade Mãe": escolaridade_mae,
-                    "Acesso Internet": acesso_internet,
-                    "Tipo Moradia": tipo_moradia,
-                    "Data/Hora": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                }
-                try:
-                    append_rows([row_data], config["sheet_id"], range_name='Pagina1')
-                except Exception as e:
-                    st.error(f"Erro ao salvar no Google Sheets: {e}")
-                    st.session_state.social_processing = False
-                    return
-                try:
-                    subject = "[FASI] Nova resposta no Formulário Social"
-                    body = f"Matrícula: {matricula}\nCor/Etnia: {cor_etnia}\nPCD: {pcd}\nRenda: {renda}\nDeslocamento: {deslocamento}\nTrabalho: {trabalho}\nSaúde Mental: {saude_mental}\nEstresse: {estresse}\nAcompanhamento: {acompanhamento}\nEscolaridade Pai: {escolaridade_pai}\nEscolaridade Mãe: {escolaridade_mae}\nAcesso Internet: {acesso_internet}\nTipo Moradia: {tipo_moradia}\nData/Hora: {row_data['Data/Hora']}"
-                    send_notification(subject, body, config["notification_recipients"])
-                except Exception as e:
-                    st.warning(f"Formulário salvo, mas falha ao enviar e-mail: {e}")
-            # Mensagem de sucesso e timer fora do spinner
-            st.success("Formulário enviado com sucesso!")
-            st.session_state.social_processing = False
-            time.sleep(st.secrets["sistema"]["timer"])
-            st.switch_page("main.py")
+        if submitted and not st.session_state.social_processing:
+            st.session_state.social_processing = True
+            if not matricula.strip():
+                st.error("Por favor, preencha o campo Matrícula.")
+                st.session_state.social_processing = False
+            elif not _validate_matricula(matricula):
+                st.error("A matrícula deve conter exatamente 12 dígitos numéricos.")
+                st.session_state.social_processing = False
+                st.session_state.social_processing = False
+            else:
+                import time
+                # Processamento (spinner)
+                with st.spinner("Aguarde, processando envio..."):
+                    row_data = {
+                        "Matrícula": matricula.strip(),
+                        "Cor/Etnia": cor_etnia,
+                        "PCD": pcd,
+                        "Tipo de Deficiência": ", ".join(tipo_deficiencia) if tipo_deficiencia else "",
+                        "Renda": renda,
+                        "Deslocamento": deslocamento,
+                        "Trabalho": trabalho,
+                        "Saúde Mental": saude_mental,
+                        "Estresse": estresse,
+                        "Acompanhamento": acompanhamento,
+                        "Escolaridade Pai": escolaridade_pai,
+                        "Escolaridade Mãe": escolaridade_mae,
+                        "Acesso Internet": acesso_internet,
+                        "Tipo Moradia": tipo_moradia,
+                        "Data/Hora": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    }
+                    try:
+                        append_rows([row_data], config["sheet_id"], range_name='Pagina1')
+                    except Exception as e:
+                        st.error(f"Erro ao salvar no Google Sheets: {e}")
+                        st.session_state.social_processing = False
+                        return
+                    try:
+                        subject = "[FASI] Nova resposta no Formulário Social"
+                        body = f"Matrícula: {matricula}\nCor/Etnia: {cor_etnia}\nPCD: {pcd}\nRenda: {renda}\nDeslocamento: {deslocamento}\nTrabalho: {trabalho}\nSaúde Mental: {saude_mental}\nEstresse: {estresse}\nAcompanhamento: {acompanhamento}\nEscolaridade Pai: {escolaridade_pai}\nEscolaridade Mãe: {escolaridade_mae}\nAcesso Internet: {acesso_internet}\nTipo Moradia: {tipo_moradia}\nData/Hora: {row_data['Data/Hora']}"
+                        send_notification(subject, body, config["notification_recipients"])
+                    except Exception as e:
+                        st.warning(f"Formulário salvo, mas falha ao enviar e-mail: {e}")
+                # Mensagem de sucesso e timer fora do spinner
+                st.success("Formulário enviado com sucesso!")
+                st.session_state.social_processing = False
+                time.sleep(st.secrets["sistema"]["timer"])
+                st.switch_page("main.py")
 
 def main():
     st.set_page_config(

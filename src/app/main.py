@@ -292,6 +292,8 @@ def _render_form_card(
         title = "Formulário"
     if "Requerimento" in title:
         title = "Requerimento"
+    if "FAQ" in title:
+        title = "FAQ"
     if st.button(f"Acessar {title}", key=key, width='stretch'):
         st.switch_page(f"pages/{page_name}")
 
@@ -360,22 +362,30 @@ def _render_available_forms() -> None:
     st.markdown("<br>", unsafe_allow_html=True)
 
     # Terceira linha: Plano de Ensino | Projetos
-    col7, col8 = st.columns(2, gap="large")
+    col7, col8, col9 = st.columns(3, gap="large")
     with col7:
         _render_form_card(
             title="Plano de Ensino",
             description="Submissão de Planos de Ensino por disciplina. Docentes podem enviar os planos de ensino organizados por semestre.",
-            icon="📚",
+            icon="📖",
             page_name="FormPlanoEnsino.py",
             key="btn_plano"
         )
     with col8:
         _render_form_card(
             title="Projetos",
-            description="Submissão de Projetos de Ensino, Pesquisa e Extensão. Docente podem registrar novos projetos, renovações ou encerramentos.",
+            description="Submissão de Projetos de Ensino, Pesquisa e Extensão. Docentes podem registrar novos projetos, renovações ou encerramentos.",
             icon="🔬",
             page_name="FormProjetos.py",
             key="btn_projetos"
+        )
+    with col9:
+        _render_form_card(
+            title="FAQ - Perguntas Frequentes",
+            description="Respostas para as dúvidas mais comuns sobre matrículas, disciplinas e outros assuntos.",
+            icon="❓",
+            page_name="FAQ.py",
+            key="btn_faq"
         )
 
 

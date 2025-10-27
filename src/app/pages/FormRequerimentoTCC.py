@@ -536,84 +536,84 @@ def render_form() -> None:
         st.markdown("<br>", unsafe_allow_html=True)
         
         # Botão de envio
-    submitted = st.form_submit_button("Enviar Requerimento", width='stretch')
-    
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Processar submissão
-    if submitted:
-        # Inicializar flag se não existir
-        if "req_tcc_processing" not in st.session_state:
-            st.session_state.req_tcc_processing = False
+        submitted = st.form_submit_button("Enviar Requerimento", width='stretch')
         
-        # Processar apenas se não estiver processando (previne múltiplos cliques)
-        if not st.session_state.req_tcc_processing:
-            # Marcar como processando
-            st.session_state.req_tcc_processing = True
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Processar submissão
+        if submitted:
+            # Inicializar flag se não existir
+            if "req_tcc_processing" not in st.session_state:
+                st.session_state.req_tcc_processing = False
             
-            errors = _validate_submission(
-                nome, matricula, email, titulo, resumo, palavras_chave,
-                data_defesa, modalidade, orientador,
-                membro1, membro1_outro, membro2, membro2_outro
-            )
-            
-            if errors:
-                st.error("**Erros encontrados:**\n\n" + "\n".join(f"• {error}" for error in errors))
-                st.session_state.req_tcc_processing = False  # Resetar flag
-            else:
-                with st.spinner("Processando requerimento de TCC..."):
-                    try:
-                        # Carregar configurações
-                        settings = _load_requerimento_settings()
-                        
-                        # Preparar dados (orientador não tem opção "Outro:")
-                        orientador_final = orientador
-                        membro1_final = membro1_outro if membro1 == "Outro:" else membro1
-                        membro2_final = membro2_outro if membro2 == "Outro:" else membro2
-                        membro3_final = ""
-                        if membro3 != "Nenhum":
-                            membro3_final = membro3_outro if membro3 == "Outro:" else membro3
-                        
-                        form_data = {
-                            "nome": nome,
-                            "matricula": matricula,
-                            "email": email,
-                            "titulo": titulo,
-                            "resumo": resumo,
-                            "palavras_chave": palavras_chave,
-                            "data_defesa": data_defesa.strftime("%d/%m/%Y"),
-                            "modalidade": modalidade,
-                            "orientador": orientador_final,
-                            "membro1": membro1_final,
-                            "membro2": membro2_final,
-                            "membro3": membro3_final,
-                        }
-                        
-                        # Salvar na planilha
-                        _save_to_sheets(form_data, settings["sheet_id"])
-                        
-                        # Enviar email
-                        _send_notification_email(form_data, settings["notification_recipients"])
-                        
-                        st.success(
-                            f"✅ **Requerimento de TCC enviado com sucesso!**\n\n"
-                            f"**Resumo:**\n"
-                            f"- Nome: {nome}\n"
-                            f"- Matrícula: {matricula}\n"
-                            f"- Título: {titulo}\n"
-                            f"- Data da Defesa: {data_defesa.strftime('%d/%m/%Y')}\n"
-                            f"- Orientador: {orientador_final}\n\n"
-                            f"Você receberá um e-mail de confirmação em breve."
-                        )
-                        
-                        # Resetar flag após sucesso
-                        st.session_state.req_tcc_processing = False
-                        
-                    except Exception as e:
-                        st.error(f"❌ **Erro ao processar requerimento:**\n\n{str(e)}")
-                        st.info("Por favor, tente novamente ou entre em contato com o suporte.")
-                        # Resetar flag em caso de erro
-                        st.session_state.req_tcc_processing = False
+            # Processar apenas se não estiver processando (previne múltiplos cliques)
+            if not st.session_state.req_tcc_processing:
+                # Marcar como processando
+                st.session_state.req_tcc_processing = True
+                
+                errors = _validate_submission(
+                    nome, matricula, email, titulo, resumo, palavras_chave,
+                    data_defesa, modalidade, orientador,
+                    membro1, membro1_outro, membro2, membro2_outro
+                )
+                
+                if errors:
+                    st.error("**Erros encontrados:**\n\n" + "\n".join(f"• {error}" for error in errors))
+                    st.session_state.req_tcc_processing = False  # Resetar flag
+                else:
+                    with st.spinner("Processando requerimento de TCC..."):
+                        try:
+                            # Carregar configurações
+                            settings = _load_requerimento_settings()
+                            
+                            # Preparar dados (orientador não tem opção "Outro:")
+                            orientador_final = orientador
+                            membro1_final = membro1_outro if membro1 == "Outro:" else membro1
+                            membro2_final = membro2_outro if membro2 == "Outro:" else membro2
+                            membro3_final = ""
+                            if membro3 != "Nenhum":
+                                membro3_final = membro3_outro if membro3 == "Outro:" else membro3
+                            
+                            form_data = {
+                                "nome": nome,
+                                "matricula": matricula,
+                                "email": email,
+                                "titulo": titulo,
+                                "resumo": resumo,
+                                "palavras_chave": palavras_chave,
+                                "data_defesa": data_defesa.strftime("%d/%m/%Y"),
+                                "modalidade": modalidade,
+                                "orientador": orientador_final,
+                                "membro1": membro1_final,
+                                "membro2": membro2_final,
+                                "membro3": membro3_final,
+                            }
+                            
+                            # Salvar na planilha
+                            _save_to_sheets(form_data, settings["sheet_id"])
+                            
+                            # Enviar email
+                            _send_notification_email(form_data, settings["notification_recipients"])
+                            
+                            st.success(
+                                f"✅ **Requerimento de TCC enviado com sucesso!**\n\n"
+                                f"**Resumo:**\n"
+                                f"- Nome: {nome}\n"
+                                f"- Matrícula: {matricula}\n"
+                                f"- Título: {titulo}\n"
+                                f"- Data da Defesa: {data_defesa.strftime('%d/%m/%Y')}\n"
+                                f"- Orientador: {orientador_final}\n\n"
+                                f"Você receberá um e-mail de confirmação em breve."
+                            )
+                            
+                            # Resetar flag após sucesso
+                            st.session_state.req_tcc_processing = False
+                            
+                        except Exception as e:
+                            st.error(f"❌ **Erro ao processar requerimento:**\n\n{str(e)}")
+                            st.info("Por favor, tente novamente ou entre em contato com o suporte.")
+                            # Resetar flag em caso de erro
+                            st.session_state.req_tcc_processing = False
 
 
 def main() -> None:

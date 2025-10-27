@@ -455,75 +455,75 @@ def render_form() -> None:
         st.markdown("<br>", unsafe_allow_html=True)
         
         # Botão de envio
-    submitted = st.form_submit_button("Enviar", width='stretch')
-    
-    # Processar submissão
-    if submitted:
-        # Inicializar flag se não existir
-        if "projetos_processing" not in st.session_state:
-            st.session_state.projetos_processing = False
+        submitted = st.form_submit_button("Enviar", width='stretch')
         
-        # Processar apenas se não estiver processando (previne múltiplos cliques)
-        if not st.session_state.projetos_processing:
-            # Marcar como processando
-            st.session_state.projetos_processing = True
+        # Processar submissão
+        if submitted:
+            # Inicializar flag se não existir
+            if "projetos_processing" not in st.session_state:
+                st.session_state.projetos_processing = False
             
-            # Determinar edital final
-            edital_final = edital_outro.strip() if edital == "Outro:" else edital
-            
-            errors = _validate_submission(
-                docente, parecerista1, parecerista2, nome_projeto, carga_horaria,
-                edital, edital_outro, natureza, ano_edital, solicitacao, uploaded_files or []
-            )
-            
-            if errors:
-                st.error("**❌ Erros encontrados:**\n\n" + "\n".join(f"• {error}" for error in errors))
-                st.session_state.projetos_processing = False  # Resetar
-            else:
-                with st.spinner("Processando submissão de projeto... Gerando PDFs e enviando documentos..."):
-                    try:
-                        # Preparar dados do formulário
-                        form_data = {
-                            "docente": docente,
-                            "parecerista1": parecerista1,
-                            "parecerista2": parecerista2,
-                            "nome_projeto": nome_projeto.strip(),
-                            "carga_horaria": carga_horaria,
-                            "edital": edital_final,
-                            "natureza": natureza,
-                            "ano_edital": ano_edital.strip(),
-                            "solicitacao": solicitacao,
-                        }
-                        
-                        # Processar submissão
-                        _process_projetos_submission(form_data, uploaded_files)
-                        
-                        st.success(
-                            f"✅ **Projeto submetido com sucesso!**\n\n"
-                            f"**Resumo:**\n"
-                            f"- Docente: {docente}\n"
-                            f"- Projeto: {nome_projeto}\n"
-                            f"- Edital: {edital_final}\n"
-                            f"- Natureza: {natureza}\n"
-                            f"- Solicitação: {solicitacao}\n"
-                            f"- Arquivo(s): {len(uploaded_files)} documento(s)\n"
-                            f"- PDFs gerados: Parecer e Declaração\n\n"
-                            f"Você receberá um e-mail de confirmação com os documentos gerados.\n\n"
-                            f"Redirecionando para a tela principal..."
-                        )
-                        
-                        # Resetar flag
-                        st.session_state.projetos_processing = False
-                        
-                        # Aguardar antes de redirecionar
-                        time.sleep(st.secrets["sistema"]["timer"])
-                        st.switch_page("main.py")
-                        
-                    except Exception as e:
-                        st.error(f"❌ **Erro ao processar submissão:**\n\n{str(e)}")
-                        st.info("Por favor, tente novamente ou entre em contato com o suporte.")
-                        # Resetar flag
-                        st.session_state.projetos_processing = False
+            # Processar apenas se não estiver processando (previne múltiplos cliques)
+            if not st.session_state.projetos_processing:
+                # Marcar como processando
+                st.session_state.projetos_processing = True
+                
+                # Determinar edital final
+                edital_final = edital_outro.strip() if edital == "Outro:" else edital
+                
+                errors = _validate_submission(
+                    docente, parecerista1, parecerista2, nome_projeto, carga_horaria,
+                    edital, edital_outro, natureza, ano_edital, solicitacao, uploaded_files or []
+                )
+                
+                if errors:
+                    st.error("**❌ Erros encontrados:**\n\n" + "\n".join(f"• {error}" for error in errors))
+                    st.session_state.projetos_processing = False  # Resetar
+                else:
+                    with st.spinner("Processando submissão de projeto... Gerando PDFs e enviando documentos..."):
+                        try:
+                            # Preparar dados do formulário
+                            form_data = {
+                                "docente": docente,
+                                "parecerista1": parecerista1,
+                                "parecerista2": parecerista2,
+                                "nome_projeto": nome_projeto.strip(),
+                                "carga_horaria": carga_horaria,
+                                "edital": edital_final,
+                                "natureza": natureza,
+                                "ano_edital": ano_edital.strip(),
+                                "solicitacao": solicitacao,
+                            }
+                            
+                            # Processar submissão
+                            _process_projetos_submission(form_data, uploaded_files)
+                            
+                            st.success(
+                                f"✅ **Projeto submetido com sucesso!**\n\n"
+                                f"**Resumo:**\n"
+                                f"- Docente: {docente}\n"
+                                f"- Projeto: {nome_projeto}\n"
+                                f"- Edital: {edital_final}\n"
+                                f"- Natureza: {natureza}\n"
+                                f"- Solicitação: {solicitacao}\n"
+                                f"- Arquivo(s): {len(uploaded_files)} documento(s)\n"
+                                f"- PDFs gerados: Parecer e Declaração\n\n"
+                                f"Você receberá um e-mail de confirmação com os documentos gerados.\n\n"
+                                f"Redirecionando para a tela principal..."
+                            )
+                            
+                            # Resetar flag
+                            st.session_state.projetos_processing = False
+                            
+                            # Aguardar antes de redirecionar
+                            time.sleep(st.secrets["sistema"]["timer"])
+                            st.switch_page("main.py")
+                            
+                        except Exception as e:
+                            st.error(f"❌ **Erro ao processar submissão:**\n\n{str(e)}")
+                            st.info("Por favor, tente novamente ou entre em contato com o suporte.")
+                            # Resetar flag
+                            st.session_state.projetos_processing = False
 
 
 def main() -> None:

@@ -302,65 +302,65 @@ def render_form() -> None:
         st.markdown("<br>", unsafe_allow_html=True)
         
         # Botão de envio
-    submitted = st.form_submit_button("Enviar", width='stretch')
-    
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Processar submissão
-    if submitted:
-        # Inicializar flag se não existir
-        if "plano_processing" not in st.session_state:
-            st.session_state.plano_processing = False
+        submitted = st.form_submit_button("Enviar", width='stretch')
         
-        # Processar apenas se não estiver processando (previne múltiplos cliques)
-        if not st.session_state.plano_processing:
-            # Marcar como processando
-            st.session_state.plano_processing = True
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Processar submissão
+        if submitted:
+            # Inicializar flag se não existir
+            if "plano_processing" not in st.session_state:
+                st.session_state.plano_processing = False
             
-            # Determinar nome do docente final
-            docente_final = docente_outro.strip() if docente == "Outro:" else docente
-            
-            errors = _validate_submission(
-                docente_final, semestre, uploaded_files or []
-            )
-            
-            if errors:
-                st.error("**❌ Erros encontrados:**\n\n" + "\n".join(f"• {error}" for error in errors))
-                st.session_state.plano_processing = False  # Resetar
-            else:
-                with st.spinner("Processando envio de plano de ensino..."):
-                    try:
-                        # Preparar dados do formulário
-                        form_data = {
-                            "docente": docente_final,
-                            "semestre": semestre,
-                        }
-                        
-                        # Processar submissão
-                        _process_plano_submission(form_data, uploaded_files)
-                        
-                        st.success(
-                            f"✅ **Plano de ensino enviado com sucesso!**\n\n"
-                            f"**Resumo:**\n"
-                            f"- Docente: {docente_final}\n"
-                            f"- Semestre: {semestre}\n"
-                            f"- Arquivo(s): {len(uploaded_files)} documento(s)\n\n"
-                            f"Você receberá um e-mail de confirmação em breve.\n\n"
-                            f"Redirecionando para a tela principal..."
-                        )
-                        
-                        # Resetar flag
-                        st.session_state.plano_processing = False
-                        
-                        # Aguardar antes de redirecionar
-                        time.sleep(st.secrets["sistema"]["timer"])
-                        st.switch_page("main.py")
-                        
-                    except Exception as e:
-                        st.error(f"❌ **Erro ao processar envio:**\n\n{str(e)}")
-                        st.info("Por favor, tente novamente ou entre em contato com o suporte.")
-                        # Resetar flag
-                        st.session_state.plano_processing = False
+            # Processar apenas se não estiver processando (previne múltiplos cliques)
+            if not st.session_state.plano_processing:
+                # Marcar como processando
+                st.session_state.plano_processing = True
+                
+                # Determinar nome do docente final
+                docente_final = docente_outro.strip() if docente == "Outro:" else docente
+                
+                errors = _validate_submission(
+                    docente_final, semestre, uploaded_files or []
+                )
+                
+                if errors:
+                    st.error("**❌ Erros encontrados:**\n\n" + "\n".join(f"• {error}" for error in errors))
+                    st.session_state.plano_processing = False  # Resetar
+                else:
+                    with st.spinner("Processando envio de plano de ensino..."):
+                        try:
+                            # Preparar dados do formulário
+                            form_data = {
+                                "docente": docente_final,
+                                "semestre": semestre,
+                            }
+                            
+                            # Processar submissão
+                            _process_plano_submission(form_data, uploaded_files)
+                            
+                            st.success(
+                                f"✅ **Plano de ensino enviado com sucesso!**\n\n"
+                                f"**Resumo:**\n"
+                                f"- Docente: {docente_final}\n"
+                                f"- Semestre: {semestre}\n"
+                                f"- Arquivo(s): {len(uploaded_files)} documento(s)\n\n"
+                                f"Você receberá um e-mail de confirmação em breve.\n\n"
+                                f"Redirecionando para a tela principal..."
+                            )
+                            
+                            # Resetar flag
+                            st.session_state.plano_processing = False
+                            
+                            # Aguardar antes de redirecionar
+                            time.sleep(st.secrets["sistema"]["timer"])
+                            st.switch_page("main.py")
+                            
+                        except Exception as e:
+                            st.error(f"❌ **Erro ao processar envio:**\n\n{str(e)}")
+                            st.info("Por favor, tente novamente ou entre em contato com o suporte.")
+                            # Resetar flag
+                            st.session_state.plano_processing = False
 
 
 def main() -> None:
