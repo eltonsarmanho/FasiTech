@@ -344,7 +344,7 @@ def _render_available_forms() -> None:
         _render_form_card(
             title="Ofertas de Disciplinas",
             description="Cadastro e consulta das ofertas de disciplinas do semestre. Novo recurso para docentes e coordenação.",
-            icon="📑",
+            icon="📅",
             page_name="OfertasDisciplinas.py",
             key="btn_ofertas"
         )
