@@ -17,7 +17,17 @@ if str(ROOT_DIR) not in sys.path:
 SHEET_ID = st.secrets["ofertas"]["sheet_id"]
 
 # Função para buscar abas da planilha
+
 from src.services.google_sheets import get_sheet_tabs, read_sheet_tab
+
+# Cache para leitura de abas e dados das planilhas
+@st.cache_data(show_spinner=False)
+def cached_get_sheet_tabs(sheet_id):
+    return get_sheet_tabs(sheet_id)
+
+@st.cache_data(show_spinner=False)
+def cached_read_sheet_tab(sheet_id, tab_name):
+    return read_sheet_tab(sheet_id, tab_name)
 
 def _render_custom_styles():
     st.markdown(
@@ -138,7 +148,7 @@ def main():
         unsafe_allow_html=True,
     )
     # Buscar abas
-    tabs = get_sheet_tabs(SHEET_ID)
+    tabs = cached_get_sheet_tabs(SHEET_ID)
     # Separar abas de grade e de ofertas
     grade_tabs = [t for t in tabs if t[0].isdigit() or t.lower().startswith("grade")]
     oferta_tabs = [t for t in tabs if t.lower().startswith("ofertas")]
@@ -149,7 +159,7 @@ def main():
     st.markdown('<div class="tab-title">Ofertas de Disciplinas</div>', unsafe_allow_html=True)
     if oferta_tabs:
         tab_oferta_selecionada = st.selectbox("Selecione o período de ofertas:", oferta_tabs, key="oferta_tab")
-        df_oferta = read_sheet_tab(SHEET_ID, tab_oferta_selecionada)
+        df_oferta = cached_read_sheet_tab(SHEET_ID, tab_oferta_selecionada)
         df_oferta.dropna(how='all', inplace=True)
     if not df_oferta.empty:
         if 'Turma' in df_oferta.columns:
@@ -173,7 +183,7 @@ def main():
     st.markdown('<div class="tab-title">Grade Curricular</div>', unsafe_allow_html=True)
     if grade_tabs:
         turma_selecionada = st.selectbox("Selecione a grade curricular:", grade_tabs, key="grade_tab")
-        df_grade = read_sheet_tab(SHEET_ID, turma_selecionada)
+        df_grade = cached_read_sheet_tab(SHEET_ID, turma_selecionada)
         df_grade.dropna(how='all', inplace=True)
 
         # Filtra linhas que são cabeçalhos repetidos
