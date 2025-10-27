@@ -292,21 +292,21 @@ Processe todas as páginas e forneça o TOTAL GERAL ao final."""
     }
 
 
-if __name__ == "__main__":
-    # Caminho para o PDF de certificados ACC
-    acc_pdf = os.path.join(
-        os.path.dirname(__file__),
-        "Arquivos",
-        "ACC2.pdf"
-    )
+# if __name__ == "__main__":
+#     # Caminho para o PDF de certificados ACC
+#     acc_pdf = os.path.join(
+#         os.path.dirname(__file__),
+#         "Arquivos",
+#         "ACC2.pdf"
+#     )
     
-    if not os.path.exists(acc_pdf):
-        print(f"❌ Erro: Arquivo não encontrado: {acc_pdf}")
-        exit(1)
+#     if not os.path.exists(acc_pdf):
+#         print(f"❌ Erro: Arquivo não encontrado: {acc_pdf}")
+#         exit(1)
     
-    # Processar certificados
-    resultado = processar_certificados_acc(acc_pdf)
+#     # Processar certificados
+#     resultado = processar_certificados_acc(acc_pdf)
     
-    print(f"\n✓ Processo concluído com sucesso!")
-    print(f"✓ Total de páginas processadas: {resultado['total_paginas']}")
-    print(f"✓ {resultado['total_geral']}")
+#     print(f"\n✓ Processo concluído com sucesso!")
+#     print(f"✓ Total de páginas processadas: {resultado['total_paginas']}")
+#     print(f"✓ {resultado['total_geral']}")
