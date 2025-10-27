@@ -175,6 +175,11 @@ def main():
         turma_selecionada = st.selectbox("Selecione a grade curricular:", grade_tabs, key="grade_tab")
         df_grade = read_sheet_tab(SHEET_ID, turma_selecionada)
         df_grade.dropna(how='all', inplace=True)
+
+        # Filtra linhas que são cabeçalhos repetidos
+        if 'Semestre' in df_grade.columns:
+            df_grade = df_grade[df_grade['Semestre'] != 'Semestre']
+
         if not df_grade.empty and 'Disciplina' in df_grade.columns and not df_oferta.empty:
             # Cruzamento: mapeia disciplina ofertada -> cor da turma (todas as turmas)
             palette = [
