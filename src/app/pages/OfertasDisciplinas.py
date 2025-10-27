@@ -118,6 +118,15 @@ def style_turma(row, color_map):
     return [''] * len(row)
 
 def main():
+    # Função para substituir valores da coluna Plano de Ensino por ícones
+    def plano_ensino_icon(val):
+        if pd.isna(val):
+            return ''
+        if str(val).strip().lower() in ['true', 'sim', 'confirmado', 'ok', '1', 'yes']:
+            return '✅'
+        if str(val).strip().lower() in ['false', 'não', 'nao', 'pendente', '0', 'no']:
+            return '❌'
+        return str(val)
     st.set_page_config(
         page_title="Ofertas de Disciplinas",
         layout="wide",
@@ -164,6 +173,10 @@ def main():
     if not df_oferta.empty:
         if 'Turma' in df_oferta.columns:
             df_oferta_display = df_oferta.dropna(subset=['Turma'])
+            # Adiciona ícones na coluna Plano de Ensino
+            if 'Plano de Ensino' in df_oferta_display.columns:
+                df_oferta_display = df_oferta_display.copy()
+                df_oferta_display['Plano de Ensino'] = df_oferta_display['Plano de Ensino'].apply(plano_ensino_icon)
             # Criar mapa de cores para Turma
             unique_turmas = sorted(df_oferta_display['Turma'].unique())
             palette = [
