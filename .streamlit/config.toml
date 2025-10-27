@@ -4,6 +4,7 @@ backgroundColor = "#ffffff"
 secondaryBackgroundColor = "#f8fafc"
 textColor = "#1a0d2e"
 font = "sans serif"
+base = "light"
 
 [server]
 headless = true

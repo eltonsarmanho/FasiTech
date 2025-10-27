@@ -11,6 +11,9 @@ Solução moderna de formulários web com Streamlit e backend FastAPI, rodando e
 - ✅ **Formulário Estágio** para envio de documentos de estágio
 - ✅ **Formulário Plano de Ensino** aceita qualquer tipo de arquivo (PDF, DOC, DOCX, ODT, imagens, etc)
 - ✅ **Formulário Projetos** para submissão de projetos de ensino, pesquisa e extensão
+- ✅ **Formulário Social** para coleta de dados socioeconômicos dos estudantes
+- ✅ **Ofertas de Disciplinas** para consulta de grades curriculares e ofertas por período/turma
+- ✅ **FAQ** página de perguntas frequentes e suporte
 - ✅ **Upload seguro** de arquivos ao Google Drive
 - ✅ **Registro automático** em Google Sheets
 - ✅ **Notificações por e-mail** para coordenação
@@ -24,7 +27,16 @@ Solução moderna de formulários web com Streamlit e backend FastAPI, rodando e
 ├── src/
 │   ├── app/
 │   │   ├── main.py     # Página principal com links para formulários
-│   │   └── pages/      # Formulários individuais
+│   │   └── pages/      # Páginas individuais:
+│   │       ├── FormACC.py              # Formulário ACC
+│   │       ├── FormTCC.py              # Formulário TCC
+│   │       ├── FormRequerimentoTCC.py  # Requerimento TCC
+│   │       ├── FormEstagio.py          # Formulário Estágio
+│   │       ├── FormPlanoEnsino.py      # Formulário Plano de Ensino
+│   │       ├── FormProjetos.py         # Formulário Projetos
+│   │       ├── FormSocial.py           # Formulário Social
+│   │       ├── OfertasDisciplinas.py   # Ofertas de Disciplinas
+│   │       └── FAQ.py                  # Página FAQ
 │   ├── services/       # Lógica de negócio (Drive, Sheets, Email)
 │   ├── models/         # Schemas Pydantic
 │   └── utils/          # Utilitários (validadores, criptografia)
@@ -35,7 +47,7 @@ Solução moderna de formulários web com Streamlit e backend FastAPI, rodando e
 └── tests/              # Suite de testes
 ```
 
-## 📝 Formulários disponíveis
+## 📝 Formulários e páginas disponíveis
 
 - **Formulário ACC**: Upload de certificados consolidados (PDF único, máx 10MB)
 - **Formulário TCC**: Submissão de documentos obrigatórios do TCC 1/2
@@ -43,6 +55,9 @@ Solução moderna de formulários web com Streamlit e backend FastAPI, rodando e
 - **Formulário Estágio**: Envio de plano e relatório de estágio
 - **Formulário Plano de Ensino**: Aceita qualquer tipo de arquivo (PDF, DOC, DOCX, ODT, imagens, etc)
 - **Formulário Projetos**: Submissão de projetos de ensino, pesquisa e extensão
+- **Formulário Social**: Coleta de dados socioeconômicos dos estudantes
+- **Ofertas de Disciplinas**: Consulta de grades curriculares e ofertas por período/turma com visualização colorida por turma
+- **FAQ**: Página de perguntas frequentes e suporte aos usuários
 
 ## 🚀 Primeiros passos
 
