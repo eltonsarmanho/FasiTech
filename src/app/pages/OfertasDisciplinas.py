@@ -172,9 +172,9 @@ def main():
             color_map = {turma: palette[i % len(palette)] for i, turma in enumerate(unique_turmas)}
             # Exibe todas as ofertas, pintando por turma
             styled_oferta = df_oferta_display.style.apply(style_turma, color_map=color_map, axis=1)
-            st.dataframe(styled_oferta, use_container_width=True)
+            st.dataframe(styled_oferta, width='stretch')
         else:
-            st.dataframe(df_oferta, use_container_width=True)
+            st.dataframe(df_oferta, width='stretch')
     else:
         st.info("Nenhuma aba de oferta de disciplinas foi encontrada ou selecionada.")
 
@@ -208,9 +208,9 @@ def main():
                 disciplina_turma_cor=disciplina_turma_cor,
                 axis=1
             )
-            st.dataframe(styled_grade, )
+            st.dataframe(styled_grade, width='stretch')
         else:
-            st.dataframe(df_grade, )
+            st.dataframe(df_grade, width='content')
 
     
 
