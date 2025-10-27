@@ -147,10 +147,28 @@ def main():
 
     # Carregar dados de oferta antes de tudo
     df_oferta = pd.DataFrame()
+    
+    st.markdown('<div class="tab-title">Ofertas de Disciplinas</div>', unsafe_allow_html=True)
     if oferta_tabs:
         tab_oferta_selecionada = st.selectbox("Selecione o período de ofertas:", oferta_tabs, key="oferta_tab")
         df_oferta = read_sheet_tab(SHEET_ID, tab_oferta_selecionada)
         df_oferta.dropna(how='all', inplace=True)
+    if not df_oferta.empty:
+        if 'Turma' in df_oferta.columns:
+            df_oferta_display = df_oferta.dropna(subset=['Turma'])
+            # Criar mapa de cores para Turma
+            unique_turmas = sorted(df_oferta_display['Turma'].unique())
+            palette = [
+                "#44928e", "#a066a5", "#9b7c4b", "#907a94", "#4f7452", "#a0a0a0", "#bbec82", "#d34d61",
+            ]
+            color_map = {turma: palette[i % len(palette)] for i, turma in enumerate(unique_turmas)}
+            # Exibe todas as ofertas, pintando por turma
+            styled_oferta = df_oferta_display.style.apply(style_turma, color_map=color_map, axis=1)
+            st.dataframe(styled_oferta, use_container_width=True)
+        else:
+            st.dataframe(df_oferta, use_container_width=True)
+    else:
+        st.info("Nenhuma aba de oferta de disciplinas foi encontrada ou selecionada.")
 
     # Remove filtro de turma. Sempre cruza todas as ofertas com a grade.
 
@@ -182,23 +200,7 @@ def main():
         else:
             st.dataframe(df_grade, use_container_width=True)
 
-    st.markdown('<div class="tab-title">Ofertas de Disciplinas</div>', unsafe_allow_html=True)
-    if not df_oferta.empty:
-        if 'Turma' in df_oferta.columns:
-            df_oferta_display = df_oferta.dropna(subset=['Turma'])
-            # Criar mapa de cores para Turma
-            unique_turmas = sorted(df_oferta_display['Turma'].unique())
-            palette = [
-                "#44928e", "#a066a5", "#9b7c4b", "#907a94", "#4f7452", "#a0a0a0", "#bbec82", "#d34d61",
-            ]
-            color_map = {turma: palette[i % len(palette)] for i, turma in enumerate(unique_turmas)}
-            # Exibe todas as ofertas, pintando por turma
-            styled_oferta = df_oferta_display.style.apply(style_turma, color_map=color_map, axis=1)
-            st.dataframe(styled_oferta, use_container_width=True)
-        else:
-            st.dataframe(df_oferta, use_container_width=True)
-    else:
-        st.info("Nenhuma aba de oferta de disciplinas foi encontrada ou selecionada.")
+    
 
 if __name__ == "__main__":
     main()
