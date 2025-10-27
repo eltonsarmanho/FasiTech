@@ -189,16 +189,15 @@ def main():
                 disciplina = oferta.get('Disciplina')
                 turma = oferta.get('Turma')
                 if turma == turma_selecionada and pd.notna(disciplina):
-                    print(disciplina, turma_selecionada)
                     disciplina_turma_cor[disciplina] = color_map.get(turma_selecionada, "#e0f2f1")
             styled_grade = df_grade.style.apply(
                 style_disciplina_turma,
                 disciplina_turma_cor=disciplina_turma_cor,
                 axis=1
             )
-            st.dataframe(styled_grade, use_container_width=True)
+            st.dataframe(styled_grade, )
         else:
-            st.dataframe(df_grade, use_container_width=True)
+            st.dataframe(df_grade, )
 
     
 
