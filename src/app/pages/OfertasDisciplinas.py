@@ -144,7 +144,6 @@ def main():
     with col_center:
         if LOGO_PATH.exists():
             st.image(str(LOGO_PATH), width='stretch')
-            st.markdown('</div>', unsafe_allow_html=True)
     # Header
     st.markdown(
         """
@@ -187,11 +186,9 @@ def main():
             styled_oferta = df_oferta_display.style.apply(style_turma, color_map=color_map, axis=1)
             cols_to_center = [c for c in df_oferta_display.columns if c != 'Disciplina']
             styled_oferta = styled_oferta.set_properties(**{'text-align': 'center'}, subset=cols_to_center)
-            #st.write(styled_oferta.to_html(), unsafe_allow_html=True,)
             st.dataframe(styled_oferta, width='stretch')
         else:
-            st.dataframe(styled_oferta, width='stretch')
-            #st.write(styled_oferta.to_html(), unsafe_allow_html=True)
+            st.dataframe(df_oferta, width='stretch')
     else:
         st.info("Nenhuma aba de oferta de disciplinas foi encontrada ou selecionada.")
 
@@ -229,7 +226,7 @@ def main():
             #st.write(styled_grade.to_html(), unsafe_allow_html=True,)
             st.dataframe(styled_grade, width='stretch')
         else:
-            st.dataframe(df_grade, width='content')
+            st.dataframe(df_grade, width='stretch')
 
     
 

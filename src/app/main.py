@@ -252,7 +252,6 @@ def _render_header() -> None:
     with col_center:
         if LOGO_PATH.exists():
             st.image(str(LOGO_PATH), width='stretch')
-            st.markdown('</div>', unsafe_allow_html=True)
     
     # Hero section
     st.markdown(
@@ -285,16 +284,18 @@ def _render_form_card(
         """,
         unsafe_allow_html=True,
     )
-    if title == "Ofertas de Disciplinas":
-        title = "Ofertas"
-    # title contem termo Formulário
-    if "Formulário" in title:
-        title = "Formulário"
-    if "Requerimento" in title:
-        title = "Requerimento"
-    if "FAQ" in title:
-        title = "FAQ"
-    if st.button(f"Acessar {title}", key=key, width='stretch'):
+    
+    button_text_map = {
+        "Ofertas de Disciplinas": "Ofertas",
+        "Formulário de ACC": "Formulário",
+        "Formulário TCC": "Formulário",
+        "Formulário de Estágio": "Formulário",
+        "Requerimento de TCC": "Requerimento",
+        "Formulário Social": "Formulário",
+        "FAQ - Perguntas Frequentes": "FAQ",
+    }
+    button_text = button_text_map.get(title, title)
+    if st.button(f"Acessar {button_text}", key=key, width='stretch'):
         st.switch_page(f"pages/{page_name}")
 
 
@@ -382,7 +383,7 @@ def _render_available_forms() -> None:
     with col9:
         _render_form_card(
             title="FAQ - Perguntas Frequentes",
-            description="Respostas para as dúvidas mais comuns sobre matrículas, disciplinas e outros assuntos.",
+            description="Encontre respostas para as dúvidas mais comuns sobre matrículas, disciplinas e outros assuntos.",
             icon="❓",
             page_name="FAQ.py",
             key="btn_faq"

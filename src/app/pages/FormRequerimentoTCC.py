@@ -232,7 +232,6 @@ def _render_intro() -> None:
     with col_center:
         if LOGO_PATH.exists():
             st.image(str(LOGO_PATH), width='stretch')
-            st.markdown('</div>', unsafe_allow_html=True)
     
     # Hero section
     st.markdown(
@@ -537,8 +536,6 @@ def render_form() -> None:
         
         # Botão de envio
         submitted = st.form_submit_button("Enviar Requerimento", width='stretch')
-        
-        st.markdown('</div>', unsafe_allow_html=True)
         
         # Processar submissão
         if submitted:

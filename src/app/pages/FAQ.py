@@ -75,7 +75,7 @@ def main():
     _, col_center, _ = st.columns([1, 2, 1])
     with col_center:
         if LOGO_PATH.exists():
-            st.image(str(LOGO_PATH), use_container_width=True)
+            st.image(str(LOGO_PATH), width='stretch')
 
     # Header
     st.markdown(
