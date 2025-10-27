@@ -89,16 +89,14 @@ def _render_custom_styles():
 
 def style_disciplina_turma(row, disciplina_turma_cor):
     """
-    Pinta apenas a célula da disciplina ofertada, usando a cor da turma que oferta.
+    Pinta a linha inteira da disciplina ofertada, usando a cor da turma que oferta.
     """
-    styled = [''] * len(row)
     disciplina = row.get('Disciplina')
     if pd.notna(disciplina) and disciplina in disciplina_turma_cor:
-        # Descobre o índice da coluna Disciplina
-        col_names = list(row.index)
-        idx = col_names.index('Disciplina')
-        styled[idx] = f'background-color: {disciplina_turma_cor[disciplina]}'
-    return styled
+        color = disciplina_turma_cor[disciplina]
+        return [f'background-color: {color}'] * len(row)
+    return [''] * len(row)
+    
 
 
 def style_turma(row, color_map):
