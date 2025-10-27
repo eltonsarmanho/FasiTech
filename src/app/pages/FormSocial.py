@@ -363,6 +363,7 @@ def render_form():
                 with st.spinner("Aguarde, processando envio..."):
                     row_data = {
                         "Matrícula": matricula.strip(),
+                        "Periodo": get_periodo_atual(),
                         "Cor/Etnia": cor_etnia,
                         "PCD": pcd,
                         "Tipo de Deficiência": ", ".join(tipo_deficiencia) if tipo_deficiencia else "",

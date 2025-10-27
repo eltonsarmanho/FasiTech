@@ -185,6 +185,7 @@ def append_rows(rows: Iterable[Dict[str, Any]], sheet_id: str, range_name: str =
                 # Cabeçalhos: Matrícula, Cor/Etnia, PCD, Tipo de Deficiência, Renda, Deslocamento, Trabalho, Saúde Mental, Estresse, Acompanhamento, Escolaridade Pai, Escolaridade Mãe, Acesso Internet, Tipo Moradia, Data/Hora
                 row_values = [
                     row.get("Matrícula", ""),
+                    row.get("Periodo", ""),
                     row.get("Cor/Etnia", ""),
                     row.get("PCD", ""),
                     row.get("Tipo de Deficiência", ""),
