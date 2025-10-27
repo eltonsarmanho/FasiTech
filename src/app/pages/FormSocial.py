@@ -7,6 +7,18 @@ import sys
 from pathlib import Path
 from typing import Any, Dict
 
+
+def format_brl_num(valor):
+    """Formata número para R$ brasileiro."""
+    # Formatação simples e direta para evitar problemas com babel
+    return f"R\$ {valor:.0f},00"
+def display_option(interval):
+    """Retorna a string que será mostrada no widget."""
+    vmin, vmax = interval
+    if vmax is None:
+        return f"Acima de {format_brl_num(vmin)}"
+    else:
+        return f"Entre {format_brl_num(vmin)} a {format_brl_num(vmax)}"
 # --- INÍCIO PADRÃO VISUAL INSTITUCIONAL ---
 ROOT_DIR = Path(__file__).resolve().parents[3]
 if str(ROOT_DIR) not in sys.path:
@@ -325,11 +337,38 @@ def render_form():
             ]
         )
 
-        st.markdown('<div class="form-section-title">7. Acesso à Internet e Moradia</div>', unsafe_allow_html=True)
+        st.markdown('<div class="form-section-title">7. Acesso à Internet, Tecnologia e Moradia</div>', unsafe_allow_html=True)
+        
+        # Novas perguntas sobre tecnologia
+        qtd_computador = st.radio(
+            "Quantidade de Computador/Notebook na residência:",
+            ["1", "2", "Acima de 3"]
+        )
+        
+        qtd_celular = st.radio(
+            "Quantidade de aparelho Celular na residência:",
+            ["1", "2", "Acima de 3"]
+        )
+        
+        computador_proprio = st.radio(
+            f"No período {get_periodo_atual()} você tinha computador próprio para estudar?",
+            ["Sim", "Não"]
+        )
+        OPCOES = [
+    (50, 150),
+    (150, 200),
+    (200, None)]
+        gasto_internet = st.radio(
+    "Gasto mensal do discente com internet banda larga (plano):",
+    options=OPCOES,
+    format_func=display_option
+)
+        
         acesso_internet = st.radio(
             "Você possui acesso à internet em casa?",
             ["Sim", "Não", "Às vezes", "Prefiro não responder"]
         )
+        
         tipo_moradia = st.radio(
             "Tipo de moradia",
             [
@@ -375,6 +414,10 @@ def render_form():
                         "Acompanhamento": acompanhamento,
                         "Escolaridade Pai": escolaridade_pai,
                         "Escolaridade Mãe": escolaridade_mae,
+                        "Qtd Computador": qtd_computador,
+                        "Qtd Celular": qtd_celular,
+                        "Computador Próprio": computador_proprio,
+                        "Gasto Internet": display_option(gasto_internet),
                         "Acesso Internet": acesso_internet,
                         "Tipo Moradia": tipo_moradia,
                         "Data/Hora": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -387,7 +430,26 @@ def render_form():
                         return
                     try:
                         subject = "[FASI] Nova resposta no Formulário Social"
-                        body = f"Matrícula: {matricula}\nCor/Etnia: {cor_etnia}\nPCD: {pcd}\nRenda: {renda}\nDeslocamento: {deslocamento}\nTrabalho: {trabalho}\nSaúde Mental: {saude_mental}\nEstresse: {estresse}\nAcompanhamento: {acompanhamento}\nEscolaridade Pai: {escolaridade_pai}\nEscolaridade Mãe: {escolaridade_mae}\nAcesso Internet: {acesso_internet}\nTipo Moradia: {tipo_moradia}\nData/Hora: {row_data['Data/Hora']}"
+                        body = f"""Matrícula: {matricula}
+Período: {get_periodo_atual()}
+Cor/Etnia: {cor_etnia}
+PCD: {pcd}
+Tipo de Deficiência: {", ".join(tipo_deficiencia) if tipo_deficiencia else "N/A"}
+Renda: {renda}
+Deslocamento: {deslocamento}
+Trabalho: {trabalho}
+Saúde Mental: {saude_mental}
+Estresse: {estresse}
+Acompanhamento: {acompanhamento}
+Escolaridade Pai: {escolaridade_pai}
+Escolaridade Mãe: {escolaridade_mae}
+Qtd Computador: {qtd_computador}
+Qtd Celular: {qtd_celular}
+Computador Próprio: {computador_proprio}
+Gasto Internet: {display_option(gasto_internet)}
+Acesso Internet: {acesso_internet}
+Tipo Moradia: {tipo_moradia}
+Data/Hora: {row_data['Data/Hora']}"""
                         send_notification(subject, body, config["notification_recipients"])
                     except Exception as e:
                         st.warning(f"Formulário salvo, mas falha ao enviar e-mail: {e}")

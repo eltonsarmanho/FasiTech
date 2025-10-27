@@ -182,7 +182,7 @@ def append_rows(rows: Iterable[Dict[str, Any]], sheet_id: str, range_name: str =
                 ]
             elif "Cor/Etnia" in row and "PCD" in row and "Tipo de Deficiência" in row:
                 # Formato Social
-                # Cabeçalhos: Matrícula, Cor/Etnia, PCD, Tipo de Deficiência, Renda, Deslocamento, Trabalho, Saúde Mental, Estresse, Acompanhamento, Escolaridade Pai, Escolaridade Mãe, Acesso Internet, Tipo Moradia, Data/Hora
+                # Cabeçalhos: Matrícula, Periodo, Cor/Etnia, PCD, Tipo de Deficiência, Renda, Deslocamento, Trabalho, Saúde Mental, Estresse, Acompanhamento, Escolaridade Pai, Escolaridade Mãe, Qtd Computador, Qtd Celular, Computador Próprio, Gasto Internet, Acesso Internet, Tipo Moradia, Data/Hora
                 row_values = [
                     row.get("Matrícula", ""),
                     row.get("Periodo", ""),
@@ -197,6 +197,10 @@ def append_rows(rows: Iterable[Dict[str, Any]], sheet_id: str, range_name: str =
                     row.get("Acompanhamento", ""),
                     row.get("Escolaridade Pai", ""),
                     row.get("Escolaridade Mãe", ""),
+                    row.get("Qtd Computador", ""),
+                    row.get("Qtd Celular", ""),
+                    row.get("Computador Próprio", ""),
+                    row.get("Gasto Internet", ""),
                     row.get("Acesso Internet", ""),
                     row.get("Tipo Moradia", ""),
                     row.get("Data/Hora", timestamp),
