@@ -187,10 +187,11 @@ def main():
             styled_oferta = df_oferta_display.style.apply(style_turma, color_map=color_map, axis=1)
             cols_to_center = [c for c in df_oferta_display.columns if c != 'Disciplina']
             styled_oferta = styled_oferta.set_properties(**{'text-align': 'center'}, subset=cols_to_center)
-            st.write(styled_oferta.to_html(), unsafe_allow_html=True,)
-            #st.dataframe(styled_oferta, width='stretch')
+            #st.write(styled_oferta.to_html(), unsafe_allow_html=True,)
+            st.dataframe(styled_oferta, width='stretch')
         else:
-            st.write(styled_oferta.to_html(), unsafe_allow_html=True)
+            st.dataframe(styled_oferta, width='stretch')
+            #st.write(styled_oferta.to_html(), unsafe_allow_html=True)
     else:
         st.info("Nenhuma aba de oferta de disciplinas foi encontrada ou selecionada.")
 
