@@ -95,6 +95,14 @@ def style_periodo(row, color_map):
             return [f'background-color: {color}'] * len(row)
     return [''] * len(row)
 
+def style_turma(row, color_map):
+    turma = row.get('Turma')
+    if pd.notna(turma):
+        color = color_map.get(turma, '')
+        if color:
+            return [f'background-color: {color}'] * len(row)
+    return [''] * len(row)
+
 def main():
     st.set_page_config(
         page_title="Ofertas de Disciplinas",
@@ -166,7 +174,34 @@ def main():
         tab_oferta = st.selectbox("Selecione o período de ofertas:", oferta_tabs, key="oferta_tab")
         df_oferta = read_sheet_tab(SHEET_ID, tab_oferta)
         df_oferta.dropna(how='all', inplace=True)
-        st.dataframe(df_oferta, use_container_width=True)
+
+        if not df_oferta.empty and 'Turma' in df_oferta.columns:
+            df_oferta.dropna(subset=['Turma'], inplace=True)
+
+            # Criar mapa de cores para Turma
+            unique_turmas = sorted(df_oferta['Turma'].unique())
+            # Paleta de cores diversas em tons claros (Verde, Azul, Laranja, etc.)
+            palette = [
+                "#44928e",  # Verde-água claro
+                "#a066a5",  # Azul claro
+                "#9b7c4b",  # Laranja claro
+                "#907a94",  # Roxo claro
+                "#4f7452",  # Verde claro
+                "#a0a0a0",  # Amarelo claro
+                "#bbec82",  # Lima claro
+                "#d34d61",  # Vermelho/Rosa claro
+            ]
+            print(unique_turmas)
+            color_map = {
+                turma: palette[i % len(palette)]
+                for i, turma in enumerate(unique_turmas)
+            }
+            print(color_map)
+
+            styled_oferta = df_oferta.style.apply(style_turma, color_map=color_map, axis=1)
+            st.dataframe(styled_oferta, use_container_width=True)
+        else:
+            st.dataframe(df_oferta, use_container_width=True)
 
 if __name__ == "__main__":
     main()
