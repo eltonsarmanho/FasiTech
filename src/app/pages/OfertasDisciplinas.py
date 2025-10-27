@@ -183,9 +183,12 @@ def main():
                 "#44928e", "#a066a5", "#9b7c4b", "#907a94", "#4f7452", "#a0a0a0", "#bbec82", "#d34d61",
             ]
             color_map = {turma: palette[i % len(palette)] for i, turma in enumerate(unique_turmas)}
-            # Exibe todas as ofertas, pintando por turma
+            # Centraliza todas as células exceto 'Disciplina'
             styled_oferta = df_oferta_display.style.apply(style_turma, color_map=color_map, axis=1)
-            st.dataframe(styled_oferta, width='stretch')
+            cols_to_center = [c for c in df_oferta_display.columns if c != 'Disciplina']
+            styled_oferta = styled_oferta.set_properties(**{'text-align': 'center'}, subset=cols_to_center)
+            st.write(styled_oferta.to_html(), unsafe_allow_html=True)
+            #st.dataframe(styled_oferta, width='stretch')
         else:
             st.dataframe(df_oferta, width='stretch')
     else:
