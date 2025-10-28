@@ -273,18 +273,7 @@ def _render_form_card(
     page_name: str,
     key: str
 ) -> None:
-    """Renderiza um card de formulário com link."""
-    st.markdown(
-        f"""
-        <div class="form-card">
-            <div class="form-card-icon">{icon}</div>
-            <h3>{title}</h3>
-            <p>{description}</p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-    
+    """Renderiza um card de formulário com botão integrado."""
     button_text_map = {
         "Ofertas de Disciplinas": "Ofertas",
         "Formulário de ACC": "Formulário",
@@ -295,8 +284,50 @@ def _render_form_card(
         "FAQ - Perguntas Frequentes": "FAQ",
     }
     button_text = button_text_map.get(title, title)
-    if st.button(f"Acessar {button_text}", key=key, width='stretch'):
-        st.switch_page(f"pages/{page_name}")
+    
+    # Card integrado com botão
+    with st.container():
+        st.markdown(
+            f"""
+            <div style="
+                background: #ffffff;
+                border-radius: 16px;
+                padding: 0;
+                margin-bottom: 24px;
+                box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+                border: 1px solid #e2e8f0;
+                transition: all 0.3s ease;
+                overflow: hidden;
+            ">
+                <div style="padding: 30px 30px 20px 30px;">
+                    <div style="
+                        font-size: 3rem;
+                        margin-bottom: 16px;
+                        display: inline-block;
+                    ">{icon}</div>
+                    <h3 style="
+                        color: #1a0d2e;
+                        font-size: 1.5rem;
+                        margin-bottom: 12px;  
+                        font-weight: 600;
+                    ">{title}</h3>
+                    <p style="
+                        color: #64748b;
+                        font-size: 0.95rem;
+                        line-height: 1.7;
+                        margin-bottom: 0;
+                    ">{description}</p>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        
+        # Botão logo abaixo, mas ainda dentro do espaçamento visual do card
+        st.markdown('<div style="margin-top: -24px; margin-bottom: 24px; padding: 0 1px;">', unsafe_allow_html=True)
+        if st.button(f"Acessar {button_text}", key=key, width='stretch'):
+            st.switch_page(f"pages/{page_name}")
+        st.markdown('</div>', unsafe_allow_html=True)
 
 
 def _render_available_forms() -> None:

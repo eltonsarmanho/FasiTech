@@ -277,6 +277,8 @@ def _validate_submission(
     membro1_outro: str,
     membro2: str,
     membro2_outro: str,
+    membro3: str = "",
+    membro3_outro: str = "",
 ) -> list[str]:
     """Executa validações básicas antes de enviar ao backend."""
     errors: list[str] = []
@@ -319,17 +321,21 @@ def _validate_submission(
     if not orientador or orientador == "":
         errors.append("Orientador é obrigatório.")
     
-    # Membro 1 obrigatório
-    if membro1 == "Outro:" and not membro1_outro.strip():
-        errors.append("Especifique o nome do Membro 1 da Banca.")
-    elif not membro1:
+    # Membro 1 obrigatório - nova lógica
+    if not membro1:
         errors.append("Membro 1 da Banca é obrigatório.")
+    elif membro1 == "Outro" and not membro1_outro.strip():
+        errors.append("Se selecionou 'Outro' para Membro 1, especifique o nome completo.")
     
-    # Membro 2 obrigatório
-    if membro2 == "Outro:" and not membro2_outro.strip():
-        errors.append("Especifique o nome do Membro 2 da Banca.")
-    elif not membro2:
+    # Membro 2 obrigatório - nova lógica
+    if not membro2:
         errors.append("Membro 2 da Banca é obrigatório.")
+    elif membro2 == "Outro" and not membro2_outro.strip():
+        errors.append("Se selecionou 'Outro' para Membro 2, especifique o nome completo.")
+    
+    # Membro 3 (opcional) - nova lógica
+    if membro3 == "Outro" and not membro3_outro.strip():
+        errors.append("Se selecionou 'Outro' para Membro 3, especifique o nome completo.")
     
     return errors
 
@@ -412,74 +418,6 @@ def render_form() -> None:
     st.info("ℹ️ **Importante:** Todos os campos são obrigatórios (exceto Membro 3 da Banca)")
     st.markdown("<br>", unsafe_allow_html=True)
     
-   
-    
-    # ============================================
-    # SEÇÃO FORA DO FORM: Banca Examinadora (com campos condicionais "Outro:")
-    # ============================================
-    st.markdown("### 👥 Banca Examinadora")
-    st.markdown("<span class='req-required'>*</span> Selecione os membros da banca antes de preencher o restante do formulário", unsafe_allow_html=True)
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    # Orientador (sem opção "Outro:")
-    orientador = st.selectbox(
-        "Orientador *",
-        options=[""] + PROFESSORES,
-        format_func=lambda x: "Selecione o orientador..." if x == "" else x,
-        key="orientador_select"
-    )
-    
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    # Membro 1 com campo condicional
-    membro1 = st.selectbox(
-        "Membro 1 da Banca *",
-        options=[""] + MEMBROS_BANCA + ["Outro:"],
-        format_func=lambda x: "Selecione o membro 1..." if x == "" else x,
-        key="membro1_select"
-    )
-    
-    membro1_outro = ""
-    if membro1 == "Outro:":
-        membro1_outro = st.text_input(
-            "Especifique o nome do Membro 1 *", 
-            placeholder="Nome completo do membro 1",
-            key="membro1_outro_input"
-        )
-    
-    # Membro 2 com campo condicional
-    membro2 = st.selectbox(
-        "Membro 2 da Banca *",
-        options=[""] + MEMBROS_BANCA + ["Outro:"],
-        format_func=lambda x: "Selecione o membro 2..." if x == "" else x,
-        key="membro2_select"
-    )
-    
-    membro2_outro = ""
-    if membro2 == "Outro:":
-        membro2_outro = st.text_input(
-            "Especifique o nome do Membro 2 *", 
-            placeholder="Nome completo do membro 2",
-            key="membro2_outro_input"
-        )
-    
-    # Membro 3 (Opcional) com campo condicional
-    membro3 = st.selectbox(
-        "Membro 3 da Banca (Opcional)",
-        options=["Nenhum"] + MEMBROS_BANCA + ["Outro:"],
-        key="membro3_select"
-    )
-    
-    membro3_outro = ""
-    if membro3 == "Outro:":
-        membro3_outro = st.text_input(
-            "Especifique o nome do Membro 3", 
-            placeholder="Nome completo do membro 3",
-            key="membro3_outro_input"
-        )
-    
-    st.markdown("<br><hr><br>", unsafe_allow_html=True)
-    
     # ============================================
     # FORMULÁRIO PRINCIPAL
     # ============================================
@@ -491,6 +429,64 @@ def render_form() -> None:
         nome = col1.text_input("Nome Completo *", placeholder="Seu nome completo")
         matricula = col2.text_input("Matrícula *", placeholder="202312345", max_chars=12)
         email = st.text_input("E-mail *", placeholder="seuemail@ufpa.br")
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # ============================================
+        # BANCA EXAMINADORA - AGORA DENTRO DO FORM
+        # ============================================
+        st.markdown("### 👥 Banca Examinadora")
+        
+        # Orientador (sem opção "Outro:")
+        orientador = st.selectbox(
+            "Orientador *",
+            options=[""] + PROFESSORES,
+            format_func=lambda x: "Selecione o orientador..." if x == "" else x,
+            key="orientador_select"
+        )
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # Membro 1 da Banca
+        membro1 = st.selectbox(
+            "Membro 1 da Banca *",
+            options=[""] + MEMBROS_BANCA + ["Outro"],
+            format_func=lambda x: "Selecione o membro 1..." if x == "" else x,
+            key="membro1_select"
+        )
+        
+        membro1_outro = st.text_input(
+            "Nome do Membro 1 (se selecionou Outro)", 
+            placeholder="Digite o nome completo se selecionou 'Outro' acima",
+            key="membro1_outro_input"
+        )
+        
+        # Membro 2 da Banca
+        membro2 = st.selectbox(
+            "Membro 2 da Banca *",
+            options=[""] + MEMBROS_BANCA + ["Outro"],
+            format_func=lambda x: "Selecione o membro 2..." if x == "" else x,
+            key="membro2_select"
+        )
+        
+        membro2_outro = st.text_input(
+            "Nome do Membro 2 (se selecionou Outro)", 
+            placeholder="Digite o nome completo se selecionou 'Outro' acima",
+            key="membro2_outro_input"
+        )
+        
+        # Membro 3 da Banca (Opcional)
+        membro3 = st.selectbox(
+            "Membro 3 da Banca (Opcional)",
+            options=["Nenhum"] + MEMBROS_BANCA + ["Outro"],
+            key="membro3_select"
+        )
+        
+        membro3_outro = st.text_input(
+            "Nome do Membro 3 (se selecionou Outro)", 
+            placeholder="Digite o nome completo se selecionou 'Outro' acima",
+            key="membro3_outro_input"
+        )
         
         st.markdown("<br>", unsafe_allow_html=True)
         
@@ -551,7 +547,8 @@ def render_form() -> None:
                 errors = _validate_submission(
                     nome, matricula, email, titulo, resumo, palavras_chave,
                     data_defesa, modalidade, orientador,
-                    membro1, membro1_outro, membro2, membro2_outro
+                    membro1, membro1_outro, membro2, membro2_outro,
+                    membro3, membro3_outro
                 )
                 
                 if errors:
@@ -563,13 +560,13 @@ def render_form() -> None:
                             # Carregar configurações
                             settings = _load_requerimento_settings()
                             
-                            # Preparar dados (orientador não tem opção "Outro:")
+                            # Preparar dados (orientador não tem opção "Outro")
                             orientador_final = orientador
-                            membro1_final = membro1_outro if membro1 == "Outro:" else membro1
-                            membro2_final = membro2_outro if membro2 == "Outro:" else membro2
+                            membro1_final = membro1_outro if membro1 == "Outro" else membro1
+                            membro2_final = membro2_outro if membro2 == "Outro" else membro2
                             membro3_final = ""
                             if membro3 != "Nenhum":
-                                membro3_final = membro3_outro if membro3 == "Outro:" else membro3
+                                membro3_final = membro3_outro if membro3 == "Outro" else membro3
                             
                             form_data = {
                                 "nome": nome,
