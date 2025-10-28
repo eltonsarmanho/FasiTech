@@ -192,6 +192,7 @@ def append_rows(rows: Iterable[Dict[str, Any]], sheet_id: str, range_name: str =
                     row.get("Renda", ""),
                     row.get("Deslocamento", ""),
                     row.get("Trabalho", ""),
+                    row.get("Assistência Estudantil", ""),
                     row.get("Saúde Mental", ""),
                     row.get("Estresse", ""),
                     row.get("Acompanhamento", ""),
