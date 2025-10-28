@@ -155,7 +155,7 @@ $RECYCLE.BIN/
 *~
 .directory
 .Trash-*
-
+\certbot
 # ============================================
 # Project Specific
 # ============================================
@@ -166,7 +166,7 @@ tmp/
 *.bak
 *.swp
 *.old
-
+nginx.conf
 # Docker
 docker-compose.override.yml
 .dockerignore

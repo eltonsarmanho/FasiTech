@@ -300,8 +300,10 @@ def _render_form_card(
 
 
 def _render_available_forms() -> None:
-    """Renderiza a grade de formulários disponíveis."""
-    st.markdown('<h2 class="section-title">📝 Formulários Disponíveis</h2>', unsafe_allow_html=True)
+    """Renderiza as três seções de formulários organizadas por público-alvo."""
+    
+    # SEÇÃO 1: FORMULÁRIOS PARA DISCENTES
+    st.markdown('<h2 class="section-title">🎓 Formulários Disponíveis para Discentes</h2>', unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
 
     # Primeira linha: FormACC | FormTCC | FormEstagio
@@ -333,7 +335,7 @@ def _render_available_forms() -> None:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Segunda linha: Requerimento TCC | Ofertas de Disciplinas | Formulário Social
+    # Segunda linha: Requerimento TCC | Formulário Social
     col4, col5, col6 = st.columns(3, gap="large")
     with col4:
         _render_form_card(
@@ -345,14 +347,6 @@ def _render_available_forms() -> None:
         )
     with col5:
         _render_form_card(
-            title="Ofertas de Disciplinas",
-            description="Cadastro e consulta das ofertas de disciplinas do semestre. Novo recurso para docentes e coordenação.",
-            icon="📅",
-            page_name="OfertasDisciplinas.py",
-            key="btn_ofertas"
-        )
-    with col6:
-        _render_form_card(
             title="Formulário Social",
             description="Questionário de perfil social, acadêmico, inclusão, diversidade e saúde mental. Dados para políticas institucionais e acompanhamento estudantil.",
             icon="🤝",
@@ -360,9 +354,12 @@ def _render_available_forms() -> None:
             key="btn_social"
         )
 
+    st.markdown("<br><br>", unsafe_allow_html=True)
+
+    # SEÇÃO 2: FORMULÁRIOS PARA DOCENTES
+    st.markdown('<h2 class="section-title">👨‍🏫 Formulários Disponíveis para Docentes</h2>', unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Terceira linha: Plano de Ensino | Projetos
     col7, col8, col9 = st.columns(3, gap="large")
     with col7:
         _render_form_card(
@@ -380,13 +377,29 @@ def _render_available_forms() -> None:
             page_name="FormProjetos.py",
             key="btn_projetos"
         )
-    with col9:
+
+    st.markdown("<br><br>", unsafe_allow_html=True)
+
+    # SEÇÃO 3: GERAL
+    st.markdown('<h2 class="section-title">🌐 Geral</h2>', unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    col10, col11, col12 = st.columns(3, gap="large")
+    with col10:
         _render_form_card(
             title="FAQ - Perguntas Frequentes",
             description="Encontre respostas para as dúvidas mais comuns sobre matrículas, disciplinas e outros assuntos.",
             icon="❓",
             page_name="FAQ.py",
             key="btn_faq"
+        )
+    with col11:
+        _render_form_card(
+            title="Ofertas de Disciplinas",  
+            description="Consulta das ofertas de disciplinas do semestre e grades curriculares. Visualização por período e turma.",
+            icon="📅",
+            page_name="OfertasDisciplinas.py",
+            key="btn_ofertas"
         )
 
 
