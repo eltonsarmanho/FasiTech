@@ -202,3 +202,5 @@ static/media/
 # !credentials/dev/.gitkeep
 # !credentials/prod/.gitkeep
 # !logs/.gitkeep
+
+comandosEspeciais.txt

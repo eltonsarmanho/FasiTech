@@ -269,8 +269,17 @@ def render_form():
             f"Você trabalhava no período {get_periodo_atual()}?",
             [
                 "Sim, estágio remunerado",
+                "Sim, estágio voluntário",
                 "Sim, CLT/Concurso",
-                "Sim, autônomo/informal",
+                "Sim, autônomo/informal",                
+                "Não"
+            ]
+        )
+
+        assistencia_estudantil = st.radio(
+            f"Você tem suporte a algum programa de Assistência Estudantil da UFPA no período {get_periodo_atual()}?",
+            [
+                "Sim",
                 "Não"
             ]
         )
@@ -409,6 +418,7 @@ def render_form():
                         "Renda": renda,
                         "Deslocamento": deslocamento,
                         "Trabalho": trabalho,
+                        "Assistência Estudantil": assistencia_estudantil,
                         "Saúde Mental": saude_mental,
                         "Estresse": estresse,
                         "Acompanhamento": acompanhamento,
@@ -438,6 +448,7 @@ Tipo de Deficiência: {", ".join(tipo_deficiencia) if tipo_deficiencia else "N/A
 Renda: {renda}
 Deslocamento: {deslocamento}
 Trabalho: {trabalho}
+Assistência Estudantil: {assistencia_estudantil}
 Saúde Mental: {saude_mental}
 Estresse: {estresse}
 Acompanhamento: {acompanhamento}
