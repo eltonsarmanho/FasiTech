@@ -12,7 +12,8 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 LOGO_PATH = Path(__file__).resolve().parents[2] / "resources" / "fasiOficial.png"
-MAX_FILE_SIZE_MB = 10
+# Aumentado para 50MB para acomodar documentos TCC (monografias, apresentações)
+MAX_FILE_SIZE_MB = 50
 
 
 def _load_tcc_settings() -> dict[str, Any]:
@@ -223,7 +224,7 @@ def _render_intro() -> None:
 					Todos os campos são <strong>obrigatórios</strong>.
 				</li>
 				<li>
-					Tamanho máximo por arquivo: <strong>10 MB</strong>.
+					Tamanho máximo por arquivo: <strong>{MAX_FILE_SIZE_MB} MB</strong>.
 				</li>
 			</ol>
 		</div>
@@ -396,7 +397,7 @@ def render_form() -> None:
 		)
 		
 		uploaded_files = st.file_uploader(
-			"Selecione os arquivos PDF (máximo 10 MB cada)",
+			f"Selecione os arquivos PDF (máximo {MAX_FILE_SIZE_MB} MB cada)",
 			type=["pdf"],
 			accept_multiple_files=True,
 			help=help_text,

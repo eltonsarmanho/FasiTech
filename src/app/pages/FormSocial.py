@@ -28,7 +28,8 @@ from src.services.google_sheets import append_rows
 from src.services.email_service import send_notification
 
 LOGO_PATH = Path(__file__).resolve().parents[2] / "resources" / "fasiOficial.png"
-MAX_FILE_SIZE_MB = 10
+# Aumentado para 50MB para acomodar documentos maiores
+MAX_FILE_SIZE_MB = 50
 
 def _validate_matricula(matricula: str) -> bool:
     """Valida se a matrícula possui exatamente 12 dígitos numéricos."""

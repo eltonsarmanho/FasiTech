@@ -13,7 +13,8 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 LOGO_PATH = Path(__file__).resolve().parents[2] / "resources" / "fasiOficial.png"
-MAX_FILE_SIZE_MB = 10
+# Aumentado para 50MB para acomodar apresentações PowerPoint grandes
+MAX_FILE_SIZE_MB = 50
 
 # Lista de professores/docentes
 PROFESSORES = [
@@ -441,7 +442,7 @@ def render_form() -> None:
         st.markdown("### 📎 Anexos")
         st.markdown(
             f"<p style='color: #6b7280; font-size: 0.9rem;'>"
-            f"Faça upload de até 10 arquivos aceitos. O tamanho máximo é de 100 MB por item.</p>",
+            f"Faça upload de até 10 arquivos aceitos. O tamanho máximo é de {MAX_FILE_SIZE_MB} MB por item.</p>",
             unsafe_allow_html=True,
         )
         

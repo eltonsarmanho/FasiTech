@@ -195,7 +195,7 @@ def _render_intro() -> None:
 					O documento digital deve estar em <strong>formato PDF</strong> e conter <strong>todos os certificados consolidados em um único arquivo</strong>.
 				</li>
 				<li>
-					Tamanho máximo: <strong>10 MB</strong>. Arquivos maiores serão rejeitados.
+					Tamanho máximo: <strong>{MAX_FILE_SIZE_MB} MB</strong>. Arquivos maiores serão rejeitados.
 				</li>
 			</ol>
 		</div>

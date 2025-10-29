@@ -14,7 +14,8 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 LOGO_PATH = Path(__file__).resolve().parents[2] / "resources" / "fasiOficial.png"
-MAX_FILE_SIZE_MB = 10
+# Aumentado para 50MB para acomodar relatórios e documentos de estágio
+MAX_FILE_SIZE_MB = 50
 
 
 def _load_estagio_settings() -> dict[str, Any]:
