@@ -104,6 +104,8 @@ def process_acc_submission(
                 tmp_pdf_path = tmp_file.name
             
             # Processar com IA
+            print(f"🔄 [BACKGROUND] Iniciando processamento IA para {sanitized['name']} ({sanitized['registration']})")
+            
             from src.services.acc_processor import processar_certificados_acc
             
             resultado = processar_certificados_acc(
@@ -112,13 +114,23 @@ def process_acc_submission(
                 nome=sanitized["name"]
             )
             
+            # Verificar se houve erro no processamento
+            status_processamento = resultado.get("status", "desconhecido")
             txt_path = resultado.get("txt_path")
             total_carga_horaria = resultado.get("total_geral")
             
             # Limpar arquivo temporário
-            os.remove(tmp_pdf_path)
+            try:
+                os.remove(tmp_pdf_path)
+            except Exception as e:
+                print(f"⚠️ [BACKGROUND] Erro ao remover arquivo temporário: {e}")
             
-            print(f"✅ [BACKGROUND] Processamento IA concluído: {total_carga_horaria}")
+            if status_processamento == "erro":
+                print(f"❌ [BACKGROUND] Erro no processamento IA: {resultado.get('erro', 'Erro desconhecido')}")
+                print(f"   Tipo do erro: {resultado.get('tipo_erro', 'N/A')}")
+                total_carga_horaria = f"❌ ERRO: {resultado.get('erro', 'Processamento falhou')}"
+            else:
+                print(f"✅ [BACKGROUND] Processamento IA concluído: {total_carga_horaria}")
             
             # Enviar email ÚNICO com resultado da IA
             if recipients and total_carga_horaria:

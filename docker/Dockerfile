@@ -25,9 +25,14 @@ COPY --from=builder /app/wheels /wheels
 # Agora isso funcionará, pois estamos instalando wheels de 3.11 com um pip de 3.11
 RUN pip install --no-cache /wheels/*
 
-# Instala o curl, necessário para o HEALTHCHECK.
+# Instala dependências do sistema necessárias:
+# - curl: necessário para o HEALTHCHECK
+# - poppler-utils: necessário para pdf2image converter PDFs para imagens
 # É importante limpar o cache do apt para manter a imagem pequena.
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y \
+    curl \
+    poppler-utils \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copia todo o restante do código da aplicação para o contêiner.
 # Copiamos o código APÓS instalar as dependências para aproveitar o cache do Docker.

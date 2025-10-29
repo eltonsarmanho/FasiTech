@@ -41,31 +41,80 @@ def pdf_to_images(pdf_path: str, output_dir: str = "/tmp/acc_images") -> List[st
     Returns:
         Lista com caminhos das imagens geradas
     """
-    try:
-        from pdf2image import convert_from_path
-    except ImportError:
-        raise ImportError("pdf2image not installed. Install with: pip install pdf2image pillow")
-    
-    # Criar diretório de saída
-    os.makedirs(output_dir, exist_ok=True)
-    
     print(f"📄 Convertendo PDF para imagens: {pdf_path}")
     
-    # Converter PDF para imagens (alta resolução para OCR)
-    images = convert_from_path(
-        pdf_path,
-        dpi=300,  # Alta resolução para melhor OCR
-        fmt='png',
-        thread_count=4
-    )
+    # Verificar se o arquivo existe
+    if not os.path.exists(pdf_path):
+        raise FileNotFoundError(f"Arquivo PDF não encontrado: {pdf_path}")
+    
+    # Verificar se é um arquivo PDF válido
+    file_size = os.path.getsize(pdf_path)
+    print(f"   Tamanho do arquivo: {file_size / 1024:.2f} KB")
+    
+    if file_size == 0:
+        raise ValueError("Arquivo PDF está vazio")
+    
+    try:
+        from pdf2image import convert_from_path
+        print("   ✓ pdf2image importado com sucesso")
+    except ImportError as e:
+        raise ImportError(f"pdf2image não disponível. Instale com: pip install pdf2image pillow. Erro: {e}")
+    
+    # Verificar se poppler está disponível
+    import shutil
+    if not shutil.which("pdftoppm"):
+        raise RuntimeError(
+            "poppler-utils não encontrado. Instale com:\n"
+            "  Ubuntu/Debian: sudo apt-get install poppler-utils\n"
+            "  CentOS/RHEL: sudo yum install poppler-utils\n"
+            "  macOS: brew install poppler"
+        )
+    print("   ✓ poppler-utils encontrado")
+    
+    # Criar diretório de saída
+    try:
+        os.makedirs(output_dir, exist_ok=True)
+        print(f"   ✓ Diretório criado: {output_dir}")
+    except Exception as e:
+        raise OSError(f"Não foi possível criar diretório {output_dir}: {e}")
+    
+    try:
+        # Converter PDF para imagens (alta resolução para OCR)
+        print("   🔄 Iniciando conversão...")
+        images = convert_from_path(
+            pdf_path,
+            dpi=300,  # Alta resolução para melhor OCR
+            fmt='png',
+            thread_count=2  # Reduzir para evitar problemas de memória no servidor
+        )
+        print(f"   ✓ PDF convertido: {len(images)} páginas")
+        
+    except Exception as e:
+        raise RuntimeError(f"Erro ao converter PDF: {e}")
+    
+    if not images:
+        raise ValueError("PDF não contém páginas válidas para conversão")
     
     image_paths = []
     for i, image in enumerate(images, start=1):
-        image_path = os.path.join(output_dir, f"page_{i:03d}.png")
-        image.save(image_path, 'PNG')
-        image_paths.append(image_path)
-        print(f"  ✓ Página {i}/{len(images)} convertida")
+        try:
+            image_path = os.path.join(output_dir, f"page_{i:03d}.png")
+            image.save(image_path, 'PNG')
+            
+            # Verificar se a imagem foi salva corretamente
+            if os.path.exists(image_path) and os.path.getsize(image_path) > 0:
+                image_paths.append(image_path)
+                print(f"  ✓ Página {i}/{len(images)} convertida ({os.path.getsize(image_path) / 1024:.1f} KB)")
+            else:
+                print(f"  ⚠️ Erro ao salvar página {i}: arquivo vazio ou não criado")
+                
+        except Exception as e:
+            print(f"  ⚠️ Erro ao processar página {i}: {e}")
     
+    if not image_paths:
+        raise RuntimeError("Nenhuma página foi convertida com sucesso")
+    
+    print(f"   ✅ Conversão concluída: {len(image_paths)} imagens geradas")
     return image_paths
 
 
@@ -144,15 +193,25 @@ TOTAL GERAL: [soma de todas as cargas] horas
 ```
 """
 
-    agent = Agent(
-        name="Extrator ACC",
-        model=Gemini(id="gemini-2.5-flash"),
-        instructions=INSTRUCOES,
-        markdown=True,
-        debug_mode=False
-    )
-    
-    return agent
+    try:
+        print("   🤖 Criando modelo Gemini...")
+        modelo = Gemini(id="gemini-2.5-flash")
+        print("   ✓ Modelo Gemini criado")
+        
+        agent = Agent(
+            name="Extrator ACC",
+            model=modelo,
+            instructions=INSTRUCOES,
+            markdown=True,
+            debug_mode=False
+        )
+        print("   ✓ Agente configurado com sucesso")
+        
+        return agent
+        
+    except Exception as e:
+        print(f"   ❌ Erro ao criar agente: {e}")
+        raise RuntimeError(f"Falha ao inicializar agente Gemini: {e}")
 
 
 def salvar_resultado_txt(conteudo: str, matricula: str, nome: str, output_dir: str = "/tmp/acc_results") -> str:
@@ -229,67 +288,137 @@ def processar_certificados_acc(
     print("="*70)
     print(f"📌 Aluno: {nome}")
     print(f"📌 Matrícula: {matricula}")
+    print(f"📌 Arquivo PDF: {pdf_path}")
+    print(f"📌 Tamanho do arquivo: {os.path.getsize(pdf_path) / 1024:.2f} KB")
     
-    # 1. Converter PDF para imagens
-    image_paths = pdf_to_images(pdf_path)
-    print(f"\n✓ Total de páginas convertidas: {len(image_paths)}")
-    
-    # 2. Criar agente extrator
-    print("\n🤖 Inicializando agente de extração...")
-    agent = criar_agente_extrator()
-    
-    # 3. Preparar imagens para o agente
-    print("\n📊 Enviando certificados para análise...")
-    images = [Image(filepath=img_path) for img_path in image_paths]
-    
-    # 4. Montar prompt com contexto
-    prompt = f"""Analise os {len(images)} certificados anexados e extraia as cargas horárias.
+    try:
+        # Verificar dependências críticas
+        print("\n🔍 Verificando dependências...")
+        
+        # Verificar GOOGLE_API_KEY
+        api_key = os.getenv("GOOGLE_API_KEY")
+        if not api_key:
+            raise EnvironmentError("GOOGLE_API_KEY não configurada")
+        print(f"✓ GOOGLE_API_KEY configurada (primeiros 10 chars: {api_key[:10]}...)")
+        
+        # Verificar pdf2image
+        try:
+            from pdf2image import convert_from_path
+            print("✓ pdf2image disponível")
+        except ImportError as e:
+            raise ImportError(f"pdf2image não disponível: {e}")
+        
+        # Verificar agno/Gemini
+        try:
+            from agno.models.google import Gemini
+            print("✓ agno/Gemini disponível")
+        except ImportError as e:
+            raise ImportError(f"agno não disponível: {e}")
+        
+        # 1. Converter PDF para imagens
+        print("\n📄 Convertendo PDF para imagens...")
+        image_paths = pdf_to_images(pdf_path)
+        print(f"✓ Total de páginas convertidas: {len(image_paths)}")
+        
+        if not image_paths:
+            raise ValueError("Nenhuma página foi convertida do PDF")
+        
+        # 2. Criar agente extrator
+        print("\n🤖 Inicializando agente de extração...")
+        agent = criar_agente_extrator()
+        print("✓ Agente criado com sucesso")
+        
+        # 3. Preparar imagens para o agente
+        print("\n📊 Preparando imagens para análise...")
+        images = []
+        for i, img_path in enumerate(image_paths):
+            try:
+                img = Image(filepath=img_path)
+                images.append(img)
+                print(f"  ✓ Imagem {i+1}/{len(image_paths)} carregada")
+            except Exception as e:
+                print(f"  ⚠️ Erro ao carregar imagem {i+1}: {e}")
+        
+        if not images:
+            raise ValueError("Nenhuma imagem foi carregada com sucesso")
+        
+        # 4. Montar prompt com contexto
+        prompt = f"""Analise os {len(images)} certificados anexados e extraia as cargas horárias.
 
 Cada imagem representa uma página do documento ACC do aluno {nome} (Matrícula: {matricula}).
 Processe todas as páginas e forneça o TOTAL GERAL ao final."""
     
-    # 5. Processar com o agente
-    print("\n⚙️  Processando certificados com Gemini...\n")
-    print("-"*70)
-    
-    response = agent.run(
-        input=prompt,
-        images=images,
-        stream=False
-    )
-    
-    print("-"*70)
-    print("\n✅ RESULTADO DA ANÁLISE:")
-    print("="*70)
-    print(response.content)
-    print("="*70)
-    
-    # Extrair total geral do conteúdo
-    total_geral = extrair_total_geral(response.content)
-    
-    print(f"\n🎯 {total_geral}")
-    
-    # 6. Salvar resultado em TXT
-    print("\n💾 Salvando resultado em arquivo TXT...")
-    txt_path = salvar_resultado_txt(response.content, matricula, nome)
-    
-    # 7. Limpar imagens temporárias
-    print("\n🧹 Limpando imagens temporárias...")
-    for img_path in image_paths:
+        # 5. Processar com o agente
+        print("\n⚙️  Processando certificados com Gemini...\n")
+        print("-"*70)
+        
+        response = agent.run(
+            input=prompt,
+            images=images,
+            stream=False
+        )
+        
+        print("-"*70)
+        print("\n✅ RESULTADO DA ANÁLISE:")
+        print("="*70)
+        print(response.content)
+        print("="*70)
+        
+        # Extrair total geral do conteúdo
+        total_geral = extrair_total_geral(response.content)
+        
+        print(f"\n🎯 {total_geral}")
+        
+        # 6. Salvar resultado em TXT
+        print("\n💾 Salvando resultado em arquivo TXT...")
+        txt_path = salvar_resultado_txt(response.content, matricula, nome)
+        
+        # 7. Limpar imagens temporárias
+        print("\n🧹 Limpando imagens temporárias...")
+        for img_path in image_paths:
+            try:
+                os.remove(img_path)
+            except Exception as e:
+                print(f"  ⚠️  Erro ao remover {img_path}: {e}")
+        
+        return {
+            "total_paginas": len(image_paths),
+            "resposta_completa": response.content,
+            "total_geral": total_geral,
+            "txt_path": txt_path,
+            "matricula": matricula,
+            "nome": nome,
+            "status": "sucesso"
+        }
+        
+    except Exception as e:
+        print(f"\n❌ ERRO CRÍTICO no processamento ACC:")
+        print(f"   Tipo: {type(e).__name__}")
+        print(f"   Mensagem: {str(e)}")
+        
+        # Tentar limpar imagens temporárias mesmo com erro
         try:
-            os.remove(img_path)
-        except Exception as e:
-            print(f"  ⚠️  Erro ao remover {img_path}: {e}")
-    
-    return {
-        "total_paginas": len(image_paths),
-        "resposta_completa": response.content,
-        "total_geral": total_geral,
-        "txt_path": txt_path,
-        "matricula": matricula,
-        "nome": nome,
-        "status": "sucesso"
-    }
+            if 'image_paths' in locals():
+                for img_path in image_paths:
+                    try:
+                        os.remove(img_path)
+                    except:
+                        pass
+        except:
+            pass
+        
+        # Retornar resultado de erro
+        return {
+            "total_paginas": 0,
+            "resposta_completa": f"ERRO: {str(e)}",
+            "total_geral": "⚠️ ERRO no processamento",
+            "txt_path": None,
+            "matricula": matricula,
+            "nome": nome,
+            "status": "erro",
+            "erro": str(e),
+            "tipo_erro": type(e).__name__
+        }
 
 
 # if __name__ == "__main__":

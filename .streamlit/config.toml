@@ -11,6 +11,8 @@ headless = true
 enableCORS = true
 enableXsrfProtection = true
 port = 8501
+# Aumentar limite de upload para 200MB para resolver erro 413
+maxUploadSize = 200
 
 [browser]
 gatherUsageStats = false

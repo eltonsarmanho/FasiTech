@@ -15,7 +15,8 @@ if str(ROOT_DIR) not in sys.path:
 from src.services.form_service import process_acc_submission
 
 LOGO_PATH = Path(__file__).resolve().parents[2] / "resources" / "fasiOficial.png"
-MAX_FILE_SIZE_MB = 10
+# Aumentado para 50MB para evitar erro 413 no servidor
+MAX_FILE_SIZE_MB = 50
 
 
 def _load_acc_settings() -> Dict[str, Any]:
@@ -250,9 +251,16 @@ def _validate_submission(name: str, registration: str, email: str, class_group: 
 	else:
 		if uploaded_file.type not in {"application/pdf"}:
 			errors.append("Apenas arquivos PDF são aceitos.")
+		
+		# Validação de tamanho com informações detalhadas
 		max_bytes = MAX_FILE_SIZE_MB * 1024 * 1024
-		if uploaded_file.size and uploaded_file.size > max_bytes:
-			errors.append(f"O arquivo excede o limite de {MAX_FILE_SIZE_MB} MB.")
+		if uploaded_file.size:
+			file_size_mb = uploaded_file.size / (1024 * 1024)
+			if uploaded_file.size > max_bytes:
+				errors.append(f"O arquivo ({file_size_mb:.1f} MB) excede o limite de {MAX_FILE_SIZE_MB} MB.")
+			else:
+				# Mostrar tamanho do arquivo para debug
+				print(f"📄 Arquivo ACC válido: {uploaded_file.name} ({file_size_mb:.1f} MB)")
 	
 	return errors
 
@@ -287,7 +295,7 @@ def render_form() -> None:
 			"Anexo PDF *",
 			type=["pdf"],
 			accept_multiple_files=False,
-			help="Arquivo PDF consolidado com todos os certificados (máximo 10 MB)",
+			help="Arquivo PDF consolidado com todos os certificados (máximo 50 MB)",
 		)
 		submitted = st.form_submit_button("Enviar para análise", width='stretch')
 
