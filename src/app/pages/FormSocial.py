@@ -168,13 +168,7 @@ def get_periodo_atual():
             return f"{ano}.(1 e 2)"
         elif 8 <= mes <= 12:
             return f"{ano}.(3 e 4)"
-        hoje = datetime.date.today()
-        ano = hoje.year
-        mes = hoje.month
-        if 1 <= mes <= 7:
-            return f"{ano}.(1 e 2)"
-        elif 8 <= mes <= 12:
-            return f"{ano}.(3 e 4)"
+        
         
 def render_form():
     try:
