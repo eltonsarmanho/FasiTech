@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+import os
 from pathlib import Path
 
 import streamlit as st
@@ -11,6 +12,12 @@ from streamlit.web import cli as stcli
 ROOT_DIR = Path(__file__).resolve().parents[2]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
+
+
+from src.utils.env_loader import load_environment
+
+# Carregar variáveis de ambiente
+load_environment()
 
 LOGO_PATH = Path(__file__).resolve().parent.parent / "resources" / "fasiOficial.png"
 
@@ -89,39 +96,21 @@ def _render_custom_styles() -> None:
                 margin: 0;
             }
             
-            /* Cards de formulários */
-            .form-card {
-                background: #ffffff;
+            /* Cards de formulários - Agora padronizados */
+            .form-card-unified {
                 border-radius: 16px;
-                padding: 36px;
+                padding: 30px;
                 margin-bottom: 24px;
                 box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
                 transition: all 0.3s ease;
-                border: 1px solid #e2e8f0;
-                position: relative;
-                overflow: hidden;
+                text-align: center;
+                color: white;
+                cursor: pointer;
             }
             
-            .form-card::before {
-                content: '';
-                position: absolute;
-                top: 0;
-                left: 0;
-                width: 4px;
-                height: 100%;
-                background: linear-gradient(180deg, #4a1d7a 0%, #7c3aed 100%);
-                opacity: 0;
-                transition: opacity 0.3s ease;
-            }
-            
-            .form-card:hover {
-                transform: translateY(-4px);
-                box-shadow: 0 12px 32px rgba(74, 29, 122, 0.15);
-                border-color: #7c3aed;
-            }
-            
-            .form-card:hover::before {
-                opacity: 1;
+            .form-card-unified:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
             }
             
             .form-card-icon {
@@ -133,21 +122,7 @@ def _render_custom_styles() -> None:
             
             @keyframes float {
                 0%, 100% { transform: translateY(0px); }
-                50% { transform: translateY(-10px); }
-            }
-            
-            .form-card h3 {
-                color: #1a0d2e;
-                font-size: 1.5rem;
-                margin-bottom: 12px;
-                font-weight: 600;
-            }
-            
-            .form-card p {
-                color: #64748b;
-                font-size: 0.95rem;
-                line-height: 1.7;
-                margin-bottom: 0;
+                50% { transform: translateY(-8px); }
             }
             
             /* Botões */
@@ -271,9 +246,10 @@ def _render_form_card(
     description: str, 
     icon: str, 
     page_name: str,
-    key: str
+    key: str,
+    gradient_colors: str = "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
 ) -> None:
-    """Renderiza um card de formulário com botão integrado."""
+    """Renderiza um card de formulário padronizado EXATAMENTE como o card 'Obter Dados Sociais'."""
     button_text_map = {
         "Ofertas de Disciplinas": "Ofertas",
         "Formulário de ACC": "Formulário",
@@ -282,56 +258,60 @@ def _render_form_card(
         "Requerimento de TCC": "Requerimento",
         "Formulário Social": "Formulário",
         "FAQ - Perguntas Frequentes": "FAQ",
+        "Plano de Ensino": "Plano",
+        "Projetos": "Projetos"
     }
     button_text = button_text_map.get(title, title)
     
-    # Card integrado com botão
-    with st.container():
-        st.markdown(
-            f"""
-            <div style="
-                background: #ffffff;
-                border-radius: 16px;
-                padding: 0;
-                margin-bottom: 24px;
-                box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
-                border: 1px solid #e2e8f0;
+    # Card COMPLETO com botão dentro (HTML puro, exatamente como "Obter Dados Sociais")
+    card_html = f"""
+        <div style="
+            background: {gradient_colors};
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+            transition: all 0.3s ease;
+            text-align: center;
+            color: white;
+        ">
+            <div style="font-size: 3rem; margin-bottom: 16px;">{icon}</div>
+            <h3 style="color: white; font-size: 1.5rem; margin-bottom: 12px; font-weight: 600;">
+                {title}
+            </h3>
+            <p style="color: rgba(255,255,255,0.9); font-size: 0.95rem; line-height: 1.7; margin-bottom: 20px;">
+                {description}
+            </p>
+            <a href="?page={page_name.replace('.py', '')}" style="
+                display: inline-block;
+                background: rgba(255,255,255,0.2);
+                color: white;
+                padding: 12px 24px;
+                border-radius: 25px;
+                text-decoration: none;
+                font-weight: 600;
                 transition: all 0.3s ease;
-                overflow: hidden;
-            ">
-                <div style="padding: 30px 30px 20px 30px;">
-                    <div style="
-                        font-size: 3rem;
-                        margin-bottom: 16px;
-                        display: inline-block;
-                    ">{icon}</div>
-                    <h3 style="
-                        color: #1a0d2e;
-                        font-size: 1.5rem;
-                        margin-bottom: 12px;  
-                        font-weight: 600;
-                    ">{title}</h3>
-                    <p style="
-                        color: #64748b;
-                        font-size: 0.95rem;
-                        line-height: 1.7;
-                        margin-bottom: 0;
-                    ">{description}</p>
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-        
-        # Botão logo abaixo, mas ainda dentro do espaçamento visual do card
-        st.markdown('<div style="margin-top: -24px; margin-bottom: 24px; padding: 0 1px;">', unsafe_allow_html=True)
-        if st.button(f"Acessar {button_text}", key=key, width='stretch'):
-            st.switch_page(f"pages/{page_name}")
-        st.markdown('</div>', unsafe_allow_html=True)
+                backdrop-filter: blur(10px);
+                border: 1px solid rgba(255,255,255,0.3);
+            " onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
+                📋 Acessar {button_text}
+            </a>
+        </div>
+    """
+    
+    st.markdown(card_html, unsafe_allow_html=True)
+    
+    # Capturar cliques via query params
+    query_params = st.query_params
+    if "page" in query_params and query_params["page"] == page_name.replace('.py', ''):
+        st.query_params.clear()
+        st.switch_page(f"pages/{page_name}")
 
 
 def _render_available_forms() -> None:
     """Renderiza as três seções de formulários organizadas por público-alvo."""
+    # Obter URL da API das variáveis de ambiente
+    api_url = os.getenv('API_BASE_URL', 'http://localhost:8000')
     
     # SEÇÃO 1: FORMULÁRIOS PARA DISCENTES
     st.markdown('<h2 class="section-title">🎓 Formulários Disponíveis para Discentes</h2>', unsafe_allow_html=True)
@@ -345,7 +325,8 @@ def _render_available_forms() -> None:
             description="Submissão de Atividades Complementares Curriculares. Envie seus certificados consolidados em um único arquivo PDF para análise e validação.",
             icon="🎓",
             page_name="FormACC.py",
-            key="btn_acc"
+            key="btn_acc",
+            gradient_colors="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"  # Azul/Roxo - Discentes
         )
     with col2:
         _render_form_card(
@@ -353,7 +334,8 @@ def _render_available_forms() -> None:
             description="Submissão de Trabalho de Conclusão de Curso (TCC 1 e TCC 2). Envie os documentos obrigatórios conforme as diretrizes do seu componente curricular.",
             icon="📚",
             page_name="FormTCC.py",
-            key="btn_tcc"
+            key="btn_tcc",
+            gradient_colors="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"  # Azul/Roxo - Discentes
         )
     with col3:
         _render_form_card(
@@ -361,7 +343,8 @@ def _render_available_forms() -> None:
             description="Envio de documentos de Estágio I e Estágio II. Submeta o Plano de Estágio ou Relatório Final conforme o componente curricular.",
             icon="📋",
             page_name="FormEstagio.py",
-            key="btn_estagio"
+            key="btn_estagio",
+            gradient_colors="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"  # Azul/Roxo - Discentes
         )
 
     st.markdown("<br>", unsafe_allow_html=True)
@@ -374,7 +357,8 @@ def _render_available_forms() -> None:
             description="Registro de informações para defesa do TCC. Cadastre os dados da banca examinadora e informações adicionais sobre seu TCC.",
             icon="📝",
             page_name="FormRequerimentoTCC.py",
-            key="btn_requerimento"
+            key="btn_requerimento",
+            gradient_colors="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"  # Azul/Roxo - Discentes
         )
     with col5:
         _render_form_card(
@@ -382,7 +366,8 @@ def _render_available_forms() -> None:
             description="Questionário de perfil social, acadêmico, inclusão, diversidade e saúde mental. Dados para políticas institucionais e acompanhamento estudantil.",
             icon="🤝",
             page_name="FormSocial.py",
-            key="btn_social"
+            key="btn_social",
+            gradient_colors="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"  # Azul/Roxo - Discentes
         )
 
     st.markdown("<br><br>", unsafe_allow_html=True)
@@ -398,7 +383,8 @@ def _render_available_forms() -> None:
             description="Submissão de Planos de Ensino por disciplina. Docentes podem enviar os planos de ensino organizados por semestre.",
             icon="📖",
             page_name="FormPlanoEnsino.py",
-            key="btn_plano"
+            key="btn_plano",
+            gradient_colors="linear-gradient(135deg, #f093fb 0%, #f5576c 100%)"  # Rosa/Vermelho - Docentes
         )
     with col8:
         _render_form_card(
@@ -406,7 +392,8 @@ def _render_available_forms() -> None:
             description="Submissão de Projetos de Ensino, Pesquisa e Extensão. Docentes podem registrar novos projetos, renovações ou encerramentos.",
             icon="🔬",
             page_name="FormProjetos.py",
-            key="btn_projetos"
+            key="btn_projetos",
+            gradient_colors="linear-gradient(135deg, #f093fb 0%, #f5576c 100%)"  # Rosa/Vermelho - Docentes
         )
 
     st.markdown("<br><br>", unsafe_allow_html=True)
@@ -418,11 +405,12 @@ def _render_available_forms() -> None:
     col10, col11, col12 = st.columns(3, gap="large")
     with col10:
         _render_form_card(
-            title="FAQ - Perguntas Frequentes",
-            description="Encontre respostas para as dúvidas mais comuns sobre matrículas, disciplinas e outros assuntos.",
+            title="FAQ",
+            description="Encontre respostas para as dúvidas mais comuns sobre matrículas, estágio, sigaa, disciplinas e outros assuntos.",
             icon="❓",
             page_name="FAQ.py",
-            key="btn_faq"
+            key="btn_faq",
+            gradient_colors="linear-gradient(135deg, #28a745 0%, #20c997 100%)"  # Azul claro/Ciano - Geral
         )
     with col11:
         _render_form_card(
@@ -430,7 +418,47 @@ def _render_available_forms() -> None:
             description="Consulta das ofertas de disciplinas do semestre e grades curriculares. Visualização por período e turma.",
             icon="📅",
             page_name="OfertasDisciplinas.py",
-            key="btn_ofertas"
+            key="btn_ofertas",
+            gradient_colors="linear-gradient(135deg, #28a745 0%, #20c997 100%)"  # Azul claro/Ciano - Geral
+        )
+    with col12:
+        # Card especial para download de dados sociais
+        st.markdown(
+            f"""
+            <div style="
+                background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+                border-radius: 16px;
+                padding: 30px;
+                margin-bottom: 24px;
+                box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+                transition: all 0.3s ease;
+                text-align: center;
+                color: white;
+            ">
+                <div style="font-size: 3rem; margin-bottom: 16px;">📊</div>
+                <h3 style="color: white; font-size: 1.5rem; margin-bottom: 12px; font-weight: 600;">
+                    Dados Sociais
+                </h3>
+                <p style="color: rgba(255,255,255,0.9); font-size: 0.95rem; line-height: 1.7; margin-bottom: 20px;">
+                    Download dos dados sociais dos estudantes para pesquisa. Os dados são anonimizados para garantir a privacidade dos alunos.
+                </p>
+                <a href="{api_url}/api/v1/dados-sociais/download" target="_blank" style="
+                    display: inline-block;
+                    background: rgba(255,255,255,0.2);
+                    color: white;
+                    padding: 12px 24px;
+                    border-radius: 25px;
+                    text-decoration: none;
+                    font-weight: 600;
+                    transition: all 0.3s ease;
+                    backdrop-filter: blur(10px);
+                    border: 1px solid rgba(255,255,255,0.3);
+                ">
+                    📥 Baixar Dados
+                </a>
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
 
 

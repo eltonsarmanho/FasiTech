@@ -14,7 +14,7 @@ def load_environment() -> None:
     env_path = root_dir / ".env"
     
     if env_path.exists():
-        load_dotenv(env_path)
+        load_dotenv(env_path, override=True)
         print(f"✅ Variáveis de ambiente carregadas de: {env_path}")
     else:
         print(f"⚠️ Arquivo .env não encontrado em: {env_path}")

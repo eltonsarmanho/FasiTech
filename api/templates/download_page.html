@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FasiTech - Dados Sociais</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 40px;
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+        }
+        
+        .logo {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+        
+        .info {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            text-align: left;
+        }
+        
+        .info h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+        
+        .info ul {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .info li {
+            padding: 5px 0;
+            color: #555;
+        }
+        
+        .info li:before {
+            content: "✓ ";
+            color: #28a745;
+            font-weight: bold;
+        }
+        
+        .download-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .download-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 15px 25px;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.1em;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            min-width: 180px;
+            justify-content: center;
+        }
+        
+        .btn-csv {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            color: white;
+        }
+        
+        .btn-excel {
+            background: linear-gradient(45deg, #007bff, #6610f2);
+            color: white;
+        }
+        
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+        
+        .stats {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        .loading {
+            display: none;
+            color: #666;
+            font-style: italic;
+        }
+        
+        @media (max-width: 600px) {
+            .container {
+                padding: 30px 20px;
+            }
+            
+            .download-buttons {
+                flex-direction: column;
+            }
+            
+            .download-btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">FasiTech</div>
+        <div class="subtitle">Dados Sociais dos Estudantes</div>
+        
+        <div class="info">
+            <h3>📊 Dados Disponíveis:</h3>
+            <ul>
+                <li>Registros de estudantes Anonimizados</li>
+                <li>Informações demográficas</li>
+                <li>Dados socioeconômicos</li>
+                <li>Acesso à tecnologia</li>
+                <li>Saúde mental e bem-estar</li>
+                <li>Dados atualizados em tempo real</li>
+            </ul>
+        </div>
+        
+        <div class="download-buttons">
+            <a href="/api/v1/dados-sociais/download/csv" class="download-btn btn-csv" onclick="showLoading(this)">
+                📄 Baixar CSV
+            </a>
+            <a href="/api/v1/dados-sociais/download/excel" class="download-btn btn-excel" onclick="showLoading(this)">
+                📊 Baixar Excel
+            </a>
+        </div>
+        
+        <div class="loading" id="loading">
+            📥 Preparando download...
+        </div>
+        
+        <div class="stats">
+            <strong>Formatos disponíveis:</strong><br>
+            • CSV: Para análise em Python, R ou ferramentas estatísticas<br>
+            • Excel: Para visualização e análise em planilhas
+        </div>
+    </div>
+
+    <script>
+        function showLoading(button) {
+            const loading = document.getElementById('loading');
+            loading.style.display = 'block';
+            
+            // Esconder loading após 3 segundos
+            setTimeout(() => {
+                loading.style.display = 'none';
+            }, 3000);
+        }
+        
+        // Verificar se os downloads estão funcionando
+        document.addEventListener('DOMContentLoaded', function() {
+            const buttons = document.querySelectorAll('.download-btn');
+            
+            buttons.forEach(button => {
+                button.addEventListener('click', function(e) {
+                    // Adicionar feedback visual
+                    this.style.opacity = '0.7';
+                    setTimeout(() => {
+                        this.style.opacity = '1';
+                    }, 1000);
+                });
+            });
+        });
+    </script>
+</body>
+</html>

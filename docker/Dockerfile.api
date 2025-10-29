@@ -1,0 +1,34 @@
+# Dockerfile para API FastAPI
+FROM python:3.11-slim-bookworm
+
+# Define o diretório de trabalho
+WORKDIR /app
+
+# Instala dependências do sistema
+RUN apt-get update && apt-get install -y \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Instala dependências Python
+RUN pip install --upgrade pip
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Instala dependências específicas da API
+RUN pip install --no-cache-dir uvicorn[standard] fastapi python-multipart
+
+# Copia o código da aplicação
+COPY . .
+
+# Cria usuário não-root
+RUN useradd --create-home apiuser
+
+# Define permissões corretas
+RUN chown -R apiuser:apiuser /app
+USER apiuser
+
+# Expõe a porta da API
+EXPOSE 8000
+
+# Comando para iniciar a API
+CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
