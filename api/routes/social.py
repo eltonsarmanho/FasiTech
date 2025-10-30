@@ -19,6 +19,7 @@ from src.models.schemas import (
     SimNao,
     TipoRenda,
     TipoDeslocamento,
+    TipoTrabalho,
     QualidadeAssistencia,
     TipoMoradia,
     AcessoInternet
@@ -43,7 +44,7 @@ async def get_dados_sociais(
     pcd: Optional[SimNao] = Query(None, description="Filtrar por PCD"),
     renda: Optional[TipoRenda] = Query(None, description="Filtrar por faixa de renda"),
     deslocamento: Optional[TipoDeslocamento] = Query(None, description="Filtrar por meio de deslocamento"),
-    trabalho: Optional[SimNao] = Query(None, description="Filtrar por situação de trabalho"),
+    trabalho: Optional[TipoTrabalho] = Query(None, description="Filtrar por situação de trabalho"),
     assistencia_estudantil: Optional[QualidadeAssistencia] = Query(None, description="Filtrar por qualidade da assistência estudantil"),
     tipo_moradia: Optional[TipoMoradia] = Query(None, description="Filtrar por tipo de moradia"),
     _: None = Depends(get_auth_dependency)
@@ -161,7 +162,7 @@ async def get_opcoes_filtros(
         "pcd": [item.value for item in SimNao],
         "renda": [item.value for item in TipoRenda],
         "deslocamento": [item.value for item in TipoDeslocamento],
-        "trabalho": [item.value for item in SimNao],
+        "trabalho": [item.value for item in TipoTrabalho],
         "assistencia_estudantil": [item.value for item in QualidadeAssistencia],
         "tipo_moradia": [item.value for item in TipoMoradia],
         "acesso_internet": [item.value for item in AcessoInternet]

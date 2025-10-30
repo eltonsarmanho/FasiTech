@@ -31,6 +31,15 @@ class SimNao(str, Enum):
     NAO = "Não"
 
 
+class TipoTrabalho(str, Enum):
+    """Tipos de situação de trabalho dos estudantes."""
+    NAO = "Não"
+    SIM_ESTAGIO_REMUNERADO = "Sim, estágio remunerado"
+    SIM_ESTAGIO_VOLUNTARIO = "Sim, estágio voluntário"
+    SIM_CLT_CONCURSO = "Sim, CLT/Concurso"
+    SIM_AUTONOMO_INFORMAL = "Sim, autônomo/informal"
+
+
 class TipoRenda(str, Enum):
     ATE_1_SALARIO = "Até 1 salário mínimo"
     DE_1_A_3_SALARIOS = "1 a 3 salários mínimos"
@@ -113,7 +122,7 @@ class DadoSocial(BaseModel):
     tipo_deficiencia: Optional[str] = Field(None, description="Tipo de deficiência (se aplicável)")
     renda: Optional[TipoRenda] = Field(None, description="Faixa de renda familiar")
     deslocamento: Optional[TipoDeslocamento] = Field(None, description="Meio de deslocamento principal")
-    trabalho: Optional[SimNao] = Field(None, description="Trabalha atualmente")
+    trabalho: Optional[TipoTrabalho] = Field(None, description="Situação de trabalho atual")
     assistencia_estudantil: Optional[QualidadeAssistencia] = Field(None, description="Qualidade da assistência estudantil")
     saude_mental: Optional[FrequenciaSaudeMental] = Field(None, description="Frequência de problemas de saúde mental")
     estresse: Optional[FrequenciaEstresse] = Field(None, description="Frequência de estresse")
@@ -162,7 +171,7 @@ class FiltrosDadosSociais(BaseModel):
     pcd: Optional[SimNao] = None
     renda: Optional[TipoRenda] = None
     deslocamento: Optional[TipoDeslocamento] = None
-    trabalho: Optional[SimNao] = None
+    trabalho: Optional[TipoTrabalho] = None
     assistencia_estudantil: Optional[QualidadeAssistencia] = None
     tipo_moradia: Optional[TipoMoradia] = None
 

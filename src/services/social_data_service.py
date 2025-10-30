@@ -23,6 +23,7 @@ from src.models.schemas import (
     SimNao,
     TipoRenda,
     TipoDeslocamento,
+    TipoTrabalho,
     QualidadeAssistencia,
     FrequenciaSaudeMental,
     FrequenciaEstresse,
@@ -197,7 +198,7 @@ class SocialDataService:
                 tipo_deficiencia=str(row.get('Tipo de Deficiência', '')) if pd.notna(row.get('Tipo de Deficiência')) else None,
                 renda=SocialDataService._parse_enum_value(row.get('Renda'), TipoRenda),
                 deslocamento=SocialDataService._parse_enum_value(row.get('Deslocamento'), TipoDeslocamento),
-                trabalho=SocialDataService._parse_enum_value(row.get('Trabalho'), SimNao),
+                trabalho=SocialDataService._parse_enum_value(row.get('Trabalho'), TipoTrabalho),
                 assistencia_estudantil=SocialDataService._parse_enum_value(row.get('Assistência Estudantil'), QualidadeAssistencia),
                 saude_mental=SocialDataService._parse_enum_value(row.get('Saúde Mental'), FrequenciaSaudeMental),
                 estresse=SocialDataService._parse_enum_value(row.get('Estresse'), FrequenciaEstresse),
@@ -208,7 +209,7 @@ class SocialDataService:
                 qtd_celular=SocialDataService._parse_int_value(row.get('Qtd Celular')),
                 computador_proprio=SocialDataService._parse_enum_value(row.get('Computador Próprio'), SimNao),
                 gasto_internet=SocialDataService._parse_gasto_internet(row.get('Gasto Internet')),
-                acesso_internet=SocialDataService._parse_enum_value(row.get('Acesso Internet'), SimNao),
+                acesso_internet=SocialDataService._parse_enum_value(row.get('Acesso Internet'), AcessoInternet),
                 tipo_moradia=SocialDataService._parse_enum_value(row.get('Tipo Moradia'), TipoMoradia),
                 data_hora=SocialDataService._parse_datetime(row.get('Data/Hora'))
             )
