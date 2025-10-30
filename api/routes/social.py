@@ -20,7 +20,8 @@ from src.models.schemas import (
     TipoRenda,
     TipoDeslocamento,
     QualidadeAssistencia,
-    TipoMoradia
+    TipoMoradia,
+    AcessoInternet
 )
 from api.dependencies import get_auth_dependency
 
@@ -162,7 +163,8 @@ async def get_opcoes_filtros(
         "deslocamento": [item.value for item in TipoDeslocamento],
         "trabalho": [item.value for item in SimNao],
         "assistencia_estudantil": [item.value for item in QualidadeAssistencia],
-        "tipo_moradia": [item.value for item in TipoMoradia]
+        "tipo_moradia": [item.value for item in TipoMoradia],
+        "acesso_internet": [item.value for item in AcessoInternet]
     }
 
 

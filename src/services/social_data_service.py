@@ -28,7 +28,8 @@ from src.models.schemas import (
     FrequenciaEstresse,
     NivelEscolaridade,
     FaixaGastoInternet,
-    TipoMoradia
+    TipoMoradia,
+    AcessoInternet
 )
 
 # Configurar logging

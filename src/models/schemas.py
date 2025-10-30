@@ -22,6 +22,7 @@ class CorEtnia(str, Enum):
     PRETO = "Preto"
     AMARELO = "Amarelo"
     INDIGENA = "Indígena"
+    QUILOMBOLA = "Quilombola"
     NAO_DECLARADO = "Não declarado"
 
 
@@ -39,9 +40,10 @@ class TipoRenda(str, Enum):
 
 class TipoDeslocamento(str, Enum):
     BICICLETA_A_PE = "Bicicleta/A pé"
-    ONIBUS = "Ônibus"
-    CARRO_PROPRIO = "Carro próprio"
-    MOTO = "Moto"
+    TRANSPORTE_PUBLICO = "Transporte público (ônibus, trem, metrô, etc.)"
+    CARRO_MOTO_PROPRIO = "Carro/Moto próprio"
+    TRANSPORTE_APP_TAXI = "Transporte por aplicativo/táxi"
+    CARONA_FRETADO = "Carona/Fretado"
     OUTRO = "Outro"
 
 
@@ -61,12 +63,15 @@ class FrequenciaSaudeMental(str, Enum):
 
 class FrequenciaEstresse(str, Enum):
     SIM_FREQUENTEMENTE = "Sim, frequentemente"
+    SIM_MAIOR_PARTE_TEMPO = "Sim, a maior parte do tempo"
     SIM_OCASIONALMENTE = "Sim, ocasionalmente"
     SIM_NO_PASSADO = "Sim, no passado"
     NUNCA = "Nunca"
+    NAO = "Não"
 
 
 class NivelEscolaridade(str, Enum):
+    ANALFABETO = "Analfabeto"
     SEM_ESCOLARIDADE = "Sem escolaridade"
     FUNDAMENTAL_INCOMPLETO = "Ensino Fundamental incompleto"
     FUNDAMENTAL_COMPLETO = "Ensino Fundamental completo"
@@ -75,6 +80,7 @@ class NivelEscolaridade(str, Enum):
     SUPERIOR_INCOMPLETO = "Ensino Superior incompleto"
     SUPERIOR_COMPLETO = "Ensino Superior completo"
     POS_GRADUACAO = "Pós-graduação"
+    NAO_SEI_PREFIRO_NAO_RESPONDER = "Não sei/Prefiro não responder"
 
 
 class FaixaGastoInternet(str, Enum):
@@ -88,6 +94,14 @@ class TipoMoradia(str, Enum):
     ALUGADA = "Alugada"
     CEDIDA = "Cedida"
     FINANCIADA = "Financiada"
+    OUTRA = "Outra"
+
+
+class AcessoInternet(str, Enum):
+    SIM = "Sim"
+    NAO = "Não"
+    AS_VEZES = "Às vezes"
+    PREFIRO_NAO_RESPONDER = "Prefiro não responder"
 
 
 class DadoSocial(BaseModel):
@@ -110,7 +124,7 @@ class DadoSocial(BaseModel):
     qtd_celular: Optional[int] = Field(None, description="Quantidade de celulares na residência")
     computador_proprio: Optional[SimNao] = Field(None, description="Possui computador próprio")
     gasto_internet: Optional[FaixaGastoInternet] = Field(None, description="Gasto mensal com internet")
-    acesso_internet: Optional[SimNao] = Field(None, description="Tem acesso à internet")
+    acesso_internet: Optional[AcessoInternet] = Field(None, description="Tem acesso à internet")
     tipo_moradia: Optional[TipoMoradia] = Field(None, description="Tipo de moradia")
     data_hora: Optional[datetime] = Field(None, description="Data e hora do registro")
 
