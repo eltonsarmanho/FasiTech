@@ -1,6 +1,6 @@
 # FasiTech Forms Platform
 
-Solução moderna de formulários web com Streamlit (frontend) e FastAPI (backend), rodando em EC2, com integrações para Google Drive, Google Sheets e envio de e-mails. 
+Solução moderna de formulários web com Streamlit (frontend) e FastAPI (backend), rodando em VM Linux com integrações para Google Drive, Google Sheets e envio de e-mails. Sistema completo com LGPD, download seguro de dados e API REST documentada. 
 
 ## 🚦 Camadas do Sistema
 
@@ -183,103 +183,140 @@ sudo docker-compose -f docker-compose.production.yml restart streamlit api
 ## 🧩 Arquitetura do Sistema
 
 ```mermaid
-flowchart LR
+flowchart TB
     %% Camada do Usuário
     User["👤 Usuário<br/>Docente/Aluno"]
-    Form["📝 Streamlit Web<br/>Formulário"]
-
-    %% Camada de Entrada de Dados
-    FormData[("📋 Dados Submetidos<br/>• Informações<br/>• Anexos")]
-
-    %% Camada Oracle VM
-    VM["🖥️ Oracle VM<br/>Servidor Linux"]
-    App["⚙️ FasiTech App<br/>Streamlit + FastAPI"]
-
-    %% Camada de Processamento
-    Router{"🔀 Identificar<br/>Tipo de Formulário"}
-
-    %% Tipos de Formulário
-    FormACC["📋 ACC<br/>Atividades Complementares"]
-    FormPROJ["🔬 Projetos<br/>Pesquisa/Extensão"]
-    FormTCC["📝 TCC<br/>Trabalho de Conclusão"]
-    FormESTAGIO["💼 Estágio<br/>Obrigatório/Não-Obrigatório"]
-    FormPLANO["📚 Plano de Ensino<br/>Disciplinas"]
-
-    %% Destinatários
-    subgraph Recipients ["📬 Destinatários"]
-        direction TB
-        Coord["👔 Gestores FASI"]
-        Parecer["👨‍🏫 Pareceristas<br/>Docentes avaliadores"]
-        Student["🎓 Alunos<br/>Cópia de confirmação"]
-    end
-
-    %% Armazenamento
-    subgraph Storage ["💾 Armazenamento Organizado"]
-        direction TB
-        DriveACC["📁 ACC/<br/>Turma/Matrícula"]
-        DrivePROJ["📁 Projetos/<br/>Edital/Ano/Docente/Tipo"]
-        DriveTCC["📁 TCC/<br/>Tipo/Turma/Aluno"]
-        DriveEST["📁 Estágio/<br/>Tipo/Turma/Aluno"]
-        DrivePLANO["📁 Plano de Ensino/<br/>Semestre"]
-    end
-
-    %% Fluxo de Dados Principal
-    User -->|"Preenche"| Form
-    Form -->|"Submete dados"| FormData
-    FormData -->|"POST"| VM
-    VM --> App
-    App -->|"Analisa"| Router
-
-    %% Roteamento por tipo
-    Router -->|"ACC"| FormACC
-    Router -->|"Projetos"| FormPROJ
-    Router -->|"TCC"| FormTCC
-    Router -->|"Estágio"| FormESTAGIO
-    Router -->|"Plano de Ensino"| FormPLANO
-
-    %% Processamento Paralelo
-    subgraph Processing ["⚙️ Processamento Paralelo"]
-        direction TB
-        Email["📧 Envio de Email<br/>• Notificação aos responsáveis<br/>• Anexa documentos gerados"]
-
-        subgraph DocGen ["📝 Processamento de Dados"]
-            direction TB
-            PDF["📄 Geração de PDFs<br/>• Parecer técnico<br/>• Declaração (se Extensão)"]
-            IA["🧠 LLM<br/>• Extração de dados<br/>• Analisa as Informações"]
+    
+    %% Internet & HTTPS
+    Internet["🌐 Internet<br/>https://www.fasitech.com.br"]
+    
+    %% VM Linux
+    subgraph VM["🖥️ VM Linux<br/>Server"]
+        %% Nginx Proxy
+        Nginx["🔐 Nginx<br/>Proxy Reverso<br/>:80 → :443<br/>SSL/TLS"]
+        
+        %% Containers Docker
+        subgraph Containers["� Docker Containers"]
+            direction LR
+            Streamlit["🎨 Streamlit<br/>Frontend<br/>:8501<br/>• Portal formulários<br/>• UX responsiva<br/>• Navegação"]
+            
+            API["⚙️ FastAPI<br/>Backend<br/>:8000<br/>• API REST<br/>• Webhooks<br/>• Download seguro"]
+            
+            Nginx ---|� Route /| Streamlit
+            Nginx ---|📡 Route /api| API
         end
-
-        Drive["☁️ Google Drive<br/>• Organiza anexos<br/>• Cria estrutura de pastas"]
     end
-
-    %% Processamento de cada tipo
-    FormACC --> Processing
-    FormPROJ --> Processing
-    FormTCC --> Processing
-    FormESTAGIO --> Processing
-    FormPLANO --> Processing
-
-    %% Ações paralelas
-    Email -.->|"Notifica"| Recipients
-    Drive -.->|"Salva"| Storage
-
+    
+    %% Processamento
+    subgraph Processing["⚙️ Processamento"]
+        direction TB
+        FormRouter{"� Identificar<br/>Tipo de Formulário"}
+        FormACC["� ACC"]
+        FormTCC["� TCC"]
+        FormEstagio["� Estágio"]
+        FormProjetos["� Projetos"]
+        FormSocial["👥 Social"]
+        FormPlano["📚 Plano Ensino"]
+        
+        FormRouter --> FormACC
+        FormRouter --> FormTCC
+        FormRouter --> FormEstagio
+        FormRouter --> FormProjetos
+        FormRouter --> FormSocial
+        FormRouter --> FormPlano
+    end
+    
+    %% Dados Sociais (API)
+    subgraph DadosSociais["📊 Dados Sociais (LGPD)"]
+        direction TB
+        GetData["GET /api/v1/dados-sociais"]
+        DownloadCSV["� Download CSV"]
+        DownloadXLSX["📥 Download Excel"]
+        Anonimizar["🔒 Anonimizar dados"]
+        
+        GetData --> Anonimizar
+        Anonimizar --> DownloadCSV
+        Anonimizar --> DownloadXLSX
+    end
+    
+    %% Google Integration
+    subgraph Google["☁️ Google Workspace"]
+        Drive["🗂️ Google Drive<br/>Armazenamento<br/>de arquivos"]
+        Sheets["� Google Sheets<br/>Registro de<br/>submissões"]
+    end
+    
+    %% Notificações
+    subgraph Notify["📧 Notificações"]
+        Email["📬 Email SMTP<br/>Coordenação<br/>Confirmações"]
+    end
+    
+    %% Fluxo Principal
+    User -->|"Preenche"| Internet
+    Internet --> Nginx
+    
+    Streamlit --> FormRouter
+    FormRouter --> Processing
+    API --> DadosSociais
+    
+    Processing --> Google
+    Processing --> Email
+    
+    DadosSociais --> Sheets
+    FormACC --> Drive
+    FormTCC --> Drive
+    FormEstagio --> Drive
+    FormProjetos --> Drive
+    FormSocial --> Drive
+    FormPlano --> Drive
+    
+    %% Endpoints visíveis
+    Internet ---|"✅ https://www.fasitech.com.br"| Streamlit
+    Internet ---|"✅ https://www.fasitech.com.br/api/docs"| API
+    Internet ---|"✅ https://www.fasitech.com.br/api/health"| API
+    Internet ---|"✅ https://www.fasitech.com.br/api/v1/dados-sociais"| API
+    
     %% Estilos
-    classDef userLayer fill:#E1F5FE,stroke:#01579B,stroke-width:3px,color:#000
-    classDef dataLayer fill:#F3E5F5,stroke:#4A148C,stroke-width:2px,color:#000
-    classDef vmLayer fill:#FFF3E0,stroke:#E65100,stroke-width:3px,color:#000
-    classDef formType fill:#E8F5E9,stroke:#1B5E20,stroke-width:2px,color:#000
+    classDef user fill:#E1F5FE,stroke:#01579B,stroke-width:3px,color:#000
+    classDef vm fill:#FFF3E0,stroke:#E65100,stroke-width:3px,color:#000
+    classDef container fill:#E8F5E9,stroke:#1B5E20,stroke-width:2px,color:#000
     classDef processing fill:#E0F2F1,stroke:#004D40,stroke-width:2px,color:#000
-    classDef recipients fill:#FCE4EC,stroke:#880E4F,stroke-width:2px,color:#000
+    classDef security fill:#FCE4EC,stroke:#880E4F,stroke-width:2px,color:#000
     classDef storage fill:#FFF9C4,stroke:#F57F17,stroke-width:2px,color:#000
-
-    class User,Form userLayer
-    class FormData dataLayer
-    class VM,App vmLayer
-    class Router vmLayer
-    class FormACC,FormPROJ,FormTCC,FormESTAGIO,FormPLANO formType
-    class Email,IA,PDF,Drive processing
-    class Coord,Parecer,Student recipients
-    class DriveACC,DrivePROJ,DriveTCC,DriveEST,DrivePLANO storage
+    classDef endpoint fill:#E1BEE7,stroke:#4A148C,stroke-width:2px,color:#000
+    
+    class User user
+    class VM vm
+    class Streamlit,API container
+    class FormRouter,FormACC,FormTCC,FormEstagio,FormProjetos,FormSocial,FormPlano processing
+    class GetData,Anonimizar,DownloadCSV,DownloadXLSX security
+    class Drive,Sheets storage
+    class Internet,Nginx endpoint
 ```
+
+## 📡 Endpoints Disponíveis
+
+### Frontend (Streamlit)
+- **`https://www.fasitech.com.br/`** - Portal principal com navegação
+- **`https://www.fasitech.com.br/?page=FormACC`** - Formulário ACC
+- **`https://www.fasitech.com.br/?page=FormTCC`** - Formulário TCC
+- **`https://www.fasitech.com.br/?page=FormEstagio`** - Formulário Estágio
+- **`https://www.fasitech.com.br/?page=FormProjetos`** - Formulário Projetos
+- **`https://www.fasitech.com.br/?page=FormSocial`** - Formulário Social
+- **`https://www.fasitech.com.br/?page=FormPlanoEnsino`** - Formulário Plano de Ensino
+- **`https://www.fasitech.com.br/?page=OfertasDisciplinas`** - Ofertas de Disciplinas
+- **`https://www.fasitech.com.br/?page=FAQ`** - Página FAQ
+
+### API FastAPI (Dados Sociais - LGPD)
+- **`https://www.fasitech.com.br/api/health`** - Health check
+- **`https://www.fasitech.com.br/api/v1/dados-sociais`** - GET dados com filtros
+- **`https://www.fasitech.com.br/api/v1/dados-sociais/download?format=csv`** - Download CSV anonimizado
+- **`https://www.fasitech.com.br/api/v1/dados-sociais/download?format=xlsx`** - Download Excel anonimizado
+- **`https://www.fasitech.com.br/api/v1/dados-sociais/estatisticas`** - Estatísticas agregadas
+- **`https://www.fasitech.com.br/api/v1/dados-sociais/opcoes`** - Opções de filtros
+
+### Documentação & Admin
+- **`https://www.fasitech.com.br/api/docs`** - Swagger UI (documentação interativa)
+- **`https://www.fasitech.com.br/api/redoc`** - ReDoc (documentação alternativa)
 
 ## 🎨 Personalização
 
