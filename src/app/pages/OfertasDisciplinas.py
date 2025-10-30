@@ -244,10 +244,7 @@ def main():
     
     # Botão de atualização de dados
     col_refresh, col_empty = st.columns([1, 4])
-    with col_refresh:
-        if st.button("🔄 Atualizar Dados", help="Limpa o cache e recarrega os dados da planilha"):
-            st.cache_data.clear()
-            st.rerun()
+   
     
     # Carregamento otimizado das abas (cache)
     tabs = cached_get_sheet_tabs(SHEET_ID)
@@ -284,20 +281,6 @@ def main():
                     
                     if not df_oferta_display.empty:
                         # Métricas no topo
-                        col1, col2, col3, col4 = st.columns(4)
-                        with col1:
-                            st.metric("📚 Total Disciplinas", len(df_oferta_display))
-                        with col2:
-                            st.metric("👥 Turmas", len(unique_turmas))
-                        with col3:
-                            planos_ok = len(df_oferta_display[df_oferta_display.get('Plano de Ensino', '') == '✅'])
-                            st.metric("✅ Planos OK", planos_ok)
-                        with col4:
-                            if 'Professor' in df_oferta_display.columns:
-                                profs_unicos = df_oferta_display['Professor'].nunique()
-                                st.metric("👨‍🏫 Professores", profs_unicos)
-                        
-                        st.markdown("---")
                         
                         # Filtros avançados
                         col_search, col_turma = st.columns([2, 1])
@@ -361,20 +344,7 @@ def main():
                     
                     if not df_grade.empty:
                         # Métricas da grade
-                        col1, col2, col3 = st.columns(3)
-                        with col1:
-                            st.metric("📚 Total Disciplinas", len(df_grade))
-                        with col2:
-                            if 'Semestre' in df_grade.columns:
-                                semestres = df_grade['Semestre'].nunique()
-                                st.metric("📅 Semestres", semestres)
-                        with col3:
-                            if 'CH' in df_grade.columns or 'Carga Horária' in df_grade.columns:
-                                ch_col = 'CH' if 'CH' in df_grade.columns else 'Carga Horária'
-                                total_ch = df_grade[ch_col].sum() if df_grade[ch_col].dtype in ['int64', 'float64'] else "N/A"
-                                st.metric("⏰ Carga Total", total_ch)
                         
-                        st.markdown("---")
                         
                         # Filtro de busca para grades
                         if 'Disciplina' in df_grade.columns:
