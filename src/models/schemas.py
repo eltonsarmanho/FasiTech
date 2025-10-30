@@ -46,17 +46,17 @@ class TipoDeslocamento(str, Enum):
 
 
 class QualidadeAssistencia(str, Enum):
-    EXCELENTE = "Excelente"
-    BOA = "Boa"
-    REGULAR = "Regular"
-    RUIM = "Ruim"
-    PESSIMA = "Péssima"
+    SIM = "Sim"
+    NAO = "Não"
 
 
 class FrequenciaSaudeMental(str, Enum):
-    SIM_FREQUENTEMENTE = "Sim, frequentemente"
-    SIM_OCASIONALMENTE = "Sim, ocasionalmente" 
-    NAO = "Não"
+    MUITO_BOA = "Muito boa"
+    BOA = "Boa"
+    REGULAR = "Regular"
+    RUIM = "Ruim"
+    MUITO_RUIM = "Muito ruim"
+    PREFIRO_NAO_RESPONDER = "Prefiro não responder"
 
 
 class FrequenciaEstresse(str, Enum):
@@ -78,10 +78,9 @@ class NivelEscolaridade(str, Enum):
 
 
 class FaixaGastoInternet(str, Enum):
-    ATE_50 = "Até R$ 50,00"
     DE_50_A_150 = "Entre R$ 50,00 a R$ 150,00"
-    DE_150_A_300 = "Entre R$ 150,00 a R$ 300,00"
-    ACIMA_300 = "Acima de R$ 300,00"
+    DE_150_A_200 = "Entre R$ 150,00 a R$ 200,00"
+    DE_200_ACIMA = "Acima de R$ 200,00"
 
 
 class TipoMoradia(str, Enum):

@@ -292,7 +292,7 @@ async def download_dados_csv():
     - Separador: vírgula (,)
     - Codificação: UTF-8
     - Cabeçalhos em português
-    - Todos os campos disponíveis
+    - Todos os campos disponíveis (sem Data/Hora)
     
     **Uso:**
     - Análise offline dos dados
@@ -317,7 +317,7 @@ async def download_dados_csv():
                 detail="Nenhum dado social encontrado"
             )
         
-        # Converter para DataFrame
+        # Converter para DataFrame (removido Data/Hora)
         dados_dict = []
         for item in resultado.dados:
             dados_dict.append({
@@ -330,6 +330,7 @@ async def download_dados_csv():
                 'Deslocamento': item.deslocamento.value if item.deslocamento else '',
                 'Trabalho': item.trabalho.value if item.trabalho else '',
                 'Assistência Estudantil': item.assistencia_estudantil.value if item.assistencia_estudantil else '',
+                'Gasto Internet': item.gasto_internet.value if item.gasto_internet else '',
                 'Saúde Mental': item.saude_mental.value if item.saude_mental else '',
                 'Estresse': item.estresse.value if item.estresse else '',
                 'Acompanhamento': item.acompanhamento or '',
@@ -338,10 +339,8 @@ async def download_dados_csv():
                 'Qtd Computador': item.qtd_computador or 0,
                 'Qtd Celular': item.qtd_celular or 0,
                 'Computador Próprio': item.computador_proprio.value if item.computador_proprio else '',
-                'Gasto Internet': item.gasto_internet.value if item.gasto_internet else '',
                 'Acesso Internet': item.acesso_internet.value if item.acesso_internet else '',
-                'Tipo Moradia': item.tipo_moradia.value if item.tipo_moradia else '',
-                'Data/Hora': item.data_hora.strftime('%Y-%m-%d %H:%M:%S') if item.data_hora else ''
+                'Tipo Moradia': item.tipo_moradia.value if item.tipo_moradia else ''
             })
         
         df = pd.DataFrame(dados_dict)
@@ -388,6 +387,7 @@ async def download_dados_excel():
     - Planilha única com todos os dados
     - Cabeçalhos formatados
     - Filtros automáticos habilitados
+    - Data/Hora removida conforme requisição
     
     **Uso:**
     - Análise em Excel
@@ -412,7 +412,7 @@ async def download_dados_excel():
                 detail="Nenhum dado social encontrado"
             )
         
-        # Converter para DataFrame
+        # Converter para DataFrame (removido Data/Hora)
         dados_dict = []
         for item in resultado.dados:
             dados_dict.append({
@@ -425,6 +425,7 @@ async def download_dados_excel():
                 'Deslocamento': item.deslocamento.value if item.deslocamento else '',
                 'Trabalho': item.trabalho.value if item.trabalho else '',
                 'Assistência Estudantil': item.assistencia_estudantil.value if item.assistencia_estudantil else '',
+                'Gasto Internet': item.gasto_internet.value if item.gasto_internet else '',
                 'Saúde Mental': item.saude_mental.value if item.saude_mental else '',
                 'Estresse': item.estresse.value if item.estresse else '',
                 'Acompanhamento': item.acompanhamento or '',
@@ -433,10 +434,8 @@ async def download_dados_excel():
                 'Qtd Computador': item.qtd_computador or 0,
                 'Qtd Celular': item.qtd_celular or 0,
                 'Computador Próprio': item.computador_proprio.value if item.computador_proprio else '',
-                'Gasto Internet': item.gasto_internet.value if item.gasto_internet else '',
                 'Acesso Internet': item.acesso_internet.value if item.acesso_internet else '',
-                'Tipo Moradia': item.tipo_moradia.value if item.tipo_moradia else '',
-                'Data/Hora': item.data_hora.strftime('%Y-%m-%d %H:%M:%S') if item.data_hora else ''
+                'Tipo Moradia': item.tipo_moradia.value if item.tipo_moradia else ''
             })
         
         df = pd.DataFrame(dados_dict)

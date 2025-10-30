@@ -135,6 +135,33 @@ class SocialDataService:
             return None
 
     @staticmethod
+    def _parse_gasto_internet(value: Any) -> Optional[FaixaGastoInternet]:
+        """Parse especial para gasto de internet - aceita múltiplos formatos."""
+        if pd.isna(value) or not value:
+            return None
+        
+        value_str = str(value).strip()
+        
+        # Tentar direct match com valores do enum
+        for enum_value in FaixaGastoInternet:
+            if enum_value.value == value_str:
+                return enum_value
+        
+        # Fazer match flexível se o valor veio formatado diferentemente
+        try:
+            # Tentar encontrar correspondência por padrão
+            if "50" in value_str and "150" in value_str:
+                return FaixaGastoInternet.DE_50_A_150
+            elif "150" in value_str and "200" in value_str:
+                return FaixaGastoInternet.DE_150_A_200
+            elif "200" in value_str and "Acima" in value_str:
+                return FaixaGastoInternet.DE_200_ACIMA
+        except Exception as e:
+            logger.warning(f"Erro ao fazer parse de gasto_internet: {e}")
+        
+        return None
+
+    @staticmethod
     @cache_result()
     def _load_raw_data() -> pd.DataFrame:
         """Carrega dados brutos da planilha com cache."""
@@ -179,7 +206,7 @@ class SocialDataService:
                 qtd_computador=SocialDataService._parse_int_value(row.get('Qtd Computador')),
                 qtd_celular=SocialDataService._parse_int_value(row.get('Qtd Celular')),
                 computador_proprio=SocialDataService._parse_enum_value(row.get('Computador Próprio'), SimNao),
-                gasto_internet=SocialDataService._parse_enum_value(row.get('Gasto Internet'), FaixaGastoInternet),
+                gasto_internet=SocialDataService._parse_gasto_internet(row.get('Gasto Internet')),
                 acesso_internet=SocialDataService._parse_enum_value(row.get('Acesso Internet'), SimNao),
                 tipo_moradia=SocialDataService._parse_enum_value(row.get('Tipo Moradia'), TipoMoradia),
                 data_hora=SocialDataService._parse_datetime(row.get('Data/Hora'))
