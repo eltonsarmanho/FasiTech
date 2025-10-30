@@ -21,16 +21,17 @@ SHEET_ID = st.secrets["ofertas"]["sheet_id"]
 from src.services.google_sheets import get_sheet_tabs, read_sheet_tab
 
 # Cache para leitura de abas e dados das planilhas
-@st.cache_data(show_spinner=False)
+# TTL de 3600 segundos (1 hora) garante dados frescos sem overload de requisições
+@st.cache_data(ttl=3600, show_spinner=False)
 def cached_get_sheet_tabs(sheet_id):
     return get_sheet_tabs(sheet_id)
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(ttl=3600, show_spinner=False)
 def cached_read_sheet_tab(sheet_id, tab_name):
     return read_sheet_tab(sheet_id, tab_name)
 
 # Cache para dados processados
-@st.cache_data(show_spinner=False)
+@st.cache_data(ttl=3600, show_spinner=False)
 def process_oferta_data(sheet_id, tab_name):
     """Processa dados de oferta com cache para evitar reprocessamento."""
     df_oferta = cached_read_sheet_tab(sheet_id, tab_name)
@@ -58,7 +59,7 @@ def process_oferta_data(sheet_id, tab_name):
     
     return df_display, color_map, unique_turmas
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(ttl=3600, show_spinner=False)
 def process_grade_data(sheet_id, tab_name):
     """Processa dados de grade com cache."""
     df_grade = cached_read_sheet_tab(sheet_id, tab_name)
