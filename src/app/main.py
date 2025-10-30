@@ -52,11 +52,27 @@ def _render_custom_styles() -> None:
                 visibility: hidden !important;
             }
             
-            /* Reset de espaçamentos */
+            /* Reset de espaçamentos e otimizações de performance */
             .block-container {
                 padding-top: 2rem;
                 padding-bottom: 2rem;
                 max-width: 1200px;
+            }
+            
+            /* Otimizações globais para transições fluidas */
+            * {
+                -webkit-backface-visibility: hidden;
+                backface-visibility: hidden;
+            }
+            
+            .stApp {
+                transition: all 0.3s ease-out;
+            }
+            
+            /* Prevenção de flash durante navegação */
+            .stSpinner {
+                opacity: 0;
+                transition: opacity 0.2s ease;
             }
             
             /* Cabeçalho institucional */
@@ -125,30 +141,48 @@ def _render_custom_styles() -> None:
                 50% { transform: translateY(-8px); }
             }
             
-            /* Botões */
+            /* Botões otimizados para transição fluida */
             .stButton > button {
                 width: 100%;
-                background: linear-gradient(135deg, #4a1d7a 0%, #7c3aed 100%);
-                color: #ffffff;
-                border: none;
+                background: rgba(255,255,255,0.2) !important;
+                color: #ffffff !important;
+                border: 2px solid rgba(255,255,255,0.3) !important;
                 font-weight: 600;
-                padding: 16px 32px;
-                border-radius: 12px;
-                transition: all 0.3s ease;
-                font-size: 1rem;
-                text-transform: uppercase;
-                letter-spacing: 0.5px;
-                box-shadow: 0 4px 12px rgba(74, 29, 122, 0.25);
+                padding: 14px 28px;
+                border-radius: 25px;
+                transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                font-size: 0.95rem;
+                text-transform: none;
+                letter-spacing: 0.3px;
+                backdrop-filter: blur(10px);
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                margin-top: -10px;
+                position: relative;
+                z-index: 10;
             }
             
             .stButton > button:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 8px 24px rgba(74, 29, 122, 0.4);
-                background: linear-gradient(135deg, #5a2d8a 0%, #8c4afd 100%);
+                background: rgba(255,255,255,0.3) !important;
+                border-color: rgba(255,255,255,0.5) !important;
+                transform: translateY(-1px);
+                box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
             }
             
             .stButton > button:active {
                 transform: translateY(0);
+                transition: all 0.1s ease;
+            }
+            
+            /* Animação float para ícones */
+            @keyframes float {
+                0%, 100% { transform: translateY(0px); }
+                50% { transform: translateY(-8px); }
+            }
+            
+            /* Container dos cards com hover */
+            .form-card-container:hover {
+                transform: translateY(-3px);
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
             }
             
             /* Seção de informações */
@@ -249,7 +283,7 @@ def _render_form_card(
     key: str,
     gradient_colors: str = "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
 ) -> None:
-    """Renderiza um card de formulário padronizado EXATAMENTE como o card 'Obter Dados Sociais'."""
+    """Renderiza um card de formulário com navegação fluida via Streamlit button."""
     button_text_map = {
         "Ofertas de Disciplinas": "Ofertas",
         "Formulário de ACC": "Formulário",
@@ -258,53 +292,45 @@ def _render_form_card(
         "Requerimento de TCC": "Requerimento",
         "Formulário Social": "Formulário",
         "FAQ - Perguntas Frequentes": "FAQ",
-        "Plano de Ensino": "Plano",
+        "Plano de Ensino": "Planos",
         "Projetos": "Projetos"
     }
     button_text = button_text_map.get(title, title)
     
-    # Card COMPLETO com botão dentro (HTML puro, exatamente como "Obter Dados Sociais")
-    card_html = f"""
-        <div style="
+    # Container com estilo customizado
+    st.markdown(
+        f"""
+        <div class="form-card-container" style="
             background: {gradient_colors};
             border-radius: 16px;
             padding: 30px;
             margin-bottom: 24px;
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
-            transition: all 0.3s ease;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             text-align: center;
             color: white;
+            position: relative;
+            overflow: hidden;
         ">
-            <div style="font-size: 3rem; margin-bottom: 16px;">{icon}</div>
+            <div style="font-size: 3rem; margin-bottom: 16px; animation: float 3s ease-in-out infinite;">{icon}</div>
             <h3 style="color: white; font-size: 1.5rem; margin-bottom: 12px; font-weight: 600;">
                 {title}
             </h3>
             <p style="color: rgba(255,255,255,0.9); font-size: 0.95rem; line-height: 1.7; margin-bottom: 20px;">
                 {description}
             </p>
-            <a href="?page={page_name.replace('.py', '')}" style="
-                display: inline-block;
-                background: rgba(255,255,255,0.2);
-                color: white;
-                padding: 12px 24px;
-                border-radius: 25px;
-                text-decoration: none;
-                font-weight: 600;
-                transition: all 0.3s ease;
-                backdrop-filter: blur(10px);
-                border: 1px solid rgba(255,255,255,0.3);
-            " onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
-                📋 Acessar {button_text}
-            </a>
         </div>
-    """
+        """,
+        unsafe_allow_html=True,
+    )
     
-    st.markdown(card_html, unsafe_allow_html=True)
-    
-    # Capturar cliques via query params
-    query_params = st.query_params
-    if "page" in query_params and query_params["page"] == page_name.replace('.py', ''):
-        st.query_params.clear()
+    # Botão Streamlit nativo para navegação instantânea
+    if st.button(
+        f"📋 Acessar {button_text}",
+        key=key,
+        use_container_width=True,
+        type="secondary"
+    ):
         st.switch_page(f"pages/{page_name}")
 
 
@@ -422,46 +448,45 @@ def _render_available_forms() -> None:
             gradient_colors="linear-gradient(135deg, #28a745 0%, #20c997 100%)"  # Azul claro/Ciano - Geral
         )
     with col12:
-        # Card especial para download de dados sociais
-        # IMPORTANTE: Usar f-string para interpolar a variável api_url corretamente
+        # Card especial para download de dados sociais - seguindo padrão dos demais
         download_url = f"{api_url}/api/v1/dados-sociais/download"
+        
+        # Container com estilo customizado (mesmo padrão)
         st.markdown(
-            f"""
-            <div style="
+            """
+            <div class="form-card-container" style="
                 background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
                 border-radius: 16px;
                 padding: 30px;
                 margin-bottom: 24px;
                 box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
-                transition: all 0.3s ease;
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
                 text-align: center;
                 color: white;
+                position: relative;
+                overflow: hidden;
             ">
-                <div style="font-size: 3rem; margin-bottom: 16px;">📊</div>
+                <div style="font-size: 3rem; margin-bottom: 16px; animation: float 3s ease-in-out infinite;">📊</div>
                 <h3 style="color: white; font-size: 1.5rem; margin-bottom: 12px; font-weight: 600;">
                     Dados Sociais
                 </h3>
                 <p style="color: rgba(255,255,255,0.9); font-size: 0.95rem; line-height: 1.7; margin-bottom: 20px;">
                     Download dos dados sociais dos estudantes para pesquisa. Os dados são anonimizados para garantir a privacidade dos alunos.
                 </p>
-                <a href="{download_url}" target="_blank" style="
-                    display: inline-block;
-                    background: rgba(255,255,255,0.2);
-                    color: white;
-                    padding: 12px 24px;
-                    border-radius: 25px;
-                    text-decoration: none;
-                    font-weight: 600;
-                    transition: all 0.3s ease;
-                    backdrop-filter: blur(10px);
-                    border: 1px solid rgba(255,255,255,0.3);
-                ">
-                    📥 Baixar Dados
-                </a>
             </div>
             """,
             unsafe_allow_html=True,
         )
+        
+        # Botão Streamlit nativo (mesmo padrão dos demais)
+        if st.button(
+            "📥 Baixar Dados",
+            key="btn_dados_sociais",
+            use_container_width=True,
+            type="secondary"
+        ):
+            st.markdown(f'<meta http-equiv="refresh" content="0; url={download_url}">', unsafe_allow_html=True)
+            st.success("🔄 Redirecionando para download...")
 
 
 def _render_info_section() -> None:
@@ -497,7 +522,10 @@ def main() -> None:
         }
     )
     
+    # Aplicar estilos primeiro para evitar flash
     _render_custom_styles()
+    
+    # Renderizar conteúdo principal
     _render_header()
     _render_available_forms()
     _render_info_section()
