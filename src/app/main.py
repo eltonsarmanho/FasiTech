@@ -141,12 +141,12 @@ def _render_custom_styles() -> None:
                 50% { transform: translateY(-8px); }
             }
             
-            /* Botões otimizados para transição fluida */
+            /* Botões otimizados com visibilidade garantida */
             .stButton > button {
                 width: 100%;
-                background: rgba(255,255,255,0.2) !important;
+                background: linear-gradient(135deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.15) 100%) !important;
                 color: #ffffff !important;
-                border: 2px solid rgba(255,255,255,0.3) !important;
+                border: 2px solid rgba(255,255,255,0.4) !important;
                 font-weight: 600;
                 padding: 14px 28px;
                 border-radius: 25px;
@@ -154,24 +154,73 @@ def _render_custom_styles() -> None:
                 font-size: 0.95rem;
                 text-transform: none;
                 letter-spacing: 0.3px;
-                backdrop-filter: blur(10px);
-                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                backdrop-filter: blur(15px);
+                box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255,255,255,0.3);
                 margin-top: -10px;
                 position: relative;
                 z-index: 10;
+                text-shadow: 0 1px 2px rgba(0,0,0,0.3);
             }
             
             .stButton > button:hover {
-                background: rgba(255,255,255,0.3) !important;
-                border-color: rgba(255,255,255,0.5) !important;
+                background: linear-gradient(135deg, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0.25) 100%) !important;
+                border-color: rgba(255,255,255,0.6) !important;
                 transform: translateY(-1px);
-                box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+                box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255,255,255,0.4);
+                text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+            }
+            
+            .stButton > button:active {
+                transform: translateY(0px);
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
             }
             
             .stButton > button:active {
                 transform: translateY(0);
                 transition: all 0.1s ease;
             }
+            
+            /* Base dos botões - design unificado */
+            .stButton > button {
+                width: 100% !important;
+                color: #ffffff !important;
+                font-weight: 600;
+                padding: 14px 28px;
+                border-radius: 25px;
+                transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                font-size: 0.95rem;
+                text-transform: none;
+                letter-spacing: 0.3px;
+                backdrop-filter: blur(15px);
+                margin-top: -10px;
+                position: relative;
+                z-index: 10;
+                text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+                box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255,255,255,0.3);
+                min-height: 48px;
+            }
+            
+            /* TODOS OS BOTÕES - Cor Padrão Azul/Roxo (Discentes) */
+            .stButton > button {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+                border: 2px solid rgba(102, 126, 234, 0.6) !important;
+            }
+            
+            .stButton > button:hover {
+                background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%) !important;
+                border-color: rgba(102, 126, 234, 0.8) !important;
+                transform: translateY(-1px);
+                box-shadow: 0 6px 24px rgba(102, 126, 234, 0.4), inset 0 1px 0 rgba(255,255,255,0.4);
+            }
+            
+            /* Estado ativo universal */
+            .stButton > button:active {
+                transform: translateY(0px);
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+                transition: all 0.1s ease;
+            }
+            
+            /* CSS simplificado - todos os botões usam a mesma cor padrão */
             
             /* Animação float para ícones */
             @keyframes float {
@@ -324,7 +373,7 @@ def _render_form_card(
         unsafe_allow_html=True,
     )
     
-    # Botão Streamlit nativo para navegação instantânea
+    # Botão Streamlit nativo com classe específica para cores correspondentes
     if st.button(
         f"📋 Acessar {button_text}",
         key=key,
@@ -389,7 +438,7 @@ def _render_available_forms() -> None:
     with col5:
         _render_form_card(
             title="Formulário Social",
-            description="Questionário de perfil social, acadêmico, inclusão, diversidade e saúde mental. Dados para políticas institucionais e acompanhamento estudantil.",
+            description="Questionário de perfil social, acadêmico, inclusão, diversidade e saúde mental. Dados para políticas institucionais e estudantil.",
             icon="🤝",
             page_name="FormSocial.py",
             key="btn_social",
@@ -410,7 +459,7 @@ def _render_available_forms() -> None:
             icon="📖",
             page_name="FormPlanoEnsino.py",
             key="btn_plano",
-            gradient_colors="linear-gradient(135deg, #f093fb 0%, #f5576c 100%)"  # Rosa/Vermelho - Docentes
+            gradient_colors="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"  # Cor Padrão
         )
     with col8:
         _render_form_card(
@@ -419,7 +468,7 @@ def _render_available_forms() -> None:
             icon="🔬",
             page_name="FormProjetos.py",
             key="btn_projetos",
-            gradient_colors="linear-gradient(135deg, #f093fb 0%, #f5576c 100%)"  # Rosa/Vermelho - Docentes
+            gradient_colors="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"  # Cor Padrão
         )
 
     st.markdown("<br><br>", unsafe_allow_html=True)
@@ -436,7 +485,9 @@ def _render_available_forms() -> None:
             icon="❓",
             page_name="FAQ.py",
             key="btn_faq",
-            gradient_colors="linear-gradient(135deg, #28a745 0%, #20c997 100%)"  # Azul claro/Ciano - Geral
+            gradient_colors="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"  # Cor Padrão
+
+            #gradient_colors="linear-gradient(135deg, #28a745 0%, #20c997 100%)"  # Azul claro/Ciano - Geral
         )
     with col11:
         _render_form_card(
@@ -445,7 +496,7 @@ def _render_available_forms() -> None:
             icon="📅",
             page_name="OfertasDisciplinas.py",
             key="btn_ofertas",
-            gradient_colors="linear-gradient(135deg, #28a745 0%, #20c997 100%)"  # Azul claro/Ciano - Geral
+            gradient_colors="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"  # Cor Padrão
         )
     with col12:
         # Card especial para download de dados sociais - seguindo padrão dos demais
@@ -455,7 +506,7 @@ def _render_available_forms() -> None:
         st.markdown(
             """
             <div class="form-card-container" style="
-                background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                 border-radius: 16px;
                 padding: 30px;
                 margin-bottom: 24px;
