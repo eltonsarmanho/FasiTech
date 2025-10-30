@@ -1,6 +1,23 @@
 # FasiTech Forms Platform
 
-Solução moderna de formulários web com Streamlit e backend FastAPI, rodando em EC2, com integrações para Google Drive, Google Sheets e envio de e-mails.
+Solução moderna de formulários web com Streamlit (frontend) e FastAPI (backend), rodando em EC2, com integrações para Google Drive, Google Sheets e envio de e-mails. 
+
+## 🚦 Camadas do Sistema
+
+- **Frontend:** Streamlit (UX institucional, formulários, navegação)
+- **Backend:** FastAPI (API REST, webhooks, download seguro, LGPD)
+- **Proxy:** Nginx (HTTPS, roteamento, SSL Let's Encrypt)
+- **Armazenamento:** Google Drive, Google Sheets
+- **Notificações:** E-mail institucional
+
+## 🛡️ LGPD & Segurança de Dados
+
+- ✅ **Download seguro** de dados sociais via API FastAPI
+- ✅ **Anonimização** dos dados para pesquisa
+- ✅ **Controle de acesso** por ambiente (dev/prod)
+- ✅ **Armazenamento seguro** no Google Drive institucional
+- ✅ **Conformidade LGPD**: Dados sensíveis nunca expostos publicamente
+- ✅ **Logs e auditoria** de acessos e downloads
 
 ## 🎯 Funcionalidades
 
@@ -66,8 +83,12 @@ Solução moderna de formulários web com Streamlit e backend FastAPI, rodando e
 ```bash
 python -m venv .venv
 source .venv/bin/activate  # No Windows: .venv\Scripts\activate
-pip install -r requirements-dev.txt
+pip install -r requirements.txt
 ```
+
+> **Novas dependências:**
+> - `openpyxl` (exportação Excel)
+> - `pandas` (manipulação de dados)
 
 ### 2. Configure os secrets do Streamlit
 
@@ -117,11 +138,15 @@ streamlit run src/app/main.py
 
 A aplicação estará disponível em `http://localhost:8501`
 
-### 5. (Opcional) Execute o backend FastAPI
+### 5. Execute o backend FastAPI
 
 ```bash
-uvicorn api.main:app --reload --port 8000
+uvicorn api.main:app --host 0.0.0.0 --port 8000
 ```
+
+Acesse a documentação da API em:
+- `https://www.fasitech.com.br/api/docs` (Swagger UI)
+- Endpoints de download: `https://www.fasitech.com.br/api/v1/dados-sociais/download`
 
 ## 🧪 Testes
 
@@ -129,7 +154,7 @@ uvicorn api.main:app --reload --port 8000
 pytest
 ```
 
-## 🐳 Docker
+## 🐳 Docker & Deploy
 
 ### Desenvolvimento
 ```bash
@@ -139,8 +164,20 @@ docker-compose up
 
 ### Produção
 ```bash
-docker build -f docker/Dockerfile.prod -t fasitech-forms .
-docker run -p 8501:8501 -p 8000:8000 fasitech-forms
+# Sincronize o código
+rsync -avz --progress --exclude 'venv/' --exclude '.git/' --exclude '__pycache__/' \
+    -e "ssh" /home/nees/Documents/VSCodigo/FasiTech/ root@72.60.6.113:/home/ubuntu/appStreamLit
+
+# Rebuild completo
+ssh root@72.60.6.113
+cd /home/ubuntu/appStreamLit/
+sudo docker-compose -f docker-compose.production.yml up -d --build
+```
+
+### Atualização rápida
+```bash
+# Após alterações em código Python
+sudo docker-compose -f docker-compose.production.yml restart streamlit api
 ```
 
 ## 🧩 Arquitetura do Sistema
