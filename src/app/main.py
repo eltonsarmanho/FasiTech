@@ -313,7 +313,7 @@ def _render_form_card(
             overflow: hidden;
         ">
             <div style="font-size: 3rem; margin-bottom: 16px; animation: float 3s ease-in-out infinite;">{icon}</div>
-            <h3 style="color: white; font-size: 1.5rem; margin-bottom: 12px; font-weight: 600;">
+            <h3 style="color: white; font-size: 1.5rem; margin-bottom: 12px; font-weight: 600;width: 102%;">
                 {title}
             </h3>
             <p style="color: rgba(255,255,255,0.9); font-size: 0.95rem; line-height: 1.7; margin-bottom: 20px;">
@@ -432,7 +432,7 @@ def _render_available_forms() -> None:
     with col10:
         _render_form_card(
             title="FAQ",
-            description="Encontre respostas para as dúvidas mais comuns sobre matrículas, estágio, sigaa, disciplinas e outros assuntos.",
+            description="Encontre respostas para as dúvidas mais comuns sobre matrículas, estágio e outros assuntos.",
             icon="❓",
             page_name="FAQ.py",
             key="btn_faq",
@@ -471,7 +471,7 @@ def _render_available_forms() -> None:
                     Dados Sociais
                 </h3>
                 <p style="color: rgba(255,255,255,0.9); font-size: 0.95rem; line-height: 1.7; margin-bottom: 20px;">
-                    Download dos dados sociais dos estudantes para pesquisa. Os dados são anonimizados para garantir a privacidade dos alunos.
+                    Download dos dados sociais dos discentes para pesquisa. Dados anonimizados conforme LGPD.
                 </p>
             </div>
             """,
