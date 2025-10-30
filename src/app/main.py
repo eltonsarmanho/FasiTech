@@ -423,6 +423,8 @@ def _render_available_forms() -> None:
         )
     with col12:
         # Card especial para download de dados sociais
+        # IMPORTANTE: Usar f-string para interpolar a variável api_url corretamente
+        download_url = f"{api_url}/api/v1/dados-sociais/download"
         st.markdown(
             f"""
             <div style="
@@ -442,7 +444,7 @@ def _render_available_forms() -> None:
                 <p style="color: rgba(255,255,255,0.9); font-size: 0.95rem; line-height: 1.7; margin-bottom: 20px;">
                     Download dos dados sociais dos estudantes para pesquisa. Os dados são anonimizados para garantir a privacidade dos alunos.
                 </p>
-                <a href="{api_url}/api/v1/dados-sociais/download" target="_blank" style="
+                <a href="{download_url}" target="_blank" style="
                     display: inline-block;
                     background: rgba(255,255,255,0.2);
                     color: white;
