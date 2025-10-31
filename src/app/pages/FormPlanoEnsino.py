@@ -289,12 +289,13 @@ def render_form() -> None:
         st.markdown("### 📎 Anexos")
         st.markdown(
             f"<p style='color: #6b7280; font-size: 0.9rem;'>"
-            f"Faça upload de até 10 arquivos aceitos: PDF ou document. O tamanho máximo é de {MAX_FILE_SIZE_MB} MB por item.</p>",
+            f"Faça upload de até 10 arquivos aceitos: PDF. O tamanho máximo é de {MAX_FILE_SIZE_MB} MB por item.</p>",
             unsafe_allow_html=True,
         )
         
         uploaded_files = st.file_uploader(
             "Adicionar arquivo",
+            type=["pdf"],
             accept_multiple_files=True,
             help=f"Selecione um ou mais arquivos (máximo {MAX_FILE_SIZE_MB} MB cada)",
             label_visibility="collapsed"

@@ -128,8 +128,10 @@ class SocialDataService:
     @staticmethod
     def _parse_int_value(value: Any) -> Optional[int]:
         """Parse seguro de valores inteiros."""
-        if "Acima" in str(value):
-                return 3  # Valor padrão para "Acima de 3"
+        # Se value tiver "Acima de 3", mapear para 3
+        if isinstance(value, str) and "Acima de 3" in value:
+            return 3
+       
         if pd.isna(value) or not value:            
             return None
         try:
