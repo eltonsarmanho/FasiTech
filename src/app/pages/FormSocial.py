@@ -346,12 +346,12 @@ def render_form():
         # Novas perguntas sobre tecnologia
         qtd_computador = st.radio(
             "Quantidade de Computador/Notebook na residência:",
-            ["1", "2", "Acima de 3"]
+            ["0","1", "2", "Acima de 3"]
         )
         
         qtd_celular = st.radio(
             "Quantidade de aparelho Celular na residência:",
-            ["1", "2", "Acima de 3"]
+            ["0","1", "2", "Acima de 3"]
         )
         
         computador_proprio = st.radio(
