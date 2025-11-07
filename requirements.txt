@@ -17,3 +17,10 @@ agno
 pdf2image
 openpyxl
 pandas 
+requests
+lancedb
+ollama
+huggingface_hub
+sqlalchemy
+pypdf
+tantivy
