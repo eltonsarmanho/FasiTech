@@ -17,6 +17,8 @@ from agno.knowledge.embedder.ollama import OllamaEmbedder
 from agno.knowledge.knowledge import Knowledge
 from agno.vectordb.lancedb import LanceDb, SearchType
 from agno.models.huggingface import HuggingFace
+from agno.models.openai import OpenAILike
+
 from dotenv import load_dotenv
 import time
 
@@ -84,9 +86,11 @@ class PPCChatbotService:
         print("=== CONFIGURANDO AGENTE RAG ===")
         print("1. Configurando modelo de linguagem...")
 
+        # Carregar variáveis de ambiente
         huggingface_api_key = os.getenv("HF_TOKEN")
-        # Configurar Gemini com API key do .env
         google_api_key = os.getenv("GOOGLE_API_KEY")
+        maritaca_api_key = os.getenv("MARITALK_API_KEY")
+
         model = None
         if google_api_key:  
             try:
@@ -97,7 +101,21 @@ class PPCChatbotService:
                 )
                 print("✅ Modelo Gemini carregado com sucesso!")
             except Exception as e:
+                model = None
                 print(f"   ⚠️  Modelo Gemini não disponível: {str(e)[:80]}...")
+        if maritaca_api_key and model is None:
+            try:
+                print("   Tentando carregar modelo Maritaca...")
+                model = OpenAILike(
+                        id="sabia-3",
+                        name="Maritaca Sabia 3",
+                        api_key=maritaca_api_key,
+                        base_url="https://chat.maritaca.ai/api",
+                        temperature=0 )
+                print("✅ Modelo Maritaca carregado com sucesso!")
+            except Exception as e:
+                model = None
+                print(f"   ⚠️  Modelo Maritaca não disponível: {str(e)[:80]}...")
         if model is None:
             if not huggingface_api_key:
                 print("❌ HF_TOKEN não encontrada no arquivo .env")

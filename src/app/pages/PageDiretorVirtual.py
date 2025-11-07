@@ -489,14 +489,14 @@ def main() -> None:
     if user_message:
         _handle_new_question(user_message)
 
-    st.markdown(
-        """
-        <div class="footer-note">
-            🤖 <strong>Diretor Virtual</strong> • Plataforma FasiTech • Projeto Pedagógico do Curso de Sistemas de Informação
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    # st.markdown(
+    #     """
+    #     <div class="footer-note">
+    #         🤖 <strong>Diretor Virtual</strong> • Plataforma FasiTech • Projeto Pedagógico do Curso de Sistemas de Informação
+    #     </div>
+    #     """,
+    #     unsafe_allow_html=True,
+    # )
 
 
 if __name__ == "__main__":

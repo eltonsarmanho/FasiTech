@@ -480,16 +480,23 @@ def _render_available_forms() -> None:
     col10, col11, col12 = st.columns(3, gap="large")
     with col10:
         _render_form_card(
+            title="Diretor Virtual",
+            description="Assistente inteligente para orientar sobre o Projeto Pedagógico do Curso de Sistemas de Informação (PPC).",
+            icon="🤖",
+            page_name="PageDiretorVirtual.py",
+            key="btn_diretor_virtual",
+            gradient_colors="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"  # Cor Padrão
+        )
+    with col11:
+        _render_form_card(
             title="FAQ",
             description="Encontre respostas para as dúvidas mais comuns sobre matrículas, estágio e outros assuntos.",
             icon="❓",
             page_name="FAQ.py",
             key="btn_faq",
             gradient_colors="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"  # Cor Padrão
-
-            #gradient_colors="linear-gradient(135deg, #28a745 0%, #20c997 100%)"  # Azul claro/Ciano - Geral
         )
-    with col11:
+    with col12:
         _render_form_card(
             title="Ofertas de Disciplinas",  
             description="Consulta das ofertas de disciplinas do semestre e grades curriculares. Visualização por período e turma.",
@@ -498,7 +505,11 @@ def _render_available_forms() -> None:
             key="btn_ofertas",
             gradient_colors="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"  # Cor Padrão
         )
-    with col12:
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    col13, col14, col15 = st.columns(3, gap="large")
+    with col13:
         # Card especial para download de dados sociais - seguindo padrão dos demais
         download_url = f"{api_url}/api/v1/dados-sociais/download"
         
