@@ -291,21 +291,18 @@ def _render_header() -> None:
         unsafe_allow_html=True,
     )
 
-    control_cols = st.columns([6, 2, 2])
-
-    with control_cols[1]:
-        with st.popover("ℹ️ Aviso de uso"):
-            st.caption(
-                "As respostas são geradas a partir do PPC oficial e podem conter imprecisões. "
-                "Revise sempre as orientações acadêmicas antes de tomar decisões."
-            )
-
-    with control_cols[2]:
+    col_left, col_right = st.columns([5, 1])
+    with col_right:
         st.button(
-            "🔄 Reiniciar conversa",
+            "Reiniciar",
             use_container_width=True,
             on_click=_reset_conversation,
         )
+
+    st.info(
+        "ℹ️ As respostas são geradas a partir do PPC oficial e podem conter imprecisões. "
+        "Revise sempre as orientações acadêmicas antes de tomar decisões."
+    )
 
 
 def _render_status_band() -> None:
