@@ -9,6 +9,7 @@ import logging
 from typing import Optional, Dict, Any
 from pathlib import Path
 from datetime import datetime
+from agno.models.google import Gemini
 
 from agno.agent import Agent
 from agno.db.sqlite import SqliteDb
@@ -84,49 +85,61 @@ class PPCChatbotService:
         print("1. Configurando modelo de linguagem...")
 
         huggingface_api_key = os.getenv("HF_TOKEN")
+        # Configurar Gemini com API key do .env
+        google_api_key = os.getenv("GOOGLE_API_KEY")
         model = None
-
-        if not huggingface_api_key:
-            print("❌ HF_TOKEN não encontrada no arquivo .env")
-            raise RuntimeError("HF_TOKEN não encontrada. Configure a variável de ambiente para usar os modelos HuggingFace.")
-        else:
-            print(f"✅ HF_TOKEN carregada: {huggingface_api_key[:10]}...")
-            
-            # Lista de modelos para tentar (em ordem de preferência)
-            models_to_try = [
-                ("meta-llama/Llama-3.1-8B-Instruct:featherless-ai", "Llama 3.1 8B (Novita)"),
-                ("meta-llama/Meta-Llama-3-8B-Instruct:featherless-ai", "Meta Llama 3 8B (Featherless)"),
-                ("mistralai/Mistral-7B-Instruct-v0.2:featherless-ai", "Mistral 7B (Featherless)"),
-            ]
-            
-            for model_id, model_name in models_to_try:
-                try:
-                    print(f"   Tentando carregar {model_name}...")
-                    hf_kwargs = {"api_key": huggingface_api_key}
-                    provider_suffix = None
-
-                    if ":" in model_id:
-                        base_model_id, provider_suffix = model_id.split(":", 1)
-                        hf_kwargs["id"] = base_model_id
-                    else:
-                        base_model_id = model_id
-                        hf_kwargs["id"] = base_model_id
-
-                    if provider_suffix:
-                        existing_client_params = hf_kwargs.get("client_params") or {}
-                        existing_client_params.update({"provider": provider_suffix})
-                        hf_kwargs["client_params"] = existing_client_params
-
-                    model = HuggingFace(**hf_kwargs)
-                    print(f"✅ {model_name} carregado com sucesso!")
-                    break
-                except Exception as e:
-                    print(f"   ⚠️  {model_name} não disponível: {str(e)[:80]}...")
-                    continue
-            if model is None:
-                raise RuntimeError(
-                    "Nenhum modelo HuggingFace pôde ser carregado. Verifique o HF_TOKEN ou o provedor configurado."
+        if google_api_key:  
+            try:
+                print("   Tentando carregar modelo Gemini...")
+                model = Gemini(
+                    id="gemini-2.5-flash", 
+                    api_key=google_api_key,
                 )
+                print("✅ Modelo Gemini carregado com sucesso!")
+            except Exception as e:
+                print(f"   ⚠️  Modelo Gemini não disponível: {str(e)[:80]}...")
+        if model is None:
+            if not huggingface_api_key:
+                print("❌ HF_TOKEN não encontrada no arquivo .env")
+                raise RuntimeError("HF_TOKEN não encontrada. Configure a variável de ambiente para usar os modelos HuggingFace.")
+            else:
+                print(f"✅ HF_TOKEN carregada: {huggingface_api_key[:10]}...")
+                
+                # Lista de modelos para tentar (em ordem de preferência)
+                models_to_try = [
+                    ("meta-llama/Llama-3.1-8B-Instruct:featherless-ai", "Llama 3.1 8B (Novita)"),
+                    ("meta-llama/Meta-Llama-3-8B-Instruct:featherless-ai", "Meta Llama 3 8B (Featherless)"),
+                    ("mistralai/Mistral-7B-Instruct-v0.2:featherless-ai", "Mistral 7B (Featherless)"),
+                ]
+                
+                for model_id, model_name in models_to_try:
+                    try:
+                        print(f"   Tentando carregar {model_name}...")
+                        hf_kwargs = {"api_key": huggingface_api_key}
+                        provider_suffix = None
+
+                        if ":" in model_id:
+                            base_model_id, provider_suffix = model_id.split(":", 1)
+                            hf_kwargs["id"] = base_model_id
+                        else:
+                            base_model_id = model_id
+                            hf_kwargs["id"] = base_model_id
+
+                        if provider_suffix:
+                            existing_client_params = hf_kwargs.get("client_params") or {}
+                            existing_client_params.update({"provider": provider_suffix})
+                            hf_kwargs["client_params"] = existing_client_params
+
+                        model = HuggingFace(**hf_kwargs)
+                        print(f"✅ {model_name} carregado com sucesso!")
+                        break
+                    except Exception as e:
+                        print(f"   ⚠️  {model_name} não disponível: {str(e)[:80]}...")
+                        continue
+                if model is None:
+                    raise RuntimeError(
+                        "Nenhum modelo HuggingFace pôde ser carregado. Verifique o HF_TOKEN ou o provedor configurado."
+                    )
 
         self.model = model
 
