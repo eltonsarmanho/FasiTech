@@ -31,6 +31,7 @@ Solução moderna de formulários web com Streamlit (frontend) e FastAPI (backen
 - ✅ **Formulário Social** para coleta de dados socioeconômicos dos estudantes
 - ✅ **Ofertas de Disciplinas** para consulta de grades curriculares e ofertas por período/turma
 - ✅ **FAQ** página de perguntas frequentes e suporte
+- ✅ **Diretor Virtual (RAG)** chatbot inteligente com busca semântica em documentos PPC
 - ✅ **Upload seguro** de arquivos ao Google Drive
 - ✅ **Registro automático** em Google Sheets
 - ✅ **Notificações por e-mail** para coordenação
@@ -53,8 +54,15 @@ Solução moderna de formulários web com Streamlit (frontend) e FastAPI (backen
 │   │       ├── FormProjetos.py         # Formulário Projetos
 │   │       ├── FormSocial.py           # Formulário Social
 │   │       ├── OfertasDisciplinas.py   # Ofertas de Disciplinas
+│   │       ├── PageDiretorVirtual.py   # Diretor Virtual (RAG Chatbot)
 │   │       └── FAQ.py                  # Página FAQ
-│   ├── services/       # Lógica de negócio (Drive, Sheets, Email)
+│   ├── services/       # Lógica de negócio (Drive, Sheets, Email, RAG)
+│   │   ├── form_service.py             # Processamento de formulários
+│   │   ├── google_drive.py             # Upload para Google Drive
+│   │   ├── google_sheets.py            # Integração Google Sheets
+│   │   ├── email_service.py            # Envio de e-mails
+│   │   ├── rag_ppc.py                  # Serviço RAG para Diretor Virtual
+│   │   └── acc_processor.py            # Processamento ACC específico
 │   ├── models/         # Schemas Pydantic
 │   └── utils/          # Utilitários (validadores, criptografia)
 ├── api/                # Backend FastAPI (opcional)
@@ -75,6 +83,145 @@ Solução moderna de formulários web com Streamlit (frontend) e FastAPI (backen
 - **Formulário Social**: Coleta de dados socioeconômicos dos estudantes
 - **Ofertas de Disciplinas**: Consulta de grades curriculares e ofertas por período/turma com visualização colorida por turma
 - **FAQ**: Página de perguntas frequentes e suporte aos usuários
+
+## 🤖 Módulo Diretor Virtual (RAG - Retrieval Augmented Generation)
+
+O **Diretor Virtual** é um chatbot inteligente powered by IA que responde perguntas sobre informações do Projeto Pedagógico do Curso (PPC) usando Retrieval Augmented Generation (RAG).
+
+### Características
+
+- ✅ **Busca Semântica**: Encontra respostas relevantes em documentos PDF usando embeddings vetoriais
+- ✅ **Modelo IA Avançado**: Google Gemini 2.5-flash para respostas contextualizadas e precisas
+- ✅ **Embeddings Locais**: Ollama com modelo nomic-embed-text (768 dimensões) - funciona offline
+- ✅ **Sugestões Inteligentes**: Oferece sugestões de perguntas frequentes
+- ✅ **Histórico de Conversa**: Mantém contexto entre múltiplas perguntas
+- ✅ **Multi-Documento**: Suporta múltiplos PDFs na base de conhecimento
+- ✅ **Cache Persistente**: LanceDB para indexação rápida e persistente de documentos
+
+### Arquitetura RAG
+
+```
+┌─────────────────────────────────────────────────────────┐
+│           Pergunta do Usuário (Texto)                    │
+└──────────────────┬──────────────────────────────────────┘
+                   │
+        ┌──────────▼─────────┐
+        │  Ollama Embedder   │  (768-dim vetores)
+        │(nomic-embed-text)  │
+        └──────────┬─────────┘
+                   │
+        ┌──────────▼──────────────┐
+        │  LanceDB Vector Search  │
+        │  (Recuperação de docs)  │
+        └──────────┬──────────────┘
+                   │
+        ┌──────────▼──────────────────────┐
+        │  Google Gemini 2.5-flash (IA)   │
+        │  Gera resposta contextualizada   │
+        └──────────┬──────────────────────┘
+                   │
+┌──────────────────▼──────────────────────────────────┐
+│     Resposta Inteligente com Fonte de Dados        │
+└──────────────────────────────────────────────────────┘
+```
+
+### Documentos Suportados
+
+Os seguintes documentos podem ser adicionados ao Diretor Virtual:
+
+- **PPC.pdf**: Projeto Pedagógico do Curso (padrão)
+- Qualquer outro PDF em `src/resources/` será automaticamente indexado
+
+### Como Usar
+
+#### No Frontend (Streamlit)
+
+```python
+# A página PageDiretorVirtual é acessível via main.py
+# Interface intuitiva com:
+# - Campo de entrada para perguntas
+# - Botões de sugestões rápidas
+# - Histórico de conversas
+# - Display de resposta com fontes citadas
+```
+
+#### Como Adicionar Documentos
+
+**Método 1: Script CLI (Recomendado)**
+
+```bash
+# Listar documentos atuais
+python scripts/add_documents_to_rag.py --list
+
+# Adicionar novo documento
+python scripts/add_documents_to_rag.py --add /caminho/para/novo_documento.pdf
+
+# Limpar cache de indexação (força reprocessamento)
+python scripts/add_documents_to_rag.py --clear
+```
+
+**Método 2: Manual**
+
+1. Copie seu PDF para `src/resources/`
+2. Reinicie a aplicação
+3. O documento será automaticamente indexado
+
+**Método 3: Em Produção**
+
+```bash
+# SSH para o servidor
+ssh root@72.60.6.113
+
+# Copie o documento para o container
+docker compose -f docker-compose.production.yml cp seu_documento.pdf streamlit:/app/src/resources/
+
+# Restart para reindexar
+docker compose -f docker-compose.production.yml restart streamlit
+```
+
+### Gerenciamento de Documentos
+
+Para gerenciar os documentos indexados, consulte [RAG_DOCUMENT_MANAGEMENT.md](./RAG_DOCUMENT_MANAGEMENT.md) que contém:
+
+- Métodos detalhados de adição/remoção de documentos
+- Troubleshooting de problemas de indexação
+- Monitoramento de status da base de conhecimento
+- Best practices para otimização
+
+### Estrutura do Serviço
+
+```python
+# src/services/rag_ppc.py
+from src.services.rag_ppc import PPCChatbotService
+
+# Inicializar serviço
+service = PPCChatbotService()
+
+# Fazer uma pergunta
+resposta = service.answer_question("Qual é o objetivo do curso?")
+print(resposta)
+
+# Verificar status
+status = service.get_status()
+print(f"Documentos indexados: {len(status['document_files'])}")
+```
+
+### Dependências
+
+- `agno` (v2.2.10+): Framework RAG
+- `google-generativeai`: Gemini API
+- `lancedb` (v0.25.3+): Vector database
+- `ollama`: Embeddings locais
+- `streamlit`: Frontend
+
+### Troubleshooting
+
+| Problema | Solução |
+|----------|---------|
+| "Embedding service not available" | Verifique se Ollama está rodando: `curl http://localhost:11434` |
+| Resposta genérica | Adicione mais documentos ao RAG |
+| Cache desatualizado | Execute `python scripts/add_documents_to_rag.py --clear` |
+| Lentidão em indexação | Reduza tamanho dos PDFs ou processe em background |
 
 ## 🚀 Primeiros passos
 
@@ -304,6 +451,7 @@ flowchart TB
 - **`https://www.fasitech.com.br/?page=FormSocial`** - Formulário Social
 - **`https://www.fasitech.com.br/?page=FormPlanoEnsino`** - Formulário Plano de Ensino
 - **`https://www.fasitech.com.br/?page=OfertasDisciplinas`** - Ofertas de Disciplinas
+- **`https://www.fasitech.com.br/?page=PageDiretorVirtual`** - 🤖 Diretor Virtual (RAG Chatbot)
 - **`https://www.fasitech.com.br/?page=FAQ`** - Página FAQ
 
 ### API FastAPI (Dados Sociais - LGPD)
