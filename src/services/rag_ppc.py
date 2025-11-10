@@ -6,7 +6,7 @@ Este serviço permite fazer perguntas sobre o Projeto Pedagógico do Curso usand
 from __future__ import annotations
 import os
 import logging
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from pathlib import Path
 from datetime import datetime
 from agno.models.google import Gemini
@@ -57,28 +57,33 @@ class PPCChatbotService:
             self._setup_service()
             self._initialized = True
     
-    def _find_ppc_file(self) -> Path:
-        """Localiza o arquivo PPC.pdf com múltiplas estratégias de busca."""
-        # Estratégia 1: Caminho padrão (relativo ao arquivo de serviço)
-        default_path = Path(__file__).resolve().parents[1] / "resources" / "PPC.pdf"
-        if default_path.exists():
-            logger.info(f"✅ PPC encontrado em: {default_path}")
-            return default_path
-        
-        # Estratégia 2: Procurar no diretório raiz do projeto
-        root_candidates = [
-            Path.cwd() / "src" / "resources" / "PPC.pdf",
-            Path(__file__).resolve().parents[2] / "src" / "resources" / "PPC.pdf",
-            Path("/home/ubuntu/appStreamLit/src/resources/PPC.pdf"),  # VM path
+    def _find_document_files(self) -> List[Path]:
+        """Encontra todos os documentos PDF na pasta resources."""
+        # Possíveis diretórios de resources
+        resource_dirs = [
+            Path.cwd() / "src" / "resources",
+            Path(__file__).resolve().parents[2] / "src" / "resources",
+            Path("/app/src/resources"),  # Container path
+            Path("/home/ubuntu/appStreamLit/src/resources"),  # VM path
         ]
         
-        for candidate in root_candidates:
-            if candidate.exists():
-                logger.info(f"✅ PPC encontrado em: {candidate}")
-                return candidate
+        documents = []
         
-        logger.warning(f"⚠️  PPC.pdf não encontrado. Caminhos verificados: {default_path}")
-        return default_path  # Retorna padrão mesmo se não encontrado (pode estar offline)
+        for resource_dir in resource_dirs:
+            if resource_dir.exists():
+                # Buscar todos os PDFs na pasta
+                pdf_files = list(resource_dir.glob("*.pdf"))
+                if pdf_files:
+                    logger.info(f"✅ Documentos encontrados em: {resource_dir}")
+                    for pdf_file in pdf_files:
+                        logger.info(f"   📄 {pdf_file.name}")
+                        documents.append(pdf_file)
+                    return documents
+        
+        # Fallback: se não encontrar nenhum, usar PPC.pdf padrão
+        default_path = Path(__file__).resolve().parents[2] / "src" / "resources" / "PPC.pdf"
+        logger.warning(f"⚠️  Nenhum PDF encontrado. Usando fallback: {default_path}")
+        return [default_path]
     
     def _setup_service(self) -> None:
         """Configura todos os componentes do serviço RAG baseado no script funcional."""
@@ -94,11 +99,11 @@ class PPCChatbotService:
         self.db_url = str(data_dir / "lancedb")
         self.sqlite_db_path = str(data_dir / "ppc_chat.db")
         
-        # Localizar arquivo PPC.pdf com fallback
-        self.ppc_file_path = self._find_ppc_file()
+        # Localizar documentos PDF
+        self.document_files = self._find_document_files()
         
         logger.info(f"📁 Usando diretório de dados: {data_dir}")
-        logger.info(f"📄 Arquivo PPC: {self.ppc_file_path}")
+        logger.info(f"📄 Documentos encontrados: {[f.name for f in self.document_files]}")
         
         # Criar diretórios se não existirem
         Path(self.db_url).mkdir(parents=True, exist_ok=True)
@@ -193,11 +198,11 @@ class PPCChatbotService:
 
         # Create Ollama embedder
         print("2. Configurando embedder...")
-        # Usando localhost já que Ollama roda no mesmo container
+        # O host padrão é localhost:11434, que funciona perfeitamente
+        # já que Ollama está rodando no mesmo container
         embedder = OllamaEmbedder(
             id="nomic-embed-text", 
-            dimensions=768,
-            host="http://localhost:11434"
+            dimensions=768
         )
 
         self.embedder = embedder
@@ -248,20 +253,23 @@ class PPCChatbotService:
             print("   Isso pode demorar alguns minutos...")
             
             try:
-                # Verificar se arquivo existe antes de tentar carregar
-                if not self.ppc_file_path.exists():
+                # Verificar se pelo menos um arquivo existe
+                existing_files = [f for f in self.document_files if f.exists()]
+                if not existing_files:
                     raise FileNotFoundError(
-                        f"Arquivo PPC.pdf não encontrado em: {self.ppc_file_path}\n"
+                        f"Nenhum documento encontrado nos caminhos: {[str(f) for f in self.document_files]}\n"
                         f"Cwd: {Path.cwd()}\n"
                         f"File module dir: {Path(__file__).resolve().parent}"
                     )
                 
-                # Adicionando o arquivo PPC.pdf
-                knowledge.add_content(
-                    name="PPC Document",
-                    path=str(self.ppc_file_path)
-                )
-                print("✅ Conteúdo do PPC.pdf adicionado com sucesso!")
+                # Adicionando todos os documentos encontrados
+                for doc_file in existing_files:
+                    knowledge.add_content(
+                        name=f"{doc_file.stem} Document",
+                        path=str(doc_file)
+                    )
+                    print(f"✅ Documento {doc_file.name} adicionado com sucesso!")
+                
                 has_existing_data = True
             except FileNotFoundError as fe:
                 print(f"❌ ERRO: {fe}")
@@ -416,7 +424,8 @@ class PPCChatbotService:
             "knowledge_loaded": bool(self._knowledge_loaded),
             "agent_ready": self._agent is not None,
             "db_path": getattr(self, "db_url", None),
-            "ppc_file_exists": self.ppc_file_path.exists() if hasattr(self, "ppc_file_path") else False,
+            "document_files": [f.name for f in self.document_files] if hasattr(self, "document_files") else [],
+            "documents_exist": any(f.exists() for f in self.document_files) if hasattr(self, "document_files") else False,
             "total_questions": self._total_questions,
             "last_question_at": self._last_question_at.isoformat() if self._last_question_at else None,
             "last_latency": self._last_latency,
