@@ -29,7 +29,7 @@ SUGGESTIONS = [
     },
     {
         "label": "📚 Disciplinas iniciais",
-        "question": "Quais são as disciplinas ofertadas no primeiro período?",
+        "question": "Quais são as atividades curriculares do 1° período do curso?",
     },
     {
         "label": "🕒 Carga horária",
