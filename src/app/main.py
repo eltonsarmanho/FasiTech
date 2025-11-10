@@ -481,7 +481,7 @@ def _render_available_forms() -> None:
     with col10:
         _render_form_card(
             title="Diretor Virtual",
-            description="Assistente inteligente para orientar sobre o Projeto Pedagógico do Curso de Sistemas de Informação (PPC).",
+            description="Assistente inteligente para orientar sobre informações sobre matrículas, estágio e outros assuntos acadêmicos.",
             icon="🤖",
             page_name="PageDiretorVirtual.py",
             key="btn_diretor_virtual",

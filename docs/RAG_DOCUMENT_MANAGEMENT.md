@@ -82,7 +82,7 @@ python scripts/add_documents_to_rag.py --clear
 rm -rf ~/.cache/fasitech/rag/
 
 # Opção 3: No servidor
-ssh root@72.60.6.113 "sudo docker compose -f /home/ubuntu/appStreamLit/docker-compose.production.yml exec streamlit rm -rf /home/appuser/.cache/fasitech/rag/"
+sshpass -p "xxx" ssh root@72.60.6.113 "sudo docker compose -f /home/ubuntu/appStreamLit/docker-compose.production.yml exec streamlit rm -rf /home/appuser/.cache/fasitech/rag/"
 ```
 
 ## 📊 Tipos de Documentos Suportados

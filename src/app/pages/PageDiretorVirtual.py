@@ -16,7 +16,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.services.rag_ppc import PPCChatbotService, get_ppc_service
+from src.services.rag_ppc import ChatbotService, get_service
 
 # Caminhos e identidade visual ------------------------------------------------
 LOGO_PATH = PROJECT_ROOT / "src" / "resources" / "fasiOficial.png"
@@ -24,8 +24,8 @@ LOGO_PATH = PROJECT_ROOT / "src" / "resources" / "fasiOficial.png"
 # Sugestões de perguntas rápidas
 SUGGESTIONS = [
     {
-        "label": "🎯 Objetivo do curso",
-        "question": "Qual é o objetivo do curso de Sistemas de Informação?",
+        "label": "🎯 Disciplina Tutoria",
+        "question": "Requisitos para disciplina de tutoria?",
     },
     {
         "label": "📚 Disciplinas iniciais",
@@ -40,8 +40,8 @@ SUGGESTIONS = [
         "question": "Quantas horas de estágio são obrigatórias no PPC?",
     },
     {
-        "label": "🧠 Competências",
-        "question": "Quais competências o curso busca desenvolver nos estudantes?",
+        "label": "🧠 Artigos Científicos",
+        "question": "Como funciona o acesso aos artigos científicos usando email institucional?",
     },
     {
         "label": "📑 TCC",
@@ -49,23 +49,23 @@ SUGGESTIONS = [
     },
 ]
 
-MIN_TIME_BETWEEN_REQUESTS = timedelta(seconds=3)
+MIN_TIME_BETWEEN_REQUESTS = timedelta(seconds=2)
 WELCOME_MESSAGE = (
     "Olá! Eu sou o Diretor Virtual da FasiTech. Estou pronto para responder "
-    "suas dúvidas sobre o Projeto Pedagógico do Curso de Sistemas de Informação."
+    "suas dúvidas sobre Curso de Sistemas de Informação."
 )
 
-ppc_service: Optional[PPCChatbotService] = None
+fasi_service: Optional[ChatbotService] = None
 
 
 # Utilitários -----------------------------------------------------------------
 
-def _get_service() -> PPCChatbotService:
+def _get_service() -> ChatbotService:
     """Retorna a instância singleton do serviço RAG."""
-    global ppc_service
-    if ppc_service is None:
-        ppc_service = get_ppc_service()
-    return ppc_service
+    global fasi_service
+    if fasi_service is None:
+        fasi_service = get_service()
+    return fasi_service
 
 
 def _inject_global_styles() -> None:
@@ -279,12 +279,11 @@ def _render_header() -> None:
 
     st.markdown(
         """
-        <div class="fasitech-hero">
-            <div class="hero-badge">Diretoria Acadêmica • PPC</div>
+        <div class="fasitech-hero">            
             <h1>Diretor Virtual</h1>
             <p>
                 Assistente inteligente para orientar estudantes e docentes sobre o Projeto
-                Pedagógico do Curso de Sistemas de Informação.
+                Pedagógico do Curso de Sistemas de Informação e outras dúvidas.
             </p>
         </div>
         """,
@@ -300,7 +299,7 @@ def _render_header() -> None:
         )
 
     st.info(
-        "ℹ️ As respostas são geradas a partir do PPC oficial e podem conter imprecisões. "
+        "ℹ️ As respostas são geradas a partir do PPC oficial (e outros documentos oficiais) e podem conter imprecisões. "
         "Revise sempre as orientações acadêmicas antes de tomar decisões."
     )
 
@@ -463,7 +462,7 @@ def _handle_new_question(raw_question: str) -> None:
 
 def main() -> None:
     st.set_page_config(
-        page_title="Diretor Virtual - PPC",
+        page_title="Diretor Virtual",
         page_icon="🤖",
         layout="wide",
         initial_sidebar_state="collapsed",
@@ -479,7 +478,7 @@ def main() -> None:
 
     pending_question = _consume_pending_question()
     user_input = st.chat_input(
-        "Digite aqui sua pergunta sobre o PPC...",
+        "Digite aqui sua pergunta sobre o curso de Sistemas de Informação...",
     )
 
     user_message = pending_question or user_input

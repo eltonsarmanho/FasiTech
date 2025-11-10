@@ -27,14 +27,14 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-class PPCChatbotService:
+class ChatbotService:
     """Serviço de chatbot para consultas sobre o PPC do curso."""
     
-    _instance: Optional['PPCChatbotService'] = None
+    _instance: Optional['ChatbotService'] = None
     _agent: Optional[Agent] = None
     _initialized: bool = False
     
-    def __new__(cls) -> 'PPCChatbotService':
+    def __new__(cls) -> 'ChatbotService':
         """Implementa padrão Singleton."""
         if cls._instance is None:
             cls._instance = super().__new__(cls)
@@ -433,7 +433,7 @@ class PPCChatbotService:
 
 
 # Função para obter a instância singleton do serviço
-def get_ppc_service() -> PPCChatbotService:
+def get_service() -> ChatbotService:
     """Obtém a instância singleton do serviço PPC."""
-    return PPCChatbotService()
+    return ChatbotService()
 

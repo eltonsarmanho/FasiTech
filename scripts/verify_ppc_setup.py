@@ -64,10 +64,10 @@ print("\n4️⃣  TESTANDO INICIALIZAÇÃO DO SERVIÇO RAG")
 print("-" * 70)
 
 try:
-    from src.services.rag_ppc import PPCChatbotService
+    from src.services.rag_ppc import ChatbotService
     
     print("Inicializando PPCChatbotService...")
-    service = PPCChatbotService()
+    service = ChatbotService()
     
     status = service.get_status()
     print(f"\n✅ Serviço inicializado com sucesso!")
