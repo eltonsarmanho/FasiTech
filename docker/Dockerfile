@@ -26,13 +26,21 @@ COPY --from=builder /app/wheels /wheels
 RUN pip install --no-cache /wheels/*
 
 # Instala dependências do sistema necessárias:
-# - curl: necessário para o HEALTHCHECK
+# - curl: necessário para o HEALTHCHECK e Ollama
 # - poppler-utils: necessário para pdf2image converter PDFs para imagens
+# - wget: necessário para baixar Ollama
 # É importante limpar o cache do apt para manter a imagem pequena.
 RUN apt-get update && apt-get install -y \
     curl \
+    wget \
     poppler-utils \
     && rm -rf /var/lib/apt/lists/*
+
+# Instala Ollama
+RUN curl -fsSL https://ollama.com/install.sh | sh
+
+# Cria diretórios necessários para o Ollama
+RUN mkdir -p /home/appuser/.ollama
 
 # Copia todo o restante do código da aplicação para o contêiner.
 # Copiamos o código APÓS instalar as dependências para aproveitar o cache do Docker.
@@ -40,6 +48,28 @@ COPY . .
 
 # Cria um usuário não-root para executar a aplicação. É uma prática de segurança crucial.
 RUN useradd --create-home appuser
+
+# Criar script de inicialização que inicia Ollama e Streamlit (como root)
+RUN echo '#!/bin/bash\n\
+# Iniciar Ollama em background\n\
+export OLLAMA_HOST=127.0.0.1:11434\n\
+ollama serve &\n\
+sleep 5\n\
+\n\
+# Baixar modelo embedder se não existir\n\
+ollama pull nomic-embed-text || true\n\
+\n\
+# Iniciar Streamlit\n\
+exec streamlit run --client.showSidebarNavigation=False src/app/main.py --server.port=8501 --server.address=0.0.0.0 --server.headless=true --server.enableCORS=false\n\
+' > /app/start.sh && chmod +x /app/start.sh
+
+# Ajustar permissões do Ollama para o usuário não-root
+RUN chown -R appuser:appuser /home/appuser/.ollama
+RUN chmod +x /usr/local/bin/ollama
+RUN chown appuser:appuser /app/start.sh
+
+# Criar diretório cache para o RAG
+RUN mkdir -p /home/appuser/.cache/fasitech/rag && chown -R appuser:appuser /home/appuser/.cache
 
 # --- MUDANÇA PRINCIPAL: Mudar para o usuário não-root no final ---
 # Mude para o usuário não-root DEPOIS que tudo estiver instalado e copiado.
@@ -53,4 +83,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD curl --fail http://localhost:8501/_stcore/health || exit 1
 
 # Comando para iniciar a aplicação.
-CMD ["streamlit", "run", "--client.showSidebarNavigation=False","src/app/main.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.headless=true","--server.enableCORS=false"]
+CMD ["/app/start.sh"]

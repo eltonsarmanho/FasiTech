@@ -57,6 +57,29 @@ class PPCChatbotService:
             self._setup_service()
             self._initialized = True
     
+    def _find_ppc_file(self) -> Path:
+        """Localiza o arquivo PPC.pdf com múltiplas estratégias de busca."""
+        # Estratégia 1: Caminho padrão (relativo ao arquivo de serviço)
+        default_path = Path(__file__).resolve().parents[1] / "resources" / "PPC.pdf"
+        if default_path.exists():
+            logger.info(f"✅ PPC encontrado em: {default_path}")
+            return default_path
+        
+        # Estratégia 2: Procurar no diretório raiz do projeto
+        root_candidates = [
+            Path.cwd() / "src" / "resources" / "PPC.pdf",
+            Path(__file__).resolve().parents[2] / "src" / "resources" / "PPC.pdf",
+            Path("/home/ubuntu/appStreamLit/src/resources/PPC.pdf"),  # VM path
+        ]
+        
+        for candidate in root_candidates:
+            if candidate.exists():
+                logger.info(f"✅ PPC encontrado em: {candidate}")
+                return candidate
+        
+        logger.warning(f"⚠️  PPC.pdf não encontrado. Caminhos verificados: {default_path}")
+        return default_path  # Retorna padrão mesmo se não encontrado (pode estar offline)
+    
     def _setup_service(self) -> None:
         """Configura todos os componentes do serviço RAG baseado no script funcional."""
         logger.info("=== CONFIGURANDO AGENTE RAG ===")
@@ -64,14 +87,21 @@ class PPCChatbotService:
         # Carregar variáveis de ambiente
         load_dotenv(override=True)
         
-        # Configurar caminhos
-        self.db_url = "./data/lancedb"
-        self.sqlite_db_path = "./data/ppc_chat.db"
-        self.ppc_file_path = Path(__file__).resolve().parents[1] / "resources" / "PPC.pdf"
+        # Configurar caminhos - usar diretório de cache ou temp se ./data não tiver permissões
+        data_dir = Path.home() / ".cache" / "fasitech" / "rag"
+        data_dir.mkdir(parents=True, exist_ok=True)
+        
+        self.db_url = str(data_dir / "lancedb")
+        self.sqlite_db_path = str(data_dir / "ppc_chat.db")
+        
+        # Localizar arquivo PPC.pdf com fallback
+        self.ppc_file_path = self._find_ppc_file()
+        
+        logger.info(f"📁 Usando diretório de dados: {data_dir}")
+        logger.info(f"📄 Arquivo PPC: {self.ppc_file_path}")
         
         # Criar diretórios se não existirem
-        Path(self.db_url).parent.mkdir(parents=True, exist_ok=True)
-        Path(self.sqlite_db_path).parent.mkdir(parents=True, exist_ok=True)
+        Path(self.db_url).mkdir(parents=True, exist_ok=True)
         
         try:
             self._setup_model()
@@ -163,9 +193,11 @@ class PPCChatbotService:
 
         # Create Ollama embedder
         print("2. Configurando embedder...")
+        # Usando localhost já que Ollama roda no mesmo container
         embedder = OllamaEmbedder(
             id="nomic-embed-text", 
             dimensions=768,
+            host="http://localhost:11434"
         )
 
         self.embedder = embedder
@@ -216,6 +248,14 @@ class PPCChatbotService:
             print("   Isso pode demorar alguns minutos...")
             
             try:
+                # Verificar se arquivo existe antes de tentar carregar
+                if not self.ppc_file_path.exists():
+                    raise FileNotFoundError(
+                        f"Arquivo PPC.pdf não encontrado em: {self.ppc_file_path}\n"
+                        f"Cwd: {Path.cwd()}\n"
+                        f"File module dir: {Path(__file__).resolve().parent}"
+                    )
+                
                 # Adicionando o arquivo PPC.pdf
                 knowledge.add_content(
                     name="PPC Document",
@@ -223,9 +263,14 @@ class PPCChatbotService:
                 )
                 print("✅ Conteúdo do PPC.pdf adicionado com sucesso!")
                 has_existing_data = True
+            except FileNotFoundError as fe:
+                print(f"❌ ERRO: {fe}")
+                logger.error(f"Arquivo PPC não encontrado: {fe}")
+                print("⚠️  Continuando sem a base de conhecimento...")
             except Exception as e:
                 print(f"❌ Erro ao carregar PPC.pdf: {e}")
-                print("Continuando sem a base de conhecimento...")
+                logger.error(f"Erro ao carregar PPC: {e}")
+                print("⚠️  Continuando sem a base de conhecimento...")
 
         self._knowledge_loaded = has_existing_data
 
