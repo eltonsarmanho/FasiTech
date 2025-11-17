@@ -159,7 +159,7 @@ Sua submissão de Atividades Curriculares Complementares (ACC) foi processada co
 {anexos_formatados}
 
 🤖 Análise com IA:
-⏱️  Carga Horária Total: {total_carga_horaria}
+⏱️  Carga Horária Total: {total_carga_horaria.replace("TOTAL GERAL:", "").strip()}
 
 � Arquivo com análise detalhada está anexado.
 
