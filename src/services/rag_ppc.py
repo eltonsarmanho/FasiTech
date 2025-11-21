@@ -6,6 +6,8 @@ Este serviço permite fazer perguntas sobre o Projeto Pedagógico do Curso usand
 from __future__ import annotations
 import os
 import logging
+import hashlib
+import json
 from typing import Optional, Dict, Any, List
 from pathlib import Path
 from datetime import datetime
@@ -18,6 +20,7 @@ from agno.knowledge.knowledge import Knowledge
 from agno.vectordb.lancedb import LanceDb, SearchType
 from agno.models.huggingface import HuggingFace
 from agno.models.openai import OpenAILike
+from agno.knowledge.embedder.google import GeminiEmbedder
 
 from dotenv import load_dotenv
 import time
@@ -34,14 +37,20 @@ class ChatbotService:
     _agent: Optional[Agent] = None
     _initialized: bool = False
     
-    def __new__(cls) -> 'ChatbotService':
+    def __new__(cls, persist_history: bool = True) -> 'ChatbotService':
         """Implementa padrão Singleton."""
         if cls._instance is None:
             cls._instance = super().__new__(cls)
         return cls._instance
     
-    def __init__(self):
-        """Inicializa o serviço (apenas uma vez)."""
+    def __init__(self, persist_history: bool = True):
+        """
+        Inicializa o serviço (apenas uma vez).
+        
+        Args:
+            persist_history: Se True, armazena histórico de conversas em SQLite.
+                           Se False, usa apenas memória RAM (mais rápido, sem persistência).
+        """
         if not self._initialized:
             # Atributos de estado
             self.model: Optional[HuggingFace] = None
@@ -49,6 +58,7 @@ class ChatbotService:
             self.vector_db: Optional[LanceDb] = None
             self.knowledge: Optional[Knowledge] = None
             self.db: Optional[SqliteDb] = None
+            self.persist_history: bool = persist_history
             self._knowledge_loaded: bool = False
             self._initialized_at: Optional[datetime] = None
             self._last_question_at: Optional[datetime] = None
@@ -58,32 +68,103 @@ class ChatbotService:
             self._initialized = True
     
     def _find_document_files(self) -> List[Path]:
-        """Encontra todos os documentos PDF na pasta resources."""
-        # Possíveis diretórios de resources
+        """
+        Encontra todos os documentos PDF na pasta resources.
+        Usa variável de ambiente RAG_DOCUMENTS_DIR se configurada.
+        Suporta detecção automática de ambiente (local vs VM).
+        """
+        # Prioridade 1: Variável de ambiente configurável (para produção)
+        env_dir = os.getenv("RAG_DOCUMENTS_DIR")
+        if env_dir and env_dir.strip():
+            resource_dir = Path(env_dir.strip())
+            if resource_dir.exists():
+                pdf_files = list(resource_dir.glob("*.pdf"))
+                if pdf_files:
+                    logger.info(f"✅ Documentos encontrados (via RAG_DOCUMENTS_DIR): {resource_dir}")
+                    for pdf_file in pdf_files:
+                        logger.info(f"   📄 {pdf_file.name}")
+                    return pdf_files
+                else:
+                    logger.warning(f"⚠️  RAG_DOCUMENTS_DIR existe mas não contém PDFs: {resource_dir}")
+        
+        # Prioridade 2: Busca padrão em possíveis diretórios
         resource_dirs = [
             Path.cwd() / "src" / "resources",
             Path(__file__).resolve().parents[2] / "src" / "resources",
             Path("/app/src/resources"),  # Container path
-            Path("/home/ubuntu/appStreamLit/src/resources"),  # VM path
         ]
-        
-        documents = []
         
         for resource_dir in resource_dirs:
             if resource_dir.exists():
-                # Buscar todos os PDFs na pasta
                 pdf_files = list(resource_dir.glob("*.pdf"))
                 if pdf_files:
                     logger.info(f"✅ Documentos encontrados em: {resource_dir}")
                     for pdf_file in pdf_files:
                         logger.info(f"   📄 {pdf_file.name}")
-                        documents.append(pdf_file)
-                    return documents
+                    return pdf_files
         
         # Fallback: se não encontrar nenhum, usar PPC.pdf padrão
         default_path = Path(__file__).resolve().parents[2] / "src" / "resources" / "PPC.pdf"
         logger.warning(f"⚠️  Nenhum PDF encontrado. Usando fallback: {default_path}")
         return [default_path]
+    
+    def _compute_documents_hash(self, document_files: List[Path]) -> str:
+        """
+        Calcula hash dos documentos para detectar mudanças.
+        Hash baseado em: nome do arquivo + tamanho + data de modificação
+        """
+        hash_data = []
+        for doc_file in sorted(document_files, key=lambda x: x.name):
+            if doc_file.exists():
+                stat = doc_file.stat()
+                hash_data.append(f"{doc_file.name}:{stat.st_size}:{stat.st_mtime}")
+        
+        combined = "|".join(hash_data)
+        return hashlib.sha256(combined.encode()).hexdigest()
+    
+    def _should_reindex_documents(self, document_files: List[Path], cache_dir: Path) -> bool:
+        """
+        Verifica se os documentos precisam ser reindexados.
+        Retorna True se houver mudanças ou se o hash não existir.
+        """
+        hash_file = cache_dir / "documents_hash.json"
+        current_hash = self._compute_documents_hash(document_files)
+        
+        if not hash_file.exists():
+            logger.info("🔄 Hash de documentos não encontrado. Indexação necessária.")
+            return True
+        
+        try:
+            with open(hash_file, 'r') as f:
+                cached_data = json.load(f)
+                cached_hash = cached_data.get('hash', '')
+                
+            if cached_hash != current_hash:
+                logger.info("🔄 Documentos modificados detectados. Reindexação necessária.")
+                return True
+            else:
+                logger.info("✅ Documentos não modificados. Usando cache existente.")
+                return False
+                
+        except Exception as e:
+            logger.warning(f"⚠️  Erro ao ler hash de cache: {e}. Forçando reindexação.")
+            return True
+    
+    def _save_documents_hash(self, document_files: List[Path], cache_dir: Path):
+        """Salva o hash atual dos documentos para futuras verificações."""
+        hash_file = cache_dir / "documents_hash.json"
+        current_hash = self._compute_documents_hash(document_files)
+        
+        try:
+            with open(hash_file, 'w') as f:
+                json.dump({
+                    'hash': current_hash,
+                    'timestamp': datetime.utcnow().isoformat(),
+                    'documents': [str(f.name) for f in document_files]
+                }, f, indent=2)
+            logger.info(f"💾 Hash de documentos salvo: {current_hash[:8]}...")
+        except Exception as e:
+            logger.warning(f"⚠️  Erro ao salvar hash: {e}")
     
     def _setup_service(self) -> None:
         """Configura todos os componentes do serviço RAG baseado no script funcional."""
@@ -205,29 +286,33 @@ class ChatbotService:
             dimensions=768
         )
 
-        self.embedder = embedder
+        self.embedder = GeminiEmbedder(dimensions=768)
 
         # Create the vector database
         print("3. Configurando banco de dados vetorial...")
         vector_db = LanceDb(
             table_name="recipes",
             uri=self.db_url,
-            embedder=embedder,
+            embedder=self.embedder,
             search_type=SearchType.hybrid,
         )
 
         self.vector_db = vector_db
 
         print("4. Configurando base de conhecimento...")
-        knowledge = Knowledge(vector_db=vector_db, max_results=15)
+        # Otimização: reduzir de 15 para 10 resultados para melhor velocidade
+        knowledge = Knowledge(vector_db=vector_db, max_results=20)
 
         self.knowledge = knowledge
 
-        # Verificar se o banco vetorial já possui dados
+        # Verificar se precisa reindexar documentos usando sistema de hash
+        cache_dir = Path(self.db_url).parent
+        should_reindex = self._should_reindex_documents(self.document_files, cache_dir)
+        
         vector_db_path = f"{self.db_url}/recipes.lance"
         has_existing_data = False
 
-        if os.path.exists(vector_db_path):
+        if os.path.exists(vector_db_path) and not should_reindex:
             print("📚 Verificando se a base de conhecimento possui dados...")
             try:
                 # Verificar se há documentos na tabela
@@ -247,9 +332,12 @@ class ChatbotService:
                 print(f"⚠️  Erro ao verificar dados existentes: {e}")
                 print("🔄 Recarregando conteúdo...")
                 has_existing_data = False
+        elif should_reindex:
+            print("🔄 Documentos modificados ou novos detectados. Reindexação necessária.")
+            has_existing_data = False
 
         if not has_existing_data:
-            print("📚 Carregando conteúdo do PPC.pdf pela primeira vez...")
+            print("📚 Carregando/Reindexando documentos...")
             print("   Isso pode demorar alguns minutos...")
             
             try:
@@ -270,29 +358,34 @@ class ChatbotService:
                     )
                     print(f"✅ Documento {doc_file.name} adicionado com sucesso!")
                 
+                # Salvar hash dos documentos após indexação bem-sucedida
+                self._save_documents_hash(existing_files, cache_dir)
                 has_existing_data = True
             except FileNotFoundError as fe:
                 print(f"❌ ERRO: {fe}")
                 logger.error(f"Arquivo PPC não encontrado: {fe}")
                 print("⚠️  Continuando sem a base de conhecimento...")
             except Exception as e:
-                print(f"❌ Erro ao carregar PPC.pdf: {e}")
-                logger.error(f"Erro ao carregar PPC: {e}")
+                print(f"❌ Erro ao carregar documentos: {e}")
+                logger.error(f"Erro ao carregar documentos: {e}")
                 print("⚠️  Continuando sem a base de conhecimento...")
 
         self._knowledge_loaded = has_existing_data
 
-        print("5. Configurando banco de dados SQLite...")
-        # Verificar se o banco SQLite já existe
-        sqlite_exists = os.path.exists(self.sqlite_db_path)
-        if sqlite_exists:
-            print("📊 Banco de dados SQLite já existe, reutilizando...")
+        # 5. Configurar SQLite apenas se persist_history=True
+        db = None
+        if self.persist_history:
+            print("5. Configurando banco de dados SQLite (histórico persistente)...")
+            sqlite_exists = os.path.exists(self.sqlite_db_path)
+            if sqlite_exists:
+                print("📊 Banco de dados SQLite já existe, reutilizando...")
+            else:
+                print("📊 Criando novo banco de dados SQLite...")
+            db = SqliteDb(db_file=self.sqlite_db_path)
+            self.db = db
         else:
-            print("📊 Criando novo banco de dados SQLite...")
-
-        db = SqliteDb(db_file=self.sqlite_db_path)
-
-        self.db = db
+            print("5. SQLite desabilitado (persist_history=False). Usando apenas memória RAM.")
+            self.db = None
 
         print("6. Criando agente...")
         self._agent = Agent(
@@ -300,15 +393,68 @@ class ChatbotService:
             user_id="user",  
             model=model,
             knowledge=knowledge,
-            db=db,
+            db=db,  # Pode ser None se persist_history=False
         )
 
         print("✅ Agente configurado com sucesso!")
         print("=" * 50)
 
     
-    def ask_question(self, question: str) -> Dict[str, Any]:
-        """Executa uma pergunta e retorna um payload estruturado para a interface."""
+    def _post_process_answer(self, answer_text: str) -> str:
+        """
+        Pós-processamento da resposta do modelo.
+        Remove markdown redundante e normaliza formatação.
+        """
+        # Remover múltiplas linhas em branco
+        import re
+        answer_text = re.sub(r'\n{3,}', '\n\n', answer_text)
+        
+        # Remover espaços extras no início/fim de linhas
+        lines = [line.rstrip() for line in answer_text.split('\n')]
+        answer_text = '\n'.join(lines)
+        
+        # Normalizar citações de markdown excessivas
+        answer_text = re.sub(r'```markdown\n?(.*?)\n?```', r'\1', answer_text, flags=re.DOTALL)
+        
+        return answer_text.strip()
+    
+    def _extract_sources(self, response: Any) -> List[str]:
+        """
+        Extrai fontes/documentos utilizados na resposta.
+        """
+        sources = []
+        
+        # Tentar extrair de diferentes estruturas de resposta
+        if hasattr(response, 'documents') and response.documents:
+            for doc in response.documents:
+                if hasattr(doc, 'name') and doc.name:
+                    sources.append(doc.name)
+                elif hasattr(doc, 'metadata') and doc.metadata:
+                    source = doc.metadata.get('source', doc.metadata.get('name', ''))
+                    if source:
+                        sources.append(source)
+        
+        # Remover duplicatas mantendo ordem
+        seen = set()
+        unique_sources = []
+        for source in sources:
+            if source not in seen:
+                seen.add(source)
+                unique_sources.append(source)
+        
+        return unique_sources
+    
+    def ask_question(self, question: str, stream: bool = False) -> Dict[str, Any]:
+        """
+        Executa uma pergunta e retorna um payload estruturado para a interface.
+        
+        Args:
+            question: Pergunta do usuário
+            stream: Se True, habilita streaming (futuro suporte)
+            
+        Returns:
+            Dict com resposta, latência, fontes e metadados
+        """
         if not self._agent:
             raise RuntimeError("Agente não inicializado. Chame initialize() primeiro.")
 
@@ -322,9 +468,12 @@ class ChatbotService:
         try:
             logger.info("Pergunta recebida: %s", normalized_question[:150])
             start = time.perf_counter()
-            response = self._agent.run(normalized_question)
+            
+            # Executar pergunta no agente
+            response = self._agent.run(normalized_question, stream=stream)
             latency = time.perf_counter() - start
 
+            # Extrair resposta de texto
             answer_text = None
             if hasattr(response, "content") and response.content:
                 answer_text = response.content
@@ -342,19 +491,33 @@ class ChatbotService:
             if not answer_text:
                 raise ValueError("Resposta vazia gerada pelo modelo.")
 
+            # Pós-processamento da resposta
+            answer_text = self._post_process_answer(answer_text)
+            
+            # Extrair fontes utilizadas
+            sources = self._extract_sources(response)
+
             # Atualizar métricas internas
             self._last_question_at = datetime.utcnow()
             self._last_latency = latency
             self._total_questions += 1
 
-            logger.info("Resposta gerada em %.2fs", latency)
-            return {
+            logger.info("Resposta gerada em %.2fs (processamento incluído)", latency)
+            
+            result = {
                 "success": True,
                 "answer": answer_text,
                 "method": "agent",
                 "latency": latency,
                 "question": normalized_question,
             }
+            
+            # Adicionar fontes se encontradas
+            if sources:
+                result["sources"] = sources
+                logger.info(f"Fontes utilizadas: {', '.join(sources)}")
+            
+            return result
 
         except Exception as exc:
             logger.exception("Erro ao processar pergunta: %s", exc)
@@ -415,7 +578,7 @@ class ChatbotService:
         Obtém status do serviço.
         
         Returns:
-            Dict com informações do status
+            Dict com informações do status e configurações
         """
         return {
             "initialized": self._initialized,
@@ -424,16 +587,30 @@ class ChatbotService:
             "knowledge_loaded": bool(self._knowledge_loaded),
             "agent_ready": self._agent is not None,
             "db_path": getattr(self, "db_url", None),
+            "persist_history": self.persist_history,
+            "sqlite_enabled": self.db is not None,
+            "max_results": self.knowledge.max_results if self.knowledge else None,
             "document_files": [f.name for f in self.document_files] if hasattr(self, "document_files") else [],
             "documents_exist": any(f.exists() for f in self.document_files) if hasattr(self, "document_files") else False,
             "total_questions": self._total_questions,
             "last_question_at": self._last_question_at.isoformat() if self._last_question_at else None,
             "last_latency": self._last_latency,
+            "avg_latency": self._last_latency / max(self._total_questions, 1) if self._last_latency else None,
         }
 
 
 # Função para obter a instância singleton do serviço
-def get_service() -> ChatbotService:
-    """Obtém a instância singleton do serviço PPC."""
-    return ChatbotService()
+def get_service(persist_history: bool = True) -> ChatbotService:
+    """
+    Obtém a instância singleton do serviço PPC.
+    
+    Args:
+        persist_history: Se True, mantém histórico em SQLite (padrão).
+                        Se False, usa apenas RAM (mais rápido).
+    """
+    return ChatbotService(persist_history=persist_history)
+
+
+# Alias para compatibilidade com código legado
+PPCChatbotService = ChatbotService
 
