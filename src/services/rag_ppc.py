@@ -219,7 +219,7 @@ class ChatbotService:
         self.vector_db = vector_db
 
         print("4. Configurando base de conhecimento...")
-        knowledge = Knowledge(vector_db=vector_db, max_results=25)
+        knowledge = Knowledge(vector_db=vector_db, max_results=15)
 
         self.knowledge = knowledge
 
