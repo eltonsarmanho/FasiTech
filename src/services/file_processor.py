@@ -100,8 +100,8 @@ def prepare_files(files: Iterable[Any]) -> Iterable[Any]:
         
         # Validar tamanho do arquivo
         if hasattr(file_obj, 'size'):
-            if not validate_file_size(file_obj.size, max_size_mb=10):
-                print(f"⚠️ Arquivo '{file_obj.name}' ignorado - tamanho excede 10MB")
+            if not validate_file_size(file_obj.size, max_size_mb=50):
+                print(f"⚠️ Arquivo '{file_obj.name}' ignorado - tamanho excede 50MB")
                 continue
         
         yield file_obj
