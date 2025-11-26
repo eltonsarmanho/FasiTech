@@ -21,6 +21,12 @@ from src.services.rag_ppc import ChatbotService, get_service
 # Caminhos e identidade visual ------------------------------------------------
 LOGO_PATH = PROJECT_ROOT / "src" / "resources" / "fasiOficial.png"
 
+# Configuração da planilha de feedback (carrega de secrets.toml ou usa fallback)
+try:
+    FEEDBACK_SHEET_ID = st.secrets.get("AvalicaoDiretorVirtual", {}).get("sheet_id", "1HDGlJi9Uu2NX7MI0032BwGUWYpzSfNJAQWWsq4UJ07U")
+except Exception:
+    FEEDBACK_SHEET_ID = "1HDGlJi9Uu2NX7MI0032BwGUWYpzSfNJAQWWsq4UJ07U"
+
 # Sugestões de perguntas rápidas
 SUGGESTIONS = [
     {
@@ -248,6 +254,54 @@ def _init_session_state() -> None:
         )
 
 
+def _save_feedback_to_sheet(rating: int, pergunta: str = "", resposta: str = "") -> bool:
+    """
+    Salva o feedback do usuário na planilha do Google Sheets.
+    
+    Args:
+        rating: Avaliação de 0 a 4 (retornado pelo st.feedback)
+        pergunta: A pergunta feita pelo usuário
+        resposta: A resposta dada pelo assistente
+    
+    Returns:
+        True se salvou com sucesso, False caso contrário
+    """
+    try:
+        from src.services.google_sheets import _get_credentials
+        from googleapiclient.discovery import build
+        
+        # Converter rating de 0-4 para 1-5
+        avaliacao = rating + 1
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        # Preparar dados no formato correto (lista de valores)
+        # Colunas: Data | Avaliação | Pergunta | Resposta
+        values = [[timestamp, str(avaliacao), pergunta, resposta]]
+        
+        # Conectar à API do Google Sheets
+        credentials = _get_credentials()
+        service = build('sheets', 'v4', credentials=credentials)
+        
+        # Adicionar linha na planilha
+        body = {'values': values}
+        
+        result = service.spreadsheets().values().append(
+            spreadsheetId=FEEDBACK_SHEET_ID,
+            range='Feedback!A:D',  # Colunas A até D da aba Feedback
+            valueInputOption='USER_ENTERED',
+            insertDataOption='INSERT_ROWS',
+            body=body
+        ).execute()
+        
+        return True
+        
+    except Exception as e:
+        st.error(f"❌ Erro ao salvar feedback: {e}")
+        import traceback
+        st.error(f"Detalhes: {traceback.format_exc()}")
+        return False
+
+
 def _reset_conversation() -> None:
     """Limpa histórico local e remoto."""
     st.session_state["messages"] = [
@@ -363,7 +417,7 @@ def _render_suggestions() -> None:
 
 def _render_history() -> None:
     """Mostra histórico de mensagens no formato de chat."""
-    for message in st.session_state["messages"]:
+    for idx, message in enumerate(st.session_state["messages"]):
         bubble_class = "user-bubble" if message["role"] == "user" else "assistant-bubble"
         if message["role"] == "assistant" and not message.get("success", True):
             bubble_class += " error"
@@ -382,6 +436,36 @@ def _render_history() -> None:
                 meta_parts.append(f"⏱️ {message['latency']:.2f}s")
             if meta_parts:
                 st.caption(" • ".join(meta_parts))
+            
+            # Adicionar feedback apenas para respostas do assistente (exceto mensagem de boas-vindas)
+            if message["role"] == "assistant" and message.get("success", True) and idx > 0:
+                feedback_key = f"feedback_{idx}"
+                feedback_saved_key = f"feedback_saved_{idx}"
+                
+                # Verificar se já foi salvo
+                if feedback_saved_key not in st.session_state:
+                    st.session_state[feedback_saved_key] = False
+                
+                # Se já foi salvo, mostrar apenas a confirmação
+                if st.session_state[feedback_saved_key]:
+                    st.success("✅ Feedback registrado com sucesso!")
+                else:
+                    # Renderizar componente de feedback
+                    selected = st.feedback("stars", key=feedback_key)
+                    
+                    # Mostrar botão embaixo apenas se uma avaliação foi selecionada
+                    if selected is not None:
+                        if st.button("✅ Confirmar Avaliação", key=f"confirm_{idx}", type="primary", use_container_width=False):
+                            # Buscar a pergunta anterior (mensagem do usuário)
+                            pergunta = ""
+                            if idx > 0 and st.session_state["messages"][idx - 1]["role"] == "user":
+                                pergunta = st.session_state["messages"][idx - 1]["content"]
+                            
+                            resposta = message.get("content", "")
+                            
+                            if _save_feedback_to_sheet(selected, pergunta, resposta):
+                                st.session_state[feedback_saved_key] = True
+                                st.rerun()
 
 
 def _consume_pending_question() -> Optional[str]:
@@ -442,6 +526,30 @@ def _handle_new_question(raw_question: str) -> None:
             )
             if response.get("latency"):
                 st.caption(f"⏱️ {response['latency']:.2f}s")
+            
+            # Adicionar o componente de feedback para nova resposta
+            st.session_state["messages"].append(assistant_message)
+            idx = len(st.session_state["messages"]) - 1
+            feedback_key = f"feedback_{idx}"
+            feedback_saved_key = f"feedback_saved_{idx}"
+            
+            # Inicializar estado
+            if feedback_saved_key not in st.session_state:
+                st.session_state[feedback_saved_key] = False
+            
+            # Renderizar componente de feedback
+            selected = st.feedback("stars", key=feedback_key)
+            
+            # Mostrar botão embaixo apenas se uma avaliação foi selecionada
+            if selected is not None:
+                if st.button("✅ Confirmar Avaliação", key=f"confirm_{idx}", type="primary", use_container_width=False):
+                    # A pergunta é a variável 'question' que já temos no contexto
+                    # A resposta é a variável 'answer_text' que já temos
+                    if _save_feedback_to_sheet(selected, question, answer_text):
+                        st.session_state[feedback_saved_key] = True
+                        st.success("✅ Feedback registrado com sucesso!")
+                        st.rerun()
+            
         else:
             error_text = response.get("error", "Não foi possível responder agora.")
             assistant_message.update(
@@ -454,8 +562,7 @@ def _handle_new_question(raw_question: str) -> None:
                 f'<div class="assistant-bubble error">{error_text}</div>',
                 unsafe_allow_html=True,
             )
-
-        st.session_state["messages"].append(assistant_message)
+            st.session_state["messages"].append(assistant_message)
 
 
 # Função principal ------------------------------------------------------------
@@ -480,6 +587,7 @@ def main() -> None:
     user_input = st.chat_input(
         "Digite aqui sua pergunta sobre o curso de Sistemas de Informação...",
     )
+   
 
     user_message = pending_question or user_input
     if user_message:
