@@ -223,3 +223,16 @@ static/media/
 # Comandos específicos do usuário
 comandosEspeciais.txt
 /comandosEspeciais.txt
+
+# Arquivvos LaTeX temporários
+*.aux
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.fls
+*.fdb_latexmk
+*.nav
+*.snm
+*.synctex.gz
