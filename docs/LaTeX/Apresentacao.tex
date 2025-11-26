@@ -1,0 +1,237 @@
+\documentclass{beamer}
+
+\usepackage[utf8]{inputenc}
+\usepackage[brazilian]{babel}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{hyperref}
+\usepackage{tikz}
+\usetikzlibrary{positioning, matrix}
+\usetikzlibrary{calc}
+\usetikzlibrary{shapes.geometric, arrows, arrows.meta, positioning}
+\usetheme{Madrid}
+\usepackage{fontawesome}
+\usepackage{xcolor}
+\usepackage{ccicons}
+
+% Cores personalizadas (se quiser reaproveitar)
+% Tema base
+\usetheme{Madrid}
+
+% === COR VERDE IGUAL AO LOGO DO EVENTO =====================
+\definecolor{eventoGreen}{HTML}{00793A}
+\usecolortheme[named=eventoGreen]{structure}
+
+\setbeamercolor{title}{fg=white,bg=eventoGreen}
+\setbeamercolor{frametitle}{fg=white,bg=eventoGreen}
+\setbeamercolor{item}{fg=eventoGreen}
+\setbeamercolor{block title}{fg=white,bg=eventoGreen}
+\setbeamercolor{block body}{fg=black,bg=eventoGreen!5}
+
+% Remover completamente o rodapé padrão
+\setbeamertemplate{footline}{}
+% ===========================================================
+
+
+% Título dos Slides
+\title{\large	{FasiTech: Automação Inteligente para a Gestão Acadêmica 4.0}}
+\author[Elton Sarmanho]{%
+  \Large{Elton Sarmanho\\[0.2cm]
+  % Substitua "lattes-icon.png" pelo nome real do arquivo de ícone caso seja diferente
+  \href{http://lattes.cnpq.br/6836143760585970}{\includegraphics[height=0.5cm]{lattes-icon.png}}\quad
+  \href{https://github.com/eltonsarmanho}{\faGithub}\quad
+  \href{https://www.linkedin.com/in/elton-sarmanho-836553185/}{\faLinkedinSquare}}%
+}
+\institute{UFPA – Faculdade de Sistemas de Informação - Campus Cametá}
+\date{\ccbyncsa}
+
+\begin{document}
+
+% Capa
+\begin{frame}
+  % Se tiver logo do evento, você pode incluir assim:
+   \begin{center}
+     \includegraphics[scale=0.2]{logo_evento.png}
+   \end{center}
+    \titlepage
+
+\end{frame}
+
+% Sumário
+\begin{frame}{Roteiro}
+  \tableofcontents
+\end{frame}
+
+% =========================
+\section{Contexto e Problema}
+
+\begin{frame}{Contexto}
+  \begin{itemize}
+    \item Campus interiorizado, distante da capital e dos centros administrativos.
+    \item Processos acadêmicos fortemente baseados em papel, e-mail e atendimento presencial.
+    \item Dificuldade de acompanhar prazos, fluxos e status de solicitações.
+    \item Sensação de morosidade e falta de transparência para estudantes e docentes.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Problemas Identificados}
+  \begin{itemize}
+    \item Dependência de deslocamento físico para entregar documentos e formular requerimentos.
+    \item Retrabalho frequente na secretaria (documentos incompletos, formulários errados).
+    \item Falta de registro estruturado para análise de dados e melhoria de processos.
+    \item UFPA ainda distante de uma cultura de \textbf{Gestão 4.0} nos fluxos acadêmicos.
+  \end{itemize}
+\end{frame}
+
+% =========================
+\section{Antes do FasiTech}
+
+\begin{frame}{Fluxo Antigo de Interação}
+  \begin{itemize}
+    \item Aluno preenche formulários em papel ou por e-mail, muitas vezes sem padrão.
+    \item Secretaria recebe, confere manualmente e encaminha para coordenação/direção.
+    \item Processos se acumulam em pilhas físicas ou caixas de e-mail.
+    \item Dificuldade para saber “onde está” cada processo e quanto tempo leva.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Forma Antiga de Interação (Visual)}
+  \begin{center}
+    % Substituir pelo caminho correto da imagem de fluxo antigo
+     \includegraphics[width=0.9\textwidth]{forma_antiga_1.png}
+    %\emph{(Inserir aqui figura ilustrando o fluxo antigo de interação)}%
+  \end{center}
+\end{frame}
+\begin{frame}{Forma Antiga de Interação (Visual)}
+  \begin{center}
+    % Substituir pelo caminho correto da imagem de fluxo antigo
+     \includegraphics[width=0.9\textwidth]{forma_antiga_2.png}
+    %\emph{(Inserir aqui figura ilustrando o fluxo antigo de interação)}%
+  \end{center}
+\end{frame}
+% =========================
+\section{O Projeto FasiTech}
+
+\begin{frame}{O que é o FasiTech?}
+  \begin{itemize}
+    \item Plataforma web para centralizar formulários e fluxos acadêmicos da FASI/UFPA.
+    \item Construída com tecnologias modernas:
+      \begin{itemize}
+        \item Frontend em \textbf{Streamlit}.
+        \item Integrações com \textbf{Google Drive} e \textbf{Google Sheets}.
+        \item Serviço de \textbf{e-mail} para notificações.
+        \item Módulo de \textbf{IA/RAG} para apoio às decisões (Diretor Virtual).
+      \end{itemize}
+    \item Objetivo: transformar processos manuais em fluxos digitais, rastreáveis e inteligentes.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Arquitetura da Solução}
+  \begin{center}
+    % Substituir pelo caminho real da imagem de arquitetura
+    \includegraphics[width=0.7\textwidth]{Arquitetura.png}
+    %\emph{(Inserir aqui diagrama de arquitetura do FasiTech)}%
+  \end{center}
+\end{frame}
+
+\begin{frame}{Automação de Processos (RPA)}
+  \begin{itemize}
+    \item Cada formulário gera registros estruturados em planilhas e pastas no Google Drive.
+    \item Gatilhos para notificar secretaria, coordenação e docentes.
+    \item Redução drástica de tarefas repetitivas e de risco de extravio de documentos.
+  \end{itemize}
+  \vfill
+  \begin{center}
+    \includegraphics[width=0.8\textwidth]{RPA.png}
+    %\emph{(Inserir aqui figura ilustrando o fluxo automatizado com RPA)}%
+  \end{center}
+\end{frame}
+
+% =========================
+\section{Módulos e Funcionalidades}
+
+\begin{frame}{Principais Módulos da Plataforma}
+  \begin{itemize}
+    \item \textbf{Formulários Acadêmicos}:
+      \begin{itemize}
+        \item ACC, Estágio, Projetos, Plano de Ensino, Requerimento de TCC, Formulário Social.
+      \end{itemize}
+    \item \textbf{Módulo Socioeconômico}:
+      \begin{itemize}
+        \item Coleta estruturada de dados para análise e planejamento de políticas de apoio.
+      \end{itemize}
+    \item \textbf{Ofertas de Disciplinas}:
+      \begin{itemize}
+        \item Organização das ofertas e acompanhamento das turmas.
+      \end{itemize}
+    \item \textbf{Diretor Virtual (IA/RAG)}:
+      \begin{itemize}
+        \item Responde perguntas sobre o PPC, ementas e normas internas.
+      \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Diretor Virtual (RAG sobre PPC)}
+  \begin{itemize}
+    \item Agente de IA treinado sobre documentos oficiais do curso (PPC, ementas, resoluções).
+    \item Arquitetura \textbf{RAG} (\textit{Retrieval-Augmented Generation}):
+      \begin{itemize}
+        \item Indexação de PDFs em um banco vetorial.
+        \item Recuperação dos trechos mais relevantes para cada pergunta.
+        \item Geração de respostas em linguagem natural com base nesses trechos.
+      \end{itemize}
+    \item Objetivo: apoiar decisões de coordenação e docentes, reduzindo consultas manuais a documentos extensos.
+  \end{itemize}
+\end{frame}
+
+% =========================
+\section{Impactos e Próximos Passos}
+
+\begin{frame}{Benefícios Esperados}
+  \begin{itemize}
+    \item \textbf{Para estudantes}:
+      \begin{itemize}
+        \item Menos deslocamentos físicos e mais clareza sobre procedimentos.
+        \item Acompanhamento mais transparente de solicitações.
+      \end{itemize}
+    \item \textbf{Para secretaria e coordenação}:
+      \begin{itemize}
+        \item Redução de retrabalho e de erros operacionais.
+        \item Dados estruturados para gestão e prestação de contas.
+      \end{itemize}
+    \item \textbf{Para a instituição}:
+      \begin{itemize}
+        \item Passo concreto em direção à Gestão 4.0.
+        \item Plataforma replicável para outros cursos e campi.
+      \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Próximos Passos}
+  \begin{itemize}
+    \item Expansão do FasiTech para outros formulários e fluxos institucionais.
+    \item Evolução do módulo de IA (novos documentos, novos agentes especializados).
+    \item Monitoramento de indicadores de uso e tempo de atendimento.
+    \item Compartilhamento da experiência com outras unidades da UFPA.
+  \end{itemize}
+\end{frame}
+
+% =========================
+\section{Encerramento}
+
+\begin{frame}{Encerramento}
+  \begin{center}
+    \Large Obrigado pela atenção!
+  \end{center}
+  \vfill
+  \begin{center}
+    \small
+    Contato: \href{mailto:eltonss@ufpa.br}{eltonss@ufpa.br}\\[0.2cm]
+    \href{https://github.com/eltonsarmanho}{\faGithub\ eltonsarmanho} \quad
+    \href{https://www.linkedin.com/in/elton-sarmanho-836553185/}{\faLinkedinSquare\ LinkedIn}
+  \end{center}
+\end{frame}
+
+\end{document}

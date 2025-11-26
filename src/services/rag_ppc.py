@@ -92,6 +92,7 @@ class ChatbotService:
             Path.cwd() / "src" / "resources",
             Path(__file__).resolve().parents[2] / "src" / "resources",
             Path("/app/src/resources"),  # Container path
+            Path("/home/ubuntu/appStreamLit/src/resources"),  # VM path
         ]
         
         for resource_dir in resource_dirs:
