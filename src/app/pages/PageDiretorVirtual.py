@@ -39,8 +39,8 @@ SUGGESTIONS = [
         "question": "Quais são as atividades curriculares do 1° período do curso?",
     },
     {
-        "label": "🕒 Carga horária",
-        "question": "Qual a carga horária total do curso e como ela é distribuída?",
+        "label": "🕒 ACC",
+        "question": "Considerando somente informações sobre ATIVIDADES CURRICULARES COMPLEMENTARES (ACC). Me informe a carga horária e a forma de envio?",
     },
     {
         "label": "📄 Estágio obrigatório",

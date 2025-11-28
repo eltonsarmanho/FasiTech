@@ -400,10 +400,18 @@ class ChatbotService:
         """
         if not session_id:
             session_id = "default_session"
-            
+        # Agente nao deve inventar informação para o usuario
+        # Agente nao deve inventar informação para o usuario    
+        prompt_instructions = [
+            "Você é um assistente virtual especializado em fornecer informações precisas sobre o Projeto Pedagógico do Curso (PPC) de Sistemas de Informação.",
+            "As respostas devem ser baseadas nas informações fornecidas pelo PPC oficial e outros documentos oficiais.",
+            "Se nao encontrar informacao especifica, diga claramente que nao encontrou. Não invente informações (Ex: Atvidades Complementares de Graduação (ACG)).",
+            "Seja preciso e cite detalhes relevantes do PPC quando possivel."
+        ]
         return Agent(
             session_id=session_id, 
             user_id="user",  
+            instructions=prompt_instructions,
             model=self.model,
             enable_user_memories=True,
             knowledge=self.knowledge,
