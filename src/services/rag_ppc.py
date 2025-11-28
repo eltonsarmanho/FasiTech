@@ -388,18 +388,27 @@ class ChatbotService:
             print("5. SQLite desabilitado (persist_history=False). Usando apenas memória RAM.")
             self.db = None
 
-        print("6. Criando agente...")
-        self._agent = Agent(
-            session_id="rag_session", 
-            user_id="user",  
-            model=model,
-            knowledge=knowledge,
-            db=db,  # Pode ser None se persist_history=False
-        )
+        print("6. Agente será inicializado sob demanda por sessão.")
+        self._agent = None  # Removido agente único global
 
-        print("✅ Agente configurado com sucesso!")
+        print("✅ Serviço configurado com sucesso!")
         print("=" * 50)
 
+    def _get_agent(self, session_id: str) -> Agent:
+        """
+        Cria ou recupera um agente para uma sessão específica.
+        """
+        if not session_id:
+            session_id = "default_session"
+            
+        return Agent(
+            session_id=session_id, 
+            user_id="user",  
+            model=self.model,
+            enable_user_memories=True,
+            knowledge=self.knowledge,
+            db=self.db,  # Pode ser None se persist_history=False
+        )
     
     def _post_process_answer(self, answer_text: str) -> str:
         """
@@ -445,19 +454,20 @@ class ChatbotService:
         
         return unique_sources
     
-    def ask_question(self, question: str, stream: bool = False) -> Dict[str, Any]:
+    def ask_question(self, question: str, session_id: str = None, stream: bool = False) -> Dict[str, Any]:
         """
         Executa uma pergunta e retorna um payload estruturado para a interface.
         
         Args:
             question: Pergunta do usuário
+            session_id: ID da sessão do usuário (obrigatório para isolamento)
             stream: Se True, habilita streaming (futuro suporte)
             
         Returns:
             Dict com resposta, latência, fontes e metadados
         """
-        if not self._agent:
-            raise RuntimeError("Agente não inicializado. Chame initialize() primeiro.")
+        if not self._initialized:
+            raise RuntimeError("Serviço não inicializado. Chame initialize() primeiro.")
 
         normalized_question = (question or "").strip()
         if not normalized_question:
@@ -467,11 +477,14 @@ class ChatbotService:
             }
 
         try:
-            logger.info("Pergunta recebida: %s", normalized_question[:150])
+            logger.info("Pergunta recebida: %s (Session: %s)", normalized_question[:150], session_id)
             start = time.perf_counter()
             
+            # Obter agente para a sessão
+            agent = self._get_agent(session_id)
+            
             # Executar pergunta no agente
-            response = self._agent.run(normalized_question, stream=stream)
+            response = agent.run(normalized_question, stream=stream)
             latency = time.perf_counter() - start
 
             # Extrair resposta de texto
@@ -527,27 +540,46 @@ class ChatbotService:
                 "error": str(exc),
             }
     
-    def get_conversation_history(self, limit: int = 10) -> list:
+    def get_conversation_history(self, session_id: str = None, limit: int = 10) -> list:
         """
         Obtém histórico de conversas.
         
         Args:
+            session_id: ID da sessão
             limit: Número máximo de mensagens
             
         Returns:
             Lista de mensagens do histórico
         """
         try:
-            if not self._agent or not self._agent.memory:
+            agent = self._get_agent(session_id)
+            if not agent:
                 return []
             
-            # Obter histórico do agente
-            messages = self._agent.memory.get_messages(limit=limit)
+            # Tentar obter histórico de diferentes formas (compatibilidade com versões do agno)
+            messages = []
+            if hasattr(agent, "memory") and agent.memory:
+                messages = agent.memory.get_messages(limit=limit)
+            elif hasattr(agent, "memory_manager") and agent.memory_manager:
+                # Tentar métodos comuns de memory_manager
+                if hasattr(agent.memory_manager, "get_messages"):
+                    messages = agent.memory_manager.get_messages(limit=limit)
+                elif hasattr(agent.memory_manager, "get_history"):
+                    messages = agent.memory_manager.get_history(limit=limit)
+            elif hasattr(agent, "get_chat_history"):
+                messages = agent.get_chat_history()
+                # Aplicar limite manualmente se necessário
+                if limit and isinstance(messages, list):
+                    messages = messages[-limit:]
             
+            # Se messages for generator ou iterator, converter para lista
+            if not isinstance(messages, list):
+                messages = list(messages)
+
             return [
                 {
-                    "role": msg.role,
-                    "content": msg.content,
+                    "role": getattr(msg, "role", "unknown"),
+                    "content": getattr(msg, "content", str(msg)),
                     "timestamp": getattr(msg, 'timestamp', None)
                 }
                 for msg in messages
@@ -557,7 +589,7 @@ class ChatbotService:
             logger.error(f"Erro ao obter histórico: {e}")
             return []
     
-    def clear_conversation(self) -> bool:
+    def clear_conversation(self, session_id: str = None) -> bool:
         """
         Limpa o histórico de conversas.
         
@@ -565,9 +597,17 @@ class ChatbotService:
             True se sucesso, False caso contrário
         """
         try:
-            if self._agent and self._agent.memory:
-                self._agent.memory.clear()
-                logger.info("Histórico de conversas limpo")
+            agent = self._get_agent(session_id)
+            if agent:
+                if hasattr(agent, "memory") and agent.memory:
+                    agent.memory.clear()
+                elif hasattr(agent, "memory_manager") and agent.memory_manager:
+                     if hasattr(agent.memory_manager, "clear"):
+                        agent.memory_manager.clear()
+                elif hasattr(agent, "clear_memory"):
+                    agent.clear_memory()
+                
+                logger.info(f"Histórico de conversas limpo para sessão {session_id}")
                 return True
             return False
         except Exception as e:
@@ -586,7 +626,7 @@ class ChatbotService:
             "initialized_at": self._initialized_at.isoformat() if self._initialized_at else None,
             "model_type": type(self.model).__name__ if self.model else None,
             "knowledge_loaded": bool(self._knowledge_loaded),
-            "agent_ready": self._agent is not None,
+            "agent_ready": True, # Sempre pronto sob demanda
             "db_path": getattr(self, "db_url", None),
             "persist_history": self.persist_history,
             "sqlite_enabled": self.db is not None,

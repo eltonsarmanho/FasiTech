@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import streamlit as st
 import sys
+import uuid
 from pathlib import Path
 from typing import Dict, Any, Optional
 from datetime import datetime, timedelta, timezone
@@ -231,27 +232,27 @@ def _inject_global_styles() -> None:
 
 
 def _init_session_state() -> None:
-    """Garante os estados necessários para a página."""
-    defaults: Dict[str, Any] = {
-        "messages": [],
-        "pending_question": None,
-        "auto_submit": False,
-        "last_question_time": datetime.fromtimestamp(0, tz=timezone.utc),
-        "status_loaded": False,
-    }
-    for key, value in defaults.items():
-        if key not in st.session_state:
-            st.session_state[key] = value
-
-    if not st.session_state["messages"]:
-        st.session_state["messages"].append(
+    """Inicializa variáveis de sessão."""
+    if "session_id" not in st.session_state:
+        st.session_state["session_id"] = str(uuid.uuid4())
+        
+    if "messages" not in st.session_state:
+        st.session_state["messages"] = [
             {
                 "role": "assistant",
                 "content": WELCOME_MESSAGE,
                 "timestamp": datetime.now(timezone.utc),
                 "success": True,
             }
-        )
+        ]
+    if "pending_question" not in st.session_state:
+        st.session_state["pending_question"] = None
+    if "auto_submit" not in st.session_state:
+        st.session_state["auto_submit"] = False
+    if "last_question_time" not in st.session_state:
+        st.session_state["last_question_time"] = datetime.fromtimestamp(0, tz=timezone.utc)
+    if "status_loaded" not in st.session_state:
+        st.session_state["status_loaded"] = False
 
 
 def _save_feedback_to_sheet(rating: int, pergunta: str = "", resposta: str = "") -> bool:
@@ -317,7 +318,9 @@ def _reset_conversation() -> None:
     st.session_state["last_question_time"] = datetime.fromtimestamp(0, tz=timezone.utc)
 
     try:
-        _get_service().clear_conversation()
+        _get_service().clear_conversation(session_id=st.session_state.get("session_id"))
+        # Gerar novo ID de sessão ao reiniciar
+        st.session_state["session_id"] = str(uuid.uuid4())
     except Exception:
         pass
 
@@ -504,7 +507,10 @@ def _handle_new_question(raw_question: str) -> None:
                 time.sleep((MIN_TIME_BETWEEN_REQUESTS - elapsed).total_seconds())
 
             st.session_state["last_question_time"] = datetime.now(timezone.utc)
-            response = _get_service().ask_question(question)
+            response = _get_service().ask_question(
+                question, 
+                session_id=st.session_state["session_id"]
+            )
 
         assistant_message: Dict[str, Any] = {
             "role": "assistant",
