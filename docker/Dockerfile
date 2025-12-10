@@ -51,6 +51,11 @@ RUN useradd --create-home appuser
 
 # Criar script de inicialização que inicia Ollama e Streamlit (como root)
 RUN echo '#!/bin/bash\n\
+set -e\n\
+\n\
+# Garantir que diretórios de cache existam e tenham permissões corretas\n\
+mkdir -p /home/appuser/.cache/fasitech/rag/lancedb\n\
+\n\
 # Iniciar Ollama em background\n\
 export OLLAMA_HOST=127.0.0.1:11434\n\
 ollama serve &\n\
@@ -68,8 +73,11 @@ RUN chown -R appuser:appuser /home/appuser/.ollama
 RUN chmod +x /usr/local/bin/ollama
 RUN chown appuser:appuser /app/start.sh
 
-# Criar diretório cache para o RAG
-RUN mkdir -p /home/appuser/.cache/fasitech/rag && chown -R appuser:appuser /home/appuser/.cache
+# Criar diretório cache para o RAG com permissões completas
+# Inclui subdiretórios para LanceDB e SQLite
+RUN mkdir -p /home/appuser/.cache/fasitech/rag/lancedb && \
+    chown -R appuser:appuser /home/appuser/.cache && \
+    chmod -R 755 /home/appuser/.cache
 
 # --- MUDANÇA PRINCIPAL: Mudar para o usuário não-root no final ---
 # Mude para o usuário não-root DEPOIS que tudo estiver instalado e copiado.

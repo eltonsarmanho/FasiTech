@@ -181,7 +181,16 @@ class ChatbotService:
         
         # Configurar caminhos - usar diretório de cache ou temp se ./data não tiver permissões
         data_dir = Path.home() / ".cache" / "fasitech" / "rag"
-        data_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Criar diretórios com tratamento de erro para permissões
+        try:
+            data_dir.mkdir(parents=True, exist_ok=True)
+        except PermissionError:
+            # Fallback para diretório temporário se não tiver permissão
+            import tempfile
+            data_dir = Path(tempfile.gettempdir()) / "fasitech" / "rag"
+            data_dir.mkdir(parents=True, exist_ok=True)
+            logger.warning(f"⚠️  Usando diretório temporário: {data_dir}")
         
         self.db_url = str(data_dir / "lancedb")
         self.sqlite_db_path = str(data_dir / "ppc_chat.db")
@@ -193,7 +202,10 @@ class ChatbotService:
         logger.info(f"📄 Documentos encontrados: {[f.name for f in self.document_files]}")
         
         # Criar diretórios se não existirem
-        Path(self.db_url).mkdir(parents=True, exist_ok=True)
+        try:
+            Path(self.db_url).mkdir(parents=True, exist_ok=True)
+        except PermissionError:
+            logger.warning(f"⚠️  Não foi possível criar diretório LanceDB: {self.db_url}")
         
         try:
             self._setup_model()

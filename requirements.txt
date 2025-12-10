@@ -26,3 +26,4 @@ pypdf
 tantivy
 openai
 streamlit-feedback
+pylance
