@@ -24,10 +24,15 @@ from agno.knowledge.embedder.google import GeminiEmbedder
 
 from dotenv import load_dotenv
 import time
+import numpy as np
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Configuração do cache semântico
+SEMANTIC_CACHE_SIMILARITY_THRESHOLD = 0.80  # 90% de similaridade
+SEMANTIC_CACHE_TABLE_NAME = "semantic_cache"
 
 
 class ChatbotService:
@@ -391,8 +396,157 @@ class ChatbotService:
         print("6. Agente será inicializado sob demanda por sessão.")
         self._agent = None  # Removido agente único global
 
+        # 7. Inicializar cache semântico
+        print("7. Configurando cache semântico...")
+        self._setup_semantic_cache()
+
         print("✅ Serviço configurado com sucesso!")
         print("=" * 50)
+
+    def _setup_semantic_cache(self) -> None:
+        """
+        Configura a tabela de cache semântico no LanceDB.
+        Armazena perguntas anteriores com seus embeddings e respostas.
+        """
+        try:
+            import lancedb
+            
+            self._cache_db = lancedb.connect(self.db_url)
+            
+            # Verificar se a tabela já existe
+            existing_tables = self._cache_db.table_names()
+            
+            if SEMANTIC_CACHE_TABLE_NAME not in existing_tables:
+                # Criar tabela com schema inicial (será criada no primeiro insert)
+                logger.info("📦 Tabela de cache semântico será criada no primeiro uso.")
+                self._cache_table = None
+            else:
+                self._cache_table = self._cache_db.open_table(SEMANTIC_CACHE_TABLE_NAME)
+                cache_count = self._cache_table.count_rows()
+                logger.info(f"✅ Cache semântico carregado com {cache_count} entradas.")
+                
+        except Exception as e:
+            logger.warning(f"⚠️  Erro ao configurar cache semântico: {e}")
+            self._cache_db = None
+            self._cache_table = None
+
+    def _get_question_embedding(self, question: str) -> Optional[List[float]]:
+        """
+        Gera embedding para uma pergunta usando o embedder configurado.
+        """
+        try:
+            if self.embedder is None:
+                return None
+            
+            # GeminiEmbedder usa método get_embedding
+            if hasattr(self.embedder, 'get_embedding'):
+                embedding = self.embedder.get_embedding(question)
+            elif hasattr(self.embedder, 'embed'):
+                embedding = self.embedder.embed(question)
+            else:
+                logger.warning("Embedder não possui método de embedding conhecido.")
+                return None
+            
+            # Converter para lista se for numpy array
+            if hasattr(embedding, 'tolist'):
+                embedding = embedding.tolist()
+            
+            return embedding
+            
+        except Exception as e:
+            logger.warning(f"Erro ao gerar embedding: {e}")
+            return None
+
+    def _search_cache(self, question: str) -> Optional[Dict[str, Any]]:
+        """
+        Busca no cache por uma pergunta semanticamente similar.
+        
+        Args:
+            question: Pergunta do usuário
+            
+        Returns:
+            Dict com resposta cacheada se similaridade >= threshold, None caso contrário
+        """
+        try:
+            if self._cache_table is None or self._cache_db is None:
+                return None
+            
+            # Gerar embedding da pergunta atual
+            question_embedding = self._get_question_embedding(question)
+            if question_embedding is None:
+                return None
+            
+            # Buscar no cache usando similaridade vetorial
+            results = self._cache_table.search(question_embedding).limit(1).to_list()
+            
+            if not results:
+                return None
+            
+            best_match = results[0]
+            similarity = 1 - best_match.get('_distance', 1)  # LanceDB retorna distância, convertemos para similaridade
+            
+            if similarity >= SEMANTIC_CACHE_SIMILARITY_THRESHOLD:
+                logger.info(f"🎯 Cache HIT! Similaridade: {similarity:.2%} para pergunta: '{question[:50]}...'")
+                return {
+                    "answer": best_match.get('answer', ''),
+                    "original_question": best_match.get('question', ''),
+                    "similarity": similarity,
+                    "cached_at": best_match.get('cached_at', ''),
+                }
+            else:
+                logger.info(f"❌ Cache MISS. Similaridade: {similarity:.2%} (threshold: {SEMANTIC_CACHE_SIMILARITY_THRESHOLD:.0%})")
+                return None
+                
+        except Exception as e:
+            logger.warning(f"Erro ao buscar no cache: {e}")
+            return None
+
+    def _save_to_cache(self, question: str, answer: str) -> bool:
+        """
+        Salva uma pergunta/resposta no cache semântico.
+        
+        Args:
+            question: Pergunta original
+            answer: Resposta gerada pelo modelo
+            
+        Returns:
+            True se salvou com sucesso, False caso contrário
+        """
+        try:
+            if self._cache_db is None:
+                return False
+            
+            # Gerar embedding da pergunta
+            question_embedding = self._get_question_embedding(question)
+            if question_embedding is None:
+                return False
+            
+            # Dados para inserir
+            cache_entry = {
+                "question": question,
+                "answer": answer,
+                "vector": question_embedding,
+                "cached_at": datetime.utcnow().isoformat(),
+            }
+            
+            # Criar tabela se não existir, ou adicionar à existente
+            if self._cache_table is None:
+                import lancedb
+                self._cache_table = self._cache_db.create_table(
+                    SEMANTIC_CACHE_TABLE_NAME,
+                    data=[cache_entry],
+                    mode="overwrite"
+                )
+                logger.info("📦 Tabela de cache semântico criada.")
+            else:
+                self._cache_table.add([cache_entry])
+            
+            logger.info(f"💾 Pergunta salva no cache: '{question[:50]}...'")
+            return True
+            
+        except Exception as e:
+            logger.warning(f"Erro ao salvar no cache: {e}")
+            return False
 
     def _get_agent(self, session_id: str) -> Agent:
         """
@@ -466,6 +620,11 @@ class ChatbotService:
         """
         Executa uma pergunta e retorna um payload estruturado para a interface.
         
+        Fluxo:
+        1. Verifica no cache semântico se há pergunta similar (>= 90%)
+        2. Se encontrar, retorna resposta do cache
+        3. Se não encontrar, chama o modelo e salva no cache
+        
         Args:
             question: Pergunta do usuário
             session_id: ID da sessão do usuário (obrigatório para isolamento)
@@ -488,7 +647,28 @@ class ChatbotService:
             logger.info("Pergunta recebida: %s (Session: %s)", normalized_question[:150], session_id)
             start = time.perf_counter()
             
-            # Obter agente para a sessão
+            # 1. Verificar cache semântico primeiro
+            cached_result = self._search_cache(normalized_question)
+            if cached_result:
+                latency = time.perf_counter() - start
+                self._last_question_at = datetime.utcnow()
+                self._last_latency = latency
+                self._total_questions += 1
+                
+                return {
+                    "success": True,
+                    "answer": cached_result["answer"],
+                    "method": "cache",
+                    "latency": latency,
+                    "question": normalized_question,
+                    "cache_info": {
+                        "original_question": cached_result["original_question"],
+                        "similarity": cached_result["similarity"],
+                        "cached_at": cached_result["cached_at"],
+                    }
+                }
+            
+            # 2. Cache MISS - Obter agente para a sessão e chamar modelo
             agent = self._get_agent(session_id)
             
             # Executar pergunta no agente
@@ -525,6 +705,9 @@ class ChatbotService:
             self._total_questions += 1
 
             logger.info("Resposta gerada em %.2fs (processamento incluído)", latency)
+            
+            # 3. Salvar no cache semântico para futuras consultas
+            self._save_to_cache(normalized_question, answer_text)
             
             result = {
                 "success": True,
@@ -621,7 +804,48 @@ class ChatbotService:
         except Exception as e:
             logger.error(f"Erro ao limpar histórico: {e}")
             return False
-    
+
+    def clear_semantic_cache(self) -> bool:
+        """
+        Limpa o cache semântico (todas as perguntas/respostas cacheadas).
+        
+        Returns:
+            True se sucesso, False caso contrário
+        """
+        try:
+            if self._cache_db is not None:
+                # Dropar e recriar a tabela
+                existing_tables = self._cache_db.table_names()
+                if SEMANTIC_CACHE_TABLE_NAME in existing_tables:
+                    self._cache_db.drop_table(SEMANTIC_CACHE_TABLE_NAME)
+                    self._cache_table = None
+                    logger.info("🗑️ Cache semântico limpo com sucesso.")
+                    return True
+            return False
+        except Exception as e:
+            logger.error(f"Erro ao limpar cache semântico: {e}")
+            return False
+
+    def get_cache_stats(self) -> Dict[str, Any]:
+        """
+        Retorna estatísticas do cache semântico.
+        """
+        try:
+            if self._cache_table is not None:
+                count = self._cache_table.count_rows()
+                return {
+                    "enabled": True,
+                    "entries": count,
+                    "similarity_threshold": SEMANTIC_CACHE_SIMILARITY_THRESHOLD,
+                }
+            return {
+                "enabled": self._cache_db is not None,
+                "entries": 0,
+                "similarity_threshold": SEMANTIC_CACHE_SIMILARITY_THRESHOLD,
+            }
+        except Exception:
+            return {"enabled": False, "entries": 0}
+
     def get_status(self) -> Dict[str, Any]:
         """
         Obtém status do serviço.
@@ -629,6 +853,7 @@ class ChatbotService:
         Returns:
             Dict com informações do status e configurações
         """
+        cache_stats = self.get_cache_stats()
         return {
             "initialized": self._initialized,
             "initialized_at": self._initialized_at.isoformat() if self._initialized_at else None,
@@ -638,6 +863,7 @@ class ChatbotService:
             "db_path": getattr(self, "db_url", None),
             "persist_history": self.persist_history,
             "sqlite_enabled": self.db is not None,
+            "semantic_cache": cache_stats,
             "max_results": self.knowledge.max_results if self.knowledge else None,
             "document_files": [f.name for f in self.document_files] if hasattr(self, "document_files") else [],
             "documents_exist": any(f.exists() for f in self.document_files) if hasattr(self, "document_files") else False,
