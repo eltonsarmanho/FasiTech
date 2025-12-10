@@ -6,6 +6,7 @@ Interface inspirada em assistentes modernos, mantendo a identidade visual FasiTe
 from __future__ import annotations
 
 import streamlit as st
+from streamlit_feedback import streamlit_feedback
 import sys
 import uuid
 from pathlib import Path
@@ -255,12 +256,14 @@ def _init_session_state() -> None:
         st.session_state["status_loaded"] = False
 
 
-def _save_feedback_to_sheet(rating: int, pergunta: str = "", resposta: str = "") -> bool:
+def _save_feedback_to_sheet(feedback_response: dict, pergunta: str = "", resposta: str = "") -> bool:
     """
     Salva o feedback do usuário na planilha do Google Sheets.
+    Callback chamado automaticamente pelo streamlit_feedback.
     
     Args:
-        rating: Avaliação de 0 a 4 (retornado pelo st.feedback)
+        feedback_response: Dict retornado pelo streamlit_feedback com keys: 'type', 'score', 'text'
+                          score é emoji string como '😀', '🙂', '😐', '🙁', '😞'
         pergunta: A pergunta feita pelo usuário
         resposta: A resposta dada pelo assistente
     
@@ -271,8 +274,17 @@ def _save_feedback_to_sheet(rating: int, pergunta: str = "", resposta: str = "")
         from src.services.google_sheets import _get_credentials
         from googleapiclient.discovery import build
         
-        # Converter rating de 0-4 para 1-5
-        avaliacao = rating + 1
+        # Mapear emoji para valor numérico (1-5)
+        score = feedback_response.get("score", "")
+        emoji_to_rating = {
+            "😞": 1,  # Muito insatisfeito
+            "🙁": 2,  # Insatisfeito
+            "😐": 3,  # Neutro
+            "🙂": 4,  # Satisfeito
+            "😀": 5,  # Muito satisfeito
+        }
+        avaliacao = emoji_to_rating.get(score, 3)  # Default para neutro se não reconhecer
+        
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
         # Preparar dados no formato correto (lista de valores)
@@ -451,24 +463,28 @@ def _render_history() -> None:
                 
                 # Se já foi salvo, mostrar apenas a confirmação
                 if st.session_state[feedback_saved_key]:
-                    st.success("✅ Feedback registrado com sucesso!")
+                    st.success("✅ Feedback registrado!")
                 else:
-                    # Renderizar componente de feedback
-                    selected = st.feedback("stars", key=feedback_key)
+                    # Buscar a pergunta anterior (mensagem do usuário)
+                    pergunta = ""
+                    if idx > 0 and st.session_state["messages"][idx - 1]["role"] == "user":
+                        pergunta = st.session_state["messages"][idx - 1]["content"]
                     
-                    # Mostrar botão embaixo apenas se uma avaliação foi selecionada
-                    if selected is not None:
-                        if st.button("✅ Confirmar Avaliação", key=f"confirm_{idx}", type="primary", use_container_width=False):
-                            # Buscar a pergunta anterior (mensagem do usuário)
-                            pergunta = ""
-                            if idx > 0 and st.session_state["messages"][idx - 1]["role"] == "user":
-                                pergunta = st.session_state["messages"][idx - 1]["content"]
-                            
-                            resposta = message.get("content", "")
-                            
-                            if _save_feedback_to_sheet(selected, pergunta, resposta):
-                                st.session_state[feedback_saved_key] = True
-                                st.rerun()
+                    resposta = message.get("content", "")
+                    
+                    # Callback que será chamado automaticamente ao clicar na face
+                    def on_feedback_submit(feedback_response, p=pergunta, r=resposta, saved_key=feedback_saved_key):
+                        if _save_feedback_to_sheet(feedback_response, p, r):
+                            st.session_state[saved_key] = True
+                        return feedback_response
+                    
+                    # Renderizar componente de feedback com faces
+                    streamlit_feedback(
+                        feedback_type="faces",
+                        on_submit=on_feedback_submit,
+                        key=feedback_key,
+                        align="flex-start",
+                    )
 
 
 def _consume_pending_question() -> Optional[str]:
@@ -543,18 +559,19 @@ def _handle_new_question(raw_question: str) -> None:
             if feedback_saved_key not in st.session_state:
                 st.session_state[feedback_saved_key] = False
             
-            # Renderizar componente de feedback
-            selected = st.feedback("stars", key=feedback_key)
+            # Callback que será chamado automaticamente ao clicar na face
+            def on_feedback_submit(feedback_response, p=question, r=answer_text, saved_key=feedback_saved_key):
+                if _save_feedback_to_sheet(feedback_response, p, r):
+                    st.session_state[saved_key] = True
+                return feedback_response
             
-            # Mostrar botão embaixo apenas se uma avaliação foi selecionada
-            if selected is not None:
-                if st.button("✅ Confirmar Avaliação", key=f"confirm_{idx}", type="primary", use_container_width=False):
-                    # A pergunta é a variável 'question' que já temos no contexto
-                    # A resposta é a variável 'answer_text' que já temos
-                    if _save_feedback_to_sheet(selected, question, answer_text):
-                        st.session_state[feedback_saved_key] = True
-                        st.success("✅ Feedback registrado com sucesso!")
-                        st.rerun()
+            # Renderizar componente de feedback com faces (registro automático ao clicar)
+            streamlit_feedback(
+                feedback_type="faces",
+                on_submit=on_feedback_submit,
+                key=feedback_key,
+                align="flex-start",
+            )
             
         else:
             error_text = response.get("error", "Não foi possível responder agora.")

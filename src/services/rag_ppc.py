@@ -205,9 +205,9 @@ class ChatbotService:
 
         # Carregar variáveis de ambiente
         huggingface_api_key = os.getenv("HF_TOKEN")
-        google_api_key = os.getenv("GOOGLE_API_KEY")
+        # google_api_key = os.getenv("GOOGLE_API_KEY")
         maritaca_api_key = os.getenv("MARITALK_API_KEY")
-
+        google_api_key = None
         model = None
         if google_api_key:  
             try:

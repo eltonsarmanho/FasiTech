@@ -25,3 +25,4 @@ sqlalchemy
 pypdf
 tantivy
 openai
+streamlit-feedback
