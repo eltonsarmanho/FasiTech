@@ -461,30 +461,30 @@ def _render_history() -> None:
                 if feedback_saved_key not in st.session_state:
                     st.session_state[feedback_saved_key] = False
                 
+                # Buscar a pergunta anterior (mensagem do usuário)
+                pergunta = ""
+                if idx > 0 and st.session_state["messages"][idx - 1]["role"] == "user":
+                    pergunta = st.session_state["messages"][idx - 1]["content"]
+                
+                resposta = message.get("content", "")
+                
                 # Se já foi salvo, mostrar apenas a confirmação
                 if st.session_state[feedback_saved_key]:
-                    st.success("✅ Feedback registrado!")
+                    st.caption("✅ Feedback registrado! Obrigado.")
                 else:
-                    # Buscar a pergunta anterior (mensagem do usuário)
-                    pergunta = ""
-                    if idx > 0 and st.session_state["messages"][idx - 1]["role"] == "user":
-                        pergunta = st.session_state["messages"][idx - 1]["content"]
-                    
-                    resposta = message.get("content", "")
-                    
-                    # Callback que será chamado automaticamente ao clicar na face
-                    def on_feedback_submit(feedback_response, p=pergunta, r=resposta, saved_key=feedback_saved_key):
-                        if _save_feedback_to_sheet(feedback_response, p, r):
-                            st.session_state[saved_key] = True
-                        return feedback_response
-                    
-                    # Renderizar componente de feedback com faces
-                    streamlit_feedback(
+                    # Capturar retorno diretamente (sem callback)
+                    st.caption("Registre seu feedback clicando nas faces abaixo")
+                    feedback_result = streamlit_feedback(
                         feedback_type="faces",
-                        on_submit=on_feedback_submit,
                         key=feedback_key,
                         align="flex-start",
                     )
+                    
+                    # Processar feedback quando retornado
+                    if feedback_result is not None:
+                        if _save_feedback_to_sheet(feedback_result, pergunta, resposta):
+                            st.session_state[feedback_saved_key] = True
+                            st.caption("✅ Feedback registrado! Obrigado.")
 
 
 def _consume_pending_question() -> Optional[str]:
@@ -559,19 +559,23 @@ def _handle_new_question(raw_question: str) -> None:
             if feedback_saved_key not in st.session_state:
                 st.session_state[feedback_saved_key] = False
             
-            # Callback que será chamado automaticamente ao clicar na face
-            def on_feedback_submit(feedback_response, p=question, r=answer_text, saved_key=feedback_saved_key):
-                if _save_feedback_to_sheet(feedback_response, p, r):
-                    st.session_state[saved_key] = True
-                return feedback_response
-            
-            # Renderizar componente de feedback com faces (registro automático ao clicar)
-            streamlit_feedback(
-                feedback_type="faces",
-                on_submit=on_feedback_submit,
-                key=feedback_key,
-                align="flex-start",
-            )
+            # Se já foi salvo, mostrar confirmação
+            if st.session_state[feedback_saved_key]:
+                st.caption("✅ Feedback registrado! Obrigado.")
+            else:
+                # Capturar retorno diretamente (sem callback)
+                st.caption("Registre seu feedback clicando nas faces abaixo")
+                feedback_result = streamlit_feedback(
+                    feedback_type="faces",
+                    key=feedback_key,
+                    align="flex-start"
+                )
+                
+                # Processar feedback quando retornado
+                if feedback_result is not None:
+                    if _save_feedback_to_sheet(feedback_result, question, answer_text):
+                        st.session_state[feedback_saved_key] = True
+                        st.caption("✅ Feedback registrado! Obrigado.")
             
         else:
             error_text = response.get("error", "Não foi possível responder agora.")
