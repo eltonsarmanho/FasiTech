@@ -299,12 +299,12 @@ class ChatbotService:
         print("2. Configurando embedder...")
         # O host padrão é localhost:11434, que funciona perfeitamente
         # já que Ollama está rodando no mesmo container
-        embedder = OllamaEmbedder(
+        self.embedder = OllamaEmbedder(
             id="nomic-embed-text", 
             dimensions=768
         )
 
-        self.embedder = GeminiEmbedder(dimensions=768)
+        #self.embedder = GeminiEmbedder(dimensions=768)
 
         # Create the vector database
         print("3. Configurando banco de dados vetorial...")
@@ -560,6 +560,40 @@ class ChatbotService:
             logger.warning(f"Erro ao salvar no cache: {e}")
             return False
 
+    def save_to_semantic_cache(self, question: str, answer: str) -> bool:
+        """
+        Método público para salvar uma pergunta/resposta no cache semântico.
+        Deve ser chamado apenas quando o feedback do usuário for positivo (5).
+        
+        Args:
+            question: Pergunta original
+            answer: Resposta gerada pelo modelo
+            
+        Returns:
+            True se salvou com sucesso, False caso contrário
+        """
+        logger.info(f"🔄 Tentando salvar no cache semântico: '{question[:50]}...'")
+        
+        # Verificar se o cache está habilitado
+        if self._cache_db is None:
+            logger.warning("⚠️ Cache semântico não está habilitado (_cache_db é None)")
+            return False
+        
+        # Normalizar a pergunta antes de salvar (strip simples)
+        normalized_question = (question or "").strip()
+        if not normalized_question:
+            logger.warning("⚠️ Pergunta vazia após normalização")
+            return False
+            
+        result = self._save_to_cache(normalized_question, answer)
+        
+        if result:
+            logger.info(f"✅ Pergunta salva no cache semântico com sucesso!")
+        else:
+            logger.warning(f"❌ Falha ao salvar no cache semântico")
+        
+        return result
+
     def _get_agent(self, session_id: str) -> Agent:
         """
         Cria ou recupera um agente para uma sessão específica.
@@ -718,8 +752,8 @@ class ChatbotService:
 
             logger.info("Resposta gerada em %.2fs (processamento incluído)", latency)
             
-            # 3. Salvar no cache semântico para futuras consultas
-            self._save_to_cache(normalized_question, answer_text)
+            # NOTA: O cache semântico é alimentado apenas quando o usuário 
+            # der feedback positivo (5 estrelas/melhor face) via save_to_semantic_cache()
             
             result = {
                 "success": True,

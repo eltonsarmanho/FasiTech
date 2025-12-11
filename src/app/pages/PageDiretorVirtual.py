@@ -45,7 +45,7 @@ SUGGESTIONS = [
     },
     {
         "label": "📄 Estágio obrigatório",
-        "question": "Quantas horas de estágio são obrigatórias no PPC?",
+        "question": "Quantas horas de estágio são obrigatórias?",
     },
     {
         "label": "🧠 Artigos Científicos",
@@ -53,7 +53,7 @@ SUGGESTIONS = [
     },
     {
         "label": "📑 TCC",
-        "question": "Como funciona o Trabalho de Conclusão de Curso segundo o PPC?",
+        "question": "Como funciona o Trabalho de Conclusão de Curso?",
     },
 ]
 
@@ -259,7 +259,7 @@ def _init_session_state() -> None:
 def _save_feedback_to_sheet(feedback_response: dict, pergunta: str = "", resposta: str = "") -> bool:
     """
     Salva o feedback do usuário na planilha do Google Sheets.
-    Callback chamado automaticamente pelo streamlit_feedback.
+    Se o feedback for 5 (melhor avaliação), também salva no cache semântico.
     
     Args:
         feedback_response: Dict retornado pelo streamlit_feedback com keys: 'type', 'score', 'text'
@@ -293,18 +293,30 @@ def _save_feedback_to_sheet(feedback_response: dict, pergunta: str = "", respost
         
         # Conectar à API do Google Sheets
         credentials = _get_credentials()
-        service = build('sheets', 'v4', credentials=credentials)
+        sheets_service = build('sheets', 'v4', credentials=credentials)
         
         # Adicionar linha na planilha
         body = {'values': values}
         
-        result = service.spreadsheets().values().append(
+        result = sheets_service.spreadsheets().values().append(
             spreadsheetId=FEEDBACK_SHEET_ID,
             range='Feedback!A:D',  # Colunas A até D da aba Feedback
             valueInputOption='USER_ENTERED',
             insertDataOption='INSERT_ROWS',
             body=body
         ).execute()
+        
+        # Se feedback for 5 (melhor avaliação), salvar no cache semântico
+        if avaliacao == 5 and pergunta and resposta:
+            try:
+                print(f"🎯 Feedback=5 detectado! Salvando no cache: '{pergunta[:50]}...'")
+                chatbot_service = _get_service()
+                saved = chatbot_service.save_to_semantic_cache(pergunta, resposta)
+                print(f"📦 Resultado do cache: {saved}")
+            except Exception as e:
+                print(f"⚠️ Erro ao salvar no cache semântico: {e}")
+                import traceback
+                print(f"Traceback: {traceback.format_exc()}")
         
         return True
         
@@ -517,7 +529,7 @@ def _handle_new_question(raw_question: str) -> None:
         )
 
     with st.chat_message("assistant"):
-        with st.spinner("Consultando PPC e preparando a resposta..."):
+        with st.spinner("Consultando documentos e preparando a resposta..."):
             elapsed = datetime.now(timezone.utc) - st.session_state["last_question_time"]
             if elapsed < MIN_TIME_BETWEEN_REQUESTS:
                 time.sleep((MIN_TIME_BETWEEN_REQUESTS - elapsed).total_seconds())
