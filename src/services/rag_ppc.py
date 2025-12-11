@@ -31,7 +31,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Configuração do cache semântico
-SEMANTIC_CACHE_SIMILARITY_THRESHOLD = 0.80  # 90% de similaridade
+SEMANTIC_CACHE_SIMILARITY_THRESHOLD = 0.90  # 90% de similaridade
 SEMANTIC_CACHE_TABLE_NAME = "semantic_cache"
 
 
