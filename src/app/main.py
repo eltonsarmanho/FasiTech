@@ -444,6 +444,15 @@ def _render_available_forms() -> None:
             key="btn_social",
             gradient_colors="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"  # Azul/Roxo - Discentes
         )
+    with col6:
+        _render_form_card(
+            title="Avaliação da Gestão",
+            description="Avalie a gestão da Faculdade de Sistemas de Informação. Feedback anônimo sobre transparência, comunicação e suporte.",
+            icon="📊",
+            page_name="FormAutoAvaliacaoFASI.py",
+            key="btn_avaliacao_gestao",
+            gradient_colors="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"  # Cor Padrão
+        )
 
     st.markdown("<br><br>", unsafe_allow_html=True)
 
@@ -497,19 +506,6 @@ def _render_available_forms() -> None:
             gradient_colors="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"  # Cor Padrão
         )
     with col12:
-        _render_form_card(
-            title="Ofertas de Disciplinas",  
-            description="Consulta das ofertas de disciplinas do semestre e grades curriculares. Visualização por período e turma.",
-            icon="📅",
-            page_name="OfertasDisciplinas.py",
-            key="btn_ofertas",
-            gradient_colors="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"  # Cor Padrão
-        )
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    col13, col14, col15 = st.columns(3, gap="large")
-    with col13:
         # Card especial para download de dados sociais - seguindo padrão dos demais
         download_url = f"{api_url}/api/v1/dados-sociais/download"
         
@@ -549,6 +545,18 @@ def _render_available_forms() -> None:
         ):
             st.markdown(f'<meta http-equiv="refresh" content="0; url={download_url}">', unsafe_allow_html=True)
             st.success("🔄 Redirecionando para download...")
+    #     _render_form_card(
+    #         title="Ofertas de Disciplinas",  
+    #         description="Consulta das ofertas de disciplinas do semestre e grades curriculares. Visualização por período e turma.",
+    #         icon="📅",
+    #         page_name="OfertasDisciplinas.py",
+    #         key="btn_ofertas",
+    #         gradient_colors="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"  # Cor Padrão
+    #     )
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+        
 
 
 def _render_info_section() -> None:

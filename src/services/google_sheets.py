@@ -206,6 +206,33 @@ def append_rows(rows: Iterable[Dict[str, Any]], sheet_id: str, range_name: str =
                     row.get("Tipo Moradia", ""),
                     row.get("Data/Hora", timestamp),
                 ]
+            elif "Q1_Transparencia" in row and "Q2_Comunicacao" in row:
+                # Formato Avaliação da Gestão FASI
+                # Cabeçalhos: Periodo, Data/Hora, Q1-Q11 com respostas e valores numéricos
+                row_values = [
+                    row.get("Periodo", ""),
+                    row.get("Data/Hora", timestamp),
+                    row.get("Q1_Transparencia", ""),
+                    row.get("Q1_Valor", ""),
+                    row.get("Q2_Comunicacao", ""),
+                    row.get("Q2_Valor", ""),
+                    row.get("Q3_Acessibilidade", ""),
+                    row.get("Q3_Valor", ""),
+                    row.get("Q4_Inclusao", ""),
+                    row.get("Q4_Valor", ""),
+                    row.get("Q5_Planejamento", ""),
+                    row.get("Q5_Valor", ""),
+                    row.get("Q6_Recursos", ""),
+                    row.get("Q6_Valor", ""),
+                    row.get("Q7_Eficiencia", ""),
+                    row.get("Q7_Valor", ""),
+                    row.get("Q8_Suporte", ""),
+                    row.get("Q8_Valor", ""),
+                    row.get("Q9_Extracurricular", ""),
+                    row.get("Q9_Valor", ""),
+                    row.get("Q10_Melhorias", ""),
+                    row.get("Q11_Outras_Questoes", ""),
+                ]
             else:
                 # Formato ACC
                 row_values = [
