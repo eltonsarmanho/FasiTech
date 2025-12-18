@@ -31,7 +31,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Configuração do cache semântico
-SEMANTIC_CACHE_SIMILARITY_THRESHOLD = 0.90  # 90% de similaridade
+SEMANTIC_CACHE_SIMILARITY_THRESHOLD = 0.85  # 85% de similaridade para cache hit
 SEMANTIC_CACHE_TABLE_NAME = "semantic_cache"
 
 
@@ -419,6 +419,7 @@ class ChatbotService:
         """
         Configura a tabela de cache semântico no LanceDB.
         Armazena perguntas anteriores com seus embeddings e respostas.
+        Verifica compatibilidade dos embeddings existentes.
         """
         try:
             import lancedb
@@ -435,7 +436,28 @@ class ChatbotService:
             else:
                 self._cache_table = self._cache_db.open_table(SEMANTIC_CACHE_TABLE_NAME)
                 cache_count = self._cache_table.count_rows()
-                logger.info(f"✅ Cache semântico carregado com {cache_count} entradas.")
+                
+                # Verificar compatibilidade dos embeddings (norma deve ser ~1.0 para vetores normalizados)
+                if cache_count > 0:
+                    try:
+                        df = self._cache_table.to_pandas()
+                        sample_vector = np.array(df.iloc[0]['vector'])
+                        norm = np.linalg.norm(sample_vector)
+                        
+                        # Se a norma não for aproximadamente 1.0, os embeddings são incompatíveis
+                        if not np.isclose(norm, 1.0, atol=0.1):
+                            logger.warning(f"⚠️ Embeddings do cache são incompatíveis (norma={norm:.4f}). Limpando cache...")
+                            self._cache_db.drop_table(SEMANTIC_CACHE_TABLE_NAME)
+                            self._cache_table = None
+                            logger.info("🗑️ Cache semântico antigo removido. Será recriado com novos embeddings.")
+                        else:
+                            logger.info(f"✅ Cache semântico carregado com {cache_count} entradas (embeddings compatíveis).")
+                    except Exception as check_err:
+                        logger.warning(f"⚠️ Erro ao verificar cache: {check_err}. Recriando...")
+                        self._cache_db.drop_table(SEMANTIC_CACHE_TABLE_NAME)
+                        self._cache_table = None
+                else:
+                    logger.info(f"✅ Cache semântico carregado (vazio).")
                 
         except Exception as e:
             logger.warning(f"⚠️  Erro ao configurar cache semântico: {e}")
@@ -445,6 +467,7 @@ class ChatbotService:
     def _get_question_embedding(self, question: str) -> Optional[List[float]]:
         """
         Gera embedding para uma pergunta usando o embedder configurado.
+        Os embeddings são normalizados para garantir consistência na busca por cosseno.
         """
         try:
             if self.embedder is None:
@@ -459,11 +482,17 @@ class ChatbotService:
                 logger.warning("Embedder não possui método de embedding conhecido.")
                 return None
             
-            # Converter para lista se for numpy array
+            # Converter para numpy array se necessário
             if hasattr(embedding, 'tolist'):
                 embedding = embedding.tolist()
             
-            return embedding
+            # Normalizar embedding para garantir consistência (norma L2 = 1)
+            embedding_array = np.array(embedding)
+            norm = np.linalg.norm(embedding_array)
+            if norm > 0:
+                embedding_array = embedding_array / norm
+            
+            return embedding_array.tolist()
             
         except Exception as e:
             logger.warning(f"Erro ao gerar embedding: {e}")
@@ -483,19 +512,28 @@ class ChatbotService:
             if self._cache_table is None or self._cache_db is None:
                 return None
             
-            # Gerar embedding da pergunta atual
+            # Gerar embedding da pergunta atual (já normalizado)
             question_embedding = self._get_question_embedding(question)
             if question_embedding is None:
                 return None
             
-            # Buscar no cache usando similaridade vetorial
-            results = self._cache_table.search(question_embedding).limit(1).to_list()
+            # Buscar no cache usando similaridade de cosseno
+            # metric="cosine" retorna distância de cosseno: distance = 1 - cosine_similarity
+            results = self._cache_table.search(question_embedding).metric("cosine").limit(1).to_list()
             
             if not results:
                 return None
             
             best_match = results[0]
-            similarity = 1 - best_match.get('_distance', 1)  # LanceDB retorna distância, convertemos para similaridade
+            cosine_distance = best_match.get('_distance', 1)
+            
+            # Converter distância de cosseno para similaridade: similarity = 1 - distance
+            similarity = 1 - cosine_distance
+            
+            # Clamp para garantir que está entre 0 e 1 (por segurança numérica)
+            similarity = max(0.0, min(1.0, similarity))
+            
+            logger.info(f"🔍 Cache search: distância={cosine_distance:.4f}, similaridade={similarity:.2%}")
             
             if similarity >= SEMANTIC_CACHE_SIMILARITY_THRESHOLD:
                 logger.info(f"🎯 Cache HIT! Similaridade: {similarity:.2%} para pergunta: '{question[:50]}...'")
