@@ -212,7 +212,7 @@ def _render_intro() -> None:
 	
 	# Hero section
 	st.markdown(
-		"""
+		f"""
 		<div class="tcc-hero">
 			<h1>📚 Formulário de Submissão de TCC</h1>
 			<p style="font-size: 1rem; margin-bottom: 16px;">Trabalho de Conclusão de Curso - TCC 1 e TCC 2</p>
