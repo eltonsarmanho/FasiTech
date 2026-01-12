@@ -340,31 +340,29 @@ def _validate_submission(
     return errors
 
 
-def _save_to_sheets(form_data: dict[str, Any], sheet_id: str) -> None:
-    """Salva os dados do requerimento na planilha do Google Sheets."""
-    from src.services.google_sheets import append_rows
+def _save_to_database(form_data: dict[str, Any]) -> int:
+    """Salva os dados do requerimento no banco de dados."""
+    from src.database.repository import save_requerimento_tcc_submission
     
-    # Obter ano atual para determinar a aba
-    ano_atual = str(datetime.now().year)
-    
-    # Preparar dados para a planilha
-    row_data = {
-        "Nome": form_data["nome"],
-        "Matrícula": form_data["matricula"],
-        "Email": form_data["email"],
-        "Título do trabalho": form_data["titulo"],
-        "Modalidade do Trabalho": form_data["modalidade"],
-        "Orientador": form_data["orientador"],
-        "Membro 1 da Banca": form_data["membro1"],
-        "Membro 2 da Banca": form_data["membro2"],
-        "Membro 3 da Banca (Opcional)": form_data.get("membro3", ""),
-        "Resumo": form_data["resumo"],
-        "Palavras-chave": form_data["palavras_chave"],
-        "Data": form_data["data_defesa"],
+    # Preparar dados para o banco
+    db_data = {
+        "nome_aluno": form_data["nome"],
+        "matricula": form_data["matricula"],
+        "email": form_data["email"],
+        "telefone": form_data.get("telefone"),
+        "turma": form_data.get("turma", ""),
+        "orientador": form_data["orientador"],
+        "coorientador": form_data.get("coorientador"),
+        "titulo_trabalho": form_data["titulo"],
+        "modalidade": form_data["modalidade"],
+        "membro_banca1": form_data["membro1"],
+        "membro_banca2": form_data["membro2"],
+        "data_defesa": form_data.get("data_defesa"),
+        "horario_defesa": form_data.get("horario_defesa"),
+        "local_defesa": form_data.get("local_defesa"),
     }
     
-    # Adicionar na aba do ano atual
-    append_rows([row_data], sheet_id, range_name=ano_atual)
+    return save_requerimento_tcc_submission(db_data)
 
 
 def _send_notification_email(form_data: dict[str, Any], recipients: list[str]) -> None:
@@ -583,8 +581,8 @@ def render_form() -> None:
                                 "membro3": membro3_final,
                             }
                             
-                            # Salvar na planilha
-                            _save_to_sheets(form_data, settings["sheet_id"])
+                            # Salvar no banco de dados
+                            _save_to_database(form_data)
                             
                             # Enviar email
                             _send_notification_email(form_data, settings["notification_recipients"])

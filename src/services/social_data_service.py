@@ -1,5 +1,5 @@
 """
-Serviço para acessar e processar dados sociais da planilha Google Sheets.
+Serviço para acessar e processar dados sociais do banco de dados PostgreSQL.
 Inclui cache, paginação, filtros e estatísticas.
 """
 
@@ -13,7 +13,9 @@ import hashlib
 import json
 import logging
 
-from src.services.google_sheets import read_sheet_tab
+from sqlmodel import Session, select, text
+from src.database.engine import get_db_session, engine
+from src.models.db_models import SocialSubmission
 from src.models.schemas import (
     DadoSocial, 
     DadosSociaisResponse, 
@@ -40,10 +42,6 @@ logger = logging.getLogger(__name__)
 # Cache simples em memória
 _cache: Dict[str, Dict[str, Any]] = {}
 _cache_ttl = timedelta(minutes=30)  # Cache por 30 minutos
-
-# ID da planilha social
-SOCIAL_SHEET_ID = "1mn9zvNtG-Df_hMCen1M-cWlQl2QtfgFUr0tBg436giE"
-SOCIAL_SHEET_TAB = "Pagina1"
 
 # Salt para hash das matrículas (LGPD compliance)
 MATRICULA_SALT = "fasitech_lgpd_2025_social_data_hash"
@@ -170,21 +168,53 @@ class SocialDataService:
     @staticmethod
     @cache_result()
     def _load_raw_data() -> pd.DataFrame:
-        """Carrega dados brutos da planilha com cache."""
+        """Carrega dados brutos do banco de dados com cache."""
         try:
-            logger.info(f"Carregando dados da planilha {SOCIAL_SHEET_ID}")
-            df = read_sheet_tab(SOCIAL_SHEET_ID, SOCIAL_SHEET_TAB)
+            logger.info("Carregando dados do banco de dados (social_submissions)")
+            
+            # Consulta SQL direta no banco de dados
+            query = "SELECT * FROM public.social_submissions"
+            
+            with Session(engine) as session:
+                df = pd.read_sql(query, session.connection())
             
             if df.empty:
-                logger.warning("Planilha vazia ou não encontrada")
+                logger.warning("Tabela social_submissions vazia")
                 return pd.DataFrame()
             
-            logger.info(f"Carregados {len(df)} registros da planilha social")
+            # Renomear colunas do banco para o formato esperado pelos métodos existentes
+            column_mapping = {
+                'matricula': 'Matrícula',
+                'periodo_referencia': 'Periodo',
+                'cor_etnia': 'Cor/Etnia',
+                'pcd': 'PCD',
+                'tipo_deficiencia': 'Tipo de Deficiência',
+                'renda': 'Renda',
+                'deslocamento': 'Deslocamento',
+                'trabalho': 'Trabalho',
+                'assistencia_estudantil': 'Assistência Estudantil',
+                'saude_mental': 'Saúde Mental',
+                'estresse': 'Estresse',
+                'acompanhamento': 'Acompanhamento',
+                'escolaridade_pai': 'Escolaridade Pai',
+                'escolaridade_mae': 'Escolaridade Mãe',
+                'qtd_computador': 'Qtd Computador',
+                'qtd_celular': 'Qtd Celular',
+                'computador_proprio': 'Computador Próprio',
+                'gasto_internet': 'Gasto Internet',
+                'acesso_internet': 'Acesso Internet',
+                'tipo_moradia': 'Tipo Moradia',
+                'submission_date': 'Data/Hora'
+            }
+            
+            df = df.rename(columns=column_mapping)
+            
+            logger.info(f"Carregados {len(df)} registros do banco de dados")
             return df
             
         except Exception as e:
-            logger.error(f"Erro ao carregar dados da planilha: {e}")
-            raise Exception(f"Erro ao acessar planilha social: {e}")
+            logger.error(f"Erro ao carregar dados do banco de dados: {e}")
+            raise Exception(f"Erro ao acessar banco de dados social_submissions: {e}")
 
     @staticmethod
     def _convert_to_dado_social(row: pd.Series) -> Optional[DadoSocial]:

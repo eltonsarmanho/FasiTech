@@ -27,3 +27,5 @@ tantivy
 openai
 streamlit-feedback
 pylance
+sqlmodel
+psycopg2-binary

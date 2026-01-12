@@ -16,7 +16,7 @@ ROOT_DIR = Path(__file__).resolve().parents[3]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from src.services.google_sheets import append_rows
+from src.database.repository import save_avaliacao_gestao_submission
 
 LOGO_PATH = Path(__file__).resolve().parents[2] / "resources" / "fasiOficial.png"
 
@@ -416,9 +416,9 @@ def render_form():
                     }
                     
                     try:
-                        append_rows([row_data], config["sheet_id"], range_name='Respostas')
+                        save_avaliacao_gestao_submission(row_data)
                     except Exception as e:
-                        st.error(f"Erro ao salvar no Google Sheets: {e}")
+                        st.error(f"Erro ao salvar no banco de dados: {e}")
                         st.session_state.avaliacao_processing = False
                         return
                 

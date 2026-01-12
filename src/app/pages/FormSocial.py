@@ -11,7 +11,7 @@ from typing import Any, Dict
 def format_brl_num(valor):
     """Formata número para R$ brasileiro."""
     # Formatação simples e direta para evitar problemas com babel
-    return f"R\$ {valor:.0f},00"
+    return f"R$ {valor:.0f},00"
 def display_option(interval):
     """Retorna a string que será mostrada no widget."""
     vmin, vmax = interval
@@ -24,8 +24,8 @@ ROOT_DIR = Path(__file__).resolve().parents[3]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from src.services.google_sheets import append_rows
 from src.services.email_service import send_notification
+from src.database.repository import save_social_submission
 
 LOGO_PATH = Path(__file__).resolve().parents[2] / "resources" / "fasiOficial.png"
 # Aumentado para 50MB para acomodar documentos maiores
@@ -404,33 +404,33 @@ def render_form():
                 import time
                 # Processamento (spinner)
                 with st.spinner("Aguarde, processando envio..."):
-                    row_data = {
-                        "Matrícula": matricula.strip(),
-                        "Periodo": get_periodo_atual(),
-                        "Cor/Etnia": cor_etnia,
-                        "PCD": pcd,
-                        "Tipo de Deficiência": ", ".join(tipo_deficiencia) if tipo_deficiencia else "",
-                        "Renda": renda,
-                        "Deslocamento": deslocamento,
-                        "Trabalho": trabalho,
-                        "Assistência Estudantil": assistencia_estudantil,
-                        "Saúde Mental": saude_mental,
-                        "Estresse": estresse,
-                        "Acompanhamento": acompanhamento,
-                        "Escolaridade Pai": escolaridade_pai,
-                        "Escolaridade Mãe": escolaridade_mae,
-                        "Qtd Computador": qtd_computador,
-                        "Qtd Celular": qtd_celular,
-                        "Computador Próprio": computador_proprio,
-                        "Gasto Internet": display_option(gasto_internet),
-                        "Acesso Internet": acesso_internet,
-                        "Tipo Moradia": tipo_moradia,
-                        "Data/Hora": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    # Dados para salvar no banco
+                    db_data = {
+                        "matricula": matricula.strip(),
+                        "periodo_referencia": get_periodo_atual(),
+                        "cor_etnia": cor_etnia,
+                        "pcd": pcd,
+                        "tipo_deficiencia": ", ".join(tipo_deficiencia) if tipo_deficiencia else "",
+                        "renda": renda,
+                        "deslocamento": deslocamento,
+                        "trabalho": trabalho,
+                        "assistencia_estudantil": assistencia_estudantil,
+                        "saude_mental": saude_mental,
+                        "estresse": estresse,
+                        "acompanhamento": acompanhamento,
+                        "escolaridade_pai": escolaridade_pai,
+                        "escolaridade_mae": escolaridade_mae,
+                        "qtd_computador": qtd_computador,
+                        "qtd_celular": qtd_celular,
+                        "computador_proprio": computador_proprio,
+                        "gasto_internet": display_option(gasto_internet),
+                        "acesso_internet": acesso_internet,
+                        "tipo_moradia": tipo_moradia,
                     }
                     try:
-                        append_rows([row_data], config["sheet_id"], range_name='Pagina1')
+                        submission_id = save_social_submission(db_data)
                     except Exception as e:
-                        st.error(f"Erro ao salvar no Google Sheets: {e}")
+                        st.error(f"Erro ao salvar no banco de dados: {e}")
                         st.session_state.social_processing = False
                         return
                     try:
@@ -455,7 +455,7 @@ Computador Próprio: {computador_proprio}
 Gasto Internet: {display_option(gasto_internet)}
 Acesso Internet: {acesso_internet}
 Tipo Moradia: {tipo_moradia}
-Data/Hora: {row_data['Data/Hora']}"""
+ID Submissão: {submission_id}"""
                         send_notification(subject, body, config["notification_recipients"])
                     except Exception as e:
                         st.warning(f"Formulário salvo, mas falha ao enviar e-mail: {e}")

@@ -10,7 +10,15 @@ from src.models.schemas import AccSubmission
 from src.services.email_service import send_notification, send_email_with_attachments
 from src.services.file_processor import prepare_files, sanitize_submission
 from src.services.google_drive import upload_files
-from src.services.google_sheets import append_rows
+from src.services.google_sheets import append_rows  # Mantido para compatibilidade temporária
+from src.database.repository import (
+    save_tcc_submission,
+    save_acc_submission,
+    save_projetos_submission,
+    save_plano_ensino_submission,
+    save_estagio_submission,
+    save_social_submission,
+)
 
 
 def render_submission_form() -> Dict[str, Any] | None:
@@ -209,16 +217,18 @@ A coordenação fará a análise manual dos seus certificados.
 """
                 send_email_with_attachments(subject_erro, body_erro, recipients, None)
     
-    # Adicionar dados na planilha IMEDIATAMENTE (sem carga horária por enquanto)
-    row_data = {
-        "Nome": sanitized["name"],
-        "Matrícula": sanitized["registration"],
-        "Email": sanitized["email"],
-        "Turma": sanitized["class_group"],
-        "Arquivos": ", ".join(file_links),
+    # Salvar no banco de dados
+    db_data = {
+        "name": sanitized["name"],
+        "registration": sanitized["registration"],
+        "email": sanitized["email"],
+        "class_group": sanitized["class_group"],
+        "semester": sanitized.get("semester", ""),
+        "file_link": ", ".join(file_links) if file_links else None,
+        "drive_file_id": file_ids[0] if file_ids else None,
     }
     
-    append_rows([row_data], sheet_id)
+    submission_id = save_acc_submission(db_data)
 
     # Preparar lista de destinatários para o email final (com resultado IA)
     recipients = _coerce_recipients(notification_recipients)
@@ -315,21 +325,25 @@ def process_tcc_submission(
     file_links = [f['webViewLink'] for f in uploaded_files_info]
     file_names = [f['name'] for f in uploaded_files_info]
 
-    # Adicionar dados na planilha
-    row_data = {
-        "Nome": sanitized["name"],
-        "Matrícula": sanitized["registration"],
-        "Email": sanitized["email"],
-        "Turma": sanitized["class_group"],
-        "Componente": componente,
-        "Orientador": sanitized.get("orientador", form_data.get("orientador", "")),
-        "Título": sanitized.get("titulo", form_data.get("titulo", "")),
-        "Arquivos": ", ".join(file_links),
-        "Quantidade de Anexos": len(file_names),
+    # Formatar anexos para salvar no banco
+    anexos_formatados = "\n".join(
+        f"{name}: {link}" for name, link in zip(file_names, file_links)
+    )
+
+    # Salvar no banco de dados
+    db_data = {
+        "name": sanitized["name"],
+        "registration": sanitized["registration"],
+        "email": sanitized["email"],
+        "class_group": sanitized["class_group"],
+        "orientador": sanitized.get("orientador", form_data.get("orientador", "")),
+        "titulo": sanitized.get("titulo", form_data.get("titulo", "")),
+        "componente": componente,
+        "anexos": anexos_formatados,
+        "drive_folder_id": drive_folder_id,
     }
     
-    # Usar mesma aba que ACC: "Respostas ao formulário 1"
-    append_rows([row_data], sheet_id, range_name="Respostas ao formulário 1")
+    submission_id = save_tcc_submission(db_data)
 
     # Enviar email de notificação formatado
     recipients = _coerce_recipients(notification_recipients)
@@ -468,8 +482,25 @@ def process_estagio_submission(
         "Anexos": ", ".join(file_links),
     }
     
-    # Adicionar na aba "Respostas ao formulário 1"
-    append_rows([row_data], sheet_id, range_name="Respostas ao formulário 1")
+    # Salvar no banco de dados
+    anexos_formatados = "\n".join(
+        f"{name}: {link}" for name, link in zip(file_names, file_links)
+    )
+    
+    db_data = {
+        "nome": form_data["nome"],
+        "matricula": form_data["matricula"],
+        "email": form_data["email"],
+        "turma": form_data["turma"],
+        "orientador": form_data["orientador"],
+        "titulo": form_data["titulo"],
+        "componente": form_data["componente"],
+        "anexos": anexos_formatados,
+        "drive_folder_id": drive_folder_id,
+    }
+    
+    submission_id = save_estagio_submission(db_data)
+
 
     # Enviar email de notificação formatado
     recipients = _coerce_recipients(notification_recipients)
@@ -590,8 +621,23 @@ def process_plano_submission(
         "Anexos": ", ".join(file_links),
     }
     
-    # Adicionar na aba "Respostas ao formulário 1"
-    append_rows([row_data], sheet_id, range_name="Respostas ao formulário 1")
+    # Salvar no banco de dados
+    anexos_formatados = "\n".join(
+        f"{name}: {link}" for name, link in zip(file_names, file_links)
+    )
+    
+    db_data = {
+        "professor": form_data["docente"],
+        "disciplina": form_data.get("disciplina", ""),
+        "codigo_disciplina": form_data.get("codigo_disciplina"),
+        "periodo_letivo": form_data["semestre"],
+        "carga_horaria": form_data.get("carga_horaria"),
+        "anexos": anexos_formatados,
+        "drive_folder_id": drive_folder_id,
+    }
+    
+    submission_id = save_plano_ensino_submission(db_data)
+
 
     # Enviar email de notificação formatado
     recipients = _coerce_recipients(notification_recipients)
@@ -787,7 +833,25 @@ def process_projetos_submission(
         "Anexos": anexos_formatados,
     }
     
-    append_rows([row_data], sheet_id)
+    # Salvar no banco de dados
+    db_data = {
+        "docente": form_data["docente"],
+        "parecerista1": form_data["parecerista1"],
+        "parecerista2": form_data["parecerista2"],
+        "nome_projeto": form_data["nome_projeto"],
+        "carga_horaria": form_data["carga_horaria"],
+        "edital": form_data["edital"],
+        "natureza": form_data["natureza"],
+        "ano_edital": form_data["ano_edital"],
+        "solicitacao": form_data["solicitacao"],
+        "anexos": anexos_formatados,
+        "pdf_parecer": os.path.basename(pdf_parecer_path),
+        "pdf_declaracao": os.path.basename(pdf_declaracao_path) if pdf_declaracao_path else None,
+        "drive_folder_id": drive_folder_id,
+    }
+    
+    submission_id = save_projetos_submission(db_data)
+
     
     # ===============================================
     # ENVIAR E-MAILS

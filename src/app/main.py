@@ -19,6 +19,14 @@ from src.utils.env_loader import load_environment
 # Carregar variáveis de ambiente
 load_environment()
 
+# Inicializar banco de dados (criar tabelas se não existirem)
+try:
+    from src.database.engine import init_db
+    init_db()
+except Exception as e:
+    print(f"⚠️ Aviso: Não foi possível inicializar o banco de dados: {e}")
+    # Continuar mesmo se houver erro no banco (fallback para modo sem BD)
+
 LOGO_PATH = Path(__file__).resolve().parent.parent / "resources" / "fasiOficial.png"
 
 
