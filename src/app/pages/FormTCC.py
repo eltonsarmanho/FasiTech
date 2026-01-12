@@ -338,11 +338,10 @@ def render_form() -> None:
 	else:  # TCC 2
 		st.warning(
 			"**📗 TCC 2 - Documentos Obrigatórios:**\n\n"
-			"⚠️ **ATENÇÃO:** Para TCC 2, você deve anexar **3 arquivos separados**:\n\n"
-			"1. 📄 **Declaração de Autoria** - [Baixar modelo](https://drive.google.com/file/d/1Phh2PqZ5WDOdnTtUZIJ9M86ZtY8557nC/view?usp=sharing)\n"
-			"2. 📄 **Termo de Autorização** - [Baixar modelo](https://repositorio.ufpa.br/jspui/files/TermodeAutorizacaoeDeclaracaodeAutoria.pdf)\n"
-			"3. 📄 **Versão Final do TCC**\n\n"
-			"**Mínimo:** 3 arquivos PDF obrigatórios\n\n"
+			"⚠️ **ATENÇÃO:** Para TCC 2, você deve anexar **2 arquivos separados**:\n\n"
+			"1. 📄 **Termo de Autorização** - [Baixar modelo](https://drive.google.com/file/d/1Gsev2C_Rhc-IuA_TP-MdHiWXE4m9kwtx/view?usp=sharing)\n"
+			"2. 📄 **Versão Final do TCC**\n\n"
+			"**Mínimo:** 2 arquivos PDF obrigatórios\n\n"
 			"💡 **Importante:** A biblioteca (bibcameta@ufpa.br) receberá uma cópia da sua submissão."
 		)
 		
@@ -404,10 +403,29 @@ def render_form() -> None:
 		)
 		
 		if uploaded_files:
-			st.success(f"✅ {len(uploaded_files)} arquivo(s) selecionado(s)")
+			# Verificar se há arquivos que não são PDF e mostrar aviso imediato
+			arquivos_invalidos = []
+			arquivos_validos = []
+			
 			for file in uploaded_files:
-				size_mb = file.size / (1024 * 1024)
-				st.text(f"📄 {file.name} ({size_mb:.2f} MB)")
+				if file.type != "application/pdf":
+					arquivos_invalidos.append(file.name)
+				else:
+					arquivos_validos.append(file)
+			
+			if arquivos_invalidos:
+				st.error(
+					f"⚠️ **Arquivo(s) não aceito(s):**\n\n"
+					f"Os seguintes arquivos não são PDF e serão ignorados:\n"
+					+ "\n".join(f"• {nome}" for nome in arquivos_invalidos)
+					+ "\n\n**Apenas arquivos PDF são aceitos.**"
+				)
+			
+			if arquivos_validos:
+				st.success(f"✅ {len(arquivos_validos)} arquivo(s) PDF válido(s) selecionado(s)")
+				for file in arquivos_validos:
+					size_mb = file.size / (1024 * 1024)
+					st.text(f"📄 {file.name} ({size_mb:.2f} MB)")
 		
 		st.markdown("<br>", unsafe_allow_html=True)
 		

@@ -678,7 +678,7 @@ def process_projetos_submission(
                 pareceristas_dict[nome.strip()] = email.strip()
     
     # ===============================================
-    # GERAR PDFs: Parecer e Declaração
+    # GERAR PDFs: Parecer e Declaração (exceto para Encerramento)
     # ===============================================
     # Preparar dados para o gerador de PDF (formato esperado: lista)
     # Os métodos esperam: [timestamp, docente, parecerista1, parecerista2, projeto, 
@@ -699,9 +699,14 @@ def process_projetos_submission(
         form_data["solicitacao"],
     ]
     
-    # Gerar PDFs
+    # Gerar PDF do Parecer (sempre)
     pdf_parecer_path = gerar_pdf_projetos(pdf_data)
-    pdf_declaracao_path = gerar_pdf_declaracao_projeto(pdf_data)
+    
+    # Gerar PDF da Declaração apenas se NÃO for Encerramento
+    pdf_declaracao_path = None
+    is_encerramento = form_data["solicitacao"].lower() == "encerramento"
+    if not is_encerramento:
+        pdf_declaracao_path = gerar_pdf_declaracao_projeto(pdf_data)
     
     # ===============================================
     # PREPARAR ARQUIVOS PARA UPLOAD
@@ -724,23 +729,23 @@ def process_projetos_submission(
     pdf_parecer_file.name = os.path.basename(pdf_parecer_path)
     pdf_parecer_file.type = "application/pdf"
     
-    # Ler PDF da declaração
-    with open(pdf_declaracao_path, "rb") as f:
-        pdf_declaracao_content = f.read()
-    
-    pdf_declaracao_file = BytesIO(pdf_declaracao_content)
-    pdf_declaracao_file.name = os.path.basename(pdf_declaracao_path)
-    pdf_declaracao_file.type = "application/pdf"
-    
-    # Adicionar PDFs à lista de upload
+    # Adicionar PDF do parecer à lista de upload
     all_files_to_upload.append(pdf_parecer_file)
-    all_files_to_upload.append(pdf_declaracao_file)
     
-    # Lista de todos os nomes de arquivos
-    all_file_names = user_file_names + [
-        os.path.basename(pdf_parecer_path),
-        os.path.basename(pdf_declaracao_path)
-    ]
+    # Lista de todos os nomes de arquivos (começa com arquivos do usuário + parecer)
+    all_file_names = user_file_names + [os.path.basename(pdf_parecer_path)]
+    
+    # Ler e adicionar PDF da declaração apenas se foi gerado (não é Encerramento)
+    if pdf_declaracao_path:
+        with open(pdf_declaracao_path, "rb") as f:
+            pdf_declaracao_content = f.read()
+        
+        pdf_declaracao_file = BytesIO(pdf_declaracao_content)
+        pdf_declaracao_file.name = os.path.basename(pdf_declaracao_path)
+        pdf_declaracao_file.type = "application/pdf"
+        
+        all_files_to_upload.append(pdf_declaracao_file)
+        all_file_names.append(os.path.basename(pdf_declaracao_path))
     
     # ===============================================
     # UPLOAD NO GOOGLE DRIVE
@@ -806,10 +811,14 @@ def process_projetos_submission(
         recipients.append(parecerista2_email)
     
     # Preparar anexos de email (PDFs gerados)
-    email_attachments = [
-        pdf_parecer_path,
-        pdf_declaracao_path,
-    ]
+    email_attachments = [pdf_parecer_path]
+    if pdf_declaracao_path:
+        email_attachments.append(pdf_declaracao_path)
+    
+    # Texto de documentos gerados para o corpo do email
+    docs_gerados_texto = "✅ Parecer do Projeto (PDF anexado)"
+    if pdf_declaracao_path:
+        docs_gerados_texto += "\n✅ Declaração do Projeto (PDF anexado)"
     
     # Assunto e corpo do email
     subject = f"Novo Projeto Submetido - {form_data['nome_projeto']}"
@@ -850,8 +859,7 @@ Um novo projeto foi submetido através do Sistema de Automação da FASI.
 📄 DOCUMENTOS GERADOS AUTOMATICAMENTE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-✅ Parecer do Projeto (PDF anexado)
-✅ Declaração do Projeto (PDF anexado)
+{docs_gerados_texto}
 
 Os documentos gerados foram anexados a este e-mail e também salvos no Google Drive junto com os demais anexos.
 
@@ -867,7 +875,8 @@ Os documentos gerados foram anexados a este e-mail e também salvos no Google Dr
     # Limpar arquivos temporários
     try:
         os.remove(pdf_parecer_path)
-        os.remove(pdf_declaracao_path)
+        if pdf_declaracao_path:
+            os.remove(pdf_declaracao_path)
     except:
         pass
     
@@ -878,6 +887,6 @@ Os documentos gerados foram anexados a este e-mail e também salvos no Google Dr
         "file_links": file_links,
         "total_files": len(all_file_names),
         "pdf_parecer": os.path.basename(pdf_parecer_path),
-        "pdf_declaracao": os.path.basename(pdf_declaracao_path),
+        "pdf_declaracao": os.path.basename(pdf_declaracao_path) if pdf_declaracao_path else None,
     }
 

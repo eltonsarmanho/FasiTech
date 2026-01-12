@@ -499,6 +499,9 @@ def render_form() -> None:
                             # Processar submissão
                             _process_projetos_submission(form_data, uploaded_files)
                             
+                            # Mensagem de PDFs gerados varia conforme tipo de solicitação
+                            pdfs_gerados = "Parecer" if solicitacao == "Encerramento" else "Parecer e Declaração"
+                            
                             st.success(
                                 f"✅ **Projeto submetido com sucesso!**\n\n"
                                 f"**Resumo:**\n"
@@ -508,7 +511,7 @@ def render_form() -> None:
                                 f"- Natureza: {natureza}\n"
                                 f"- Solicitação: {solicitacao}\n"
                                 f"- Arquivo(s): {len(uploaded_files)} documento(s)\n"
-                                f"- PDFs gerados: Parecer e Declaração\n\n"
+                                f"- PDFs gerados: {pdfs_gerados}\n\n"
                                 f"Você receberá um e-mail de confirmação com os documentos gerados.\n\n"
                                 f"Redirecionando para a tela principal..."
                             )
