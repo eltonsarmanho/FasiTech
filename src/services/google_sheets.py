@@ -2,9 +2,12 @@ import pandas as pd
 import os
 from datetime import datetime
 from typing import Any, Dict, Iterable
+import logging
 
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
+
+from src.utils.retry import retry_with_backoff
 
 # Carregar variáveis de ambiente
 try:
@@ -16,6 +19,8 @@ except ImportError:
 # Importar CredentialsEncoder
 from src.utils.CredentialsEncoder import convertBase64ToJson
 from src.services.google_drive import get_file_metadata
+
+logger = logging.getLogger(__name__)
 
 def get_sheet_tabs(sheet_id: str) -> list:
     """Retorna a lista de abas (sheets) de uma planilha Google."""
@@ -266,5 +271,53 @@ def append_rows(rows: Iterable[Dict[str, Any]], sheet_id: str, range_name: str =
         
     except Exception as e:
         print(f"❌ Erro ao escrever no Google Sheets: {str(e)}")
+        raise
+
+@retry_with_backoff(
+    max_retries=3,
+    base_delay=2.0,
+    max_delay=30.0,
+    retryable_status_codes=(500, 502, 503, 504),
+)
+def append_row_to_sheet(sheet_id: str, values: list, range_name: str = "Respostas ao formulário 1") -> dict:
+    """
+    Adiciona uma linha à planilha do Google Sheets.
+    
+    Implementa retry automático para erros temporários (503, 504, etc).
+    
+    Args:
+        sheet_id: ID da planilha
+        values: Lista de valores para adicionar
+        range_name: Nome da aba/range
+    
+    Returns:
+        Resposta da API do Google Sheets
+    """
+    if not sheet_id:
+        raise ValueError("ID da planilha não fornecido")
+    
+    try:
+        credentials = _get_credentials()
+        service = build('sheets', 'v4', credentials=credentials)
+        
+        body = {
+            'values': [values]
+        }
+        
+        # Adicionar dados na planilha
+        result = service.spreadsheets().values().append(
+            spreadsheetId=sheet_id,
+            range=range_name,
+            valueInputOption='USER_ENTERED',
+            insertDataOption='INSERT_ROWS',
+            body=body
+        ).execute()
+        
+        logger.info(f"✅ Linha adicionada à aba '{range_name}': {values}")
+        
+        return result
+    
+    except Exception as e:
+        logger.error(f"❌ Erro ao escrever no Google Sheets: {str(e)}")
         raise
 
