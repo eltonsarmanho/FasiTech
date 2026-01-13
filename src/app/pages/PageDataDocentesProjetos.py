@@ -298,14 +298,7 @@ def _render_filters(df: pd.DataFrame) -> Dict[str, Any]:
             key="filter_natureza"
         )
     
-    with col3:
-        # Filtro por solicitação
-        solicitacoes = ['Todas'] + sorted(df['solicitacao'].dropna().unique().tolist()) if 'solicitacao' in df.columns else ['Todas']
-        filters['solicitacao'] = st.selectbox(
-            "Solicitação",
-            options=solicitacoes,
-            key="filter_solicitacao"
-        )
+    
     
     return filters
 
@@ -320,9 +313,7 @@ def _apply_filters(df: pd.DataFrame, filters: Dict[str, Any]) -> pd.DataFrame:
     if filters['natureza'] != 'Todas' and 'natureza' in filtered_df.columns:
         filtered_df = filtered_df[filtered_df['natureza'] == filters['natureza']]
     
-    if filters['solicitacao'] != 'Todas' and 'solicitacao' in filtered_df.columns:
-        filtered_df = filtered_df[filtered_df['solicitacao'] == filters['solicitacao']]
-    
+   
     return filtered_df
 
 
@@ -414,16 +405,14 @@ def main() -> None:
         st.info("💡 Verifique se há projetos submetidos ou se a conexão com o banco está funcionando.")
         return
     
-    # Renderizar métricas (4 cards na mesma linha) com todos os dados
-    _render_metrics(df, df)
-    
-    st.markdown("---")
-    
     # Renderizar filtros
     filters = _render_filters(df)
     
     # Aplicar filtros
     filtered_df = _apply_filters(df, filters)
+    
+    # Renderizar métricas (4 cards na mesma linha) com dados filtrados
+    _render_metrics(df, filtered_df)
     
     st.markdown("---")
     
