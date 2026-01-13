@@ -178,7 +178,7 @@ python scripts/add_documents_to_rag.py --clear
 
 ```bash
 # SSH para o servidor
-ssh root@72.60.6.113
+ssh root@IP_VM
 
 # Copie o documento para o container
 docker compose -f docker-compose.production.yml cp seu_documento.pdf streamlit:/app/src/resources/
@@ -321,10 +321,10 @@ docker-compose up
 ```bash
 # Sincronize o código
 rsync -avz --progress --exclude 'venv/' --exclude '.git/' --exclude '__pycache__/' \
-    -e "ssh" /home/nees/Documents/VSCodigo/FasiTech/ root@72.60.6.113:/home/ubuntu/appStreamLit
+    -e "ssh" /home/nees/Documents/VSCodigo/FasiTech/ root@IP_VM:/home/ubuntu/appStreamLit
 
 # Rebuild completo
-ssh root@72.60.6.113
+ssh root@IP_VM
 cd /home/ubuntu/appStreamLit/
 sudo docker-compose -f docker-compose.production.yml up -d --build
 ```
