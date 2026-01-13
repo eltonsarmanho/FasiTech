@@ -145,7 +145,7 @@ def _render_intro() -> None:
     if LOGO_PATH.exists():
         col1, col2, col3 = st.columns([1, 1, 1])
         with col2:
-            st.image(str(LOGO_PATH), width=300, use_column_width=False)
+            st.image(str(LOGO_PATH), width=300)
     
     # Hero Section
     st.markdown(
@@ -357,7 +357,7 @@ def _render_data_table(df: pd.DataFrame) -> None:
     }
     
     # Selecionar apenas colunas relevantes para exibição
-    columns_to_show = ['Data/Hora', 'Docente', 'Nome do Projeto', 
+    columns_to_show = ['Docente', 'Nome do Projeto', 
                        'Natureza', 'Edital', 'Solicitação', 'Carga Horária']
     
     display_df = display_df.rename(columns=column_names)
@@ -373,10 +373,6 @@ def _render_data_table(df: pd.DataFrame) -> None:
                 "Nome do Projeto",
                 help="Título completo do projeto",
                 width="large"
-            ),
-            "Data/Hora": st.column_config.TextColumn(
-                "Data/Hora",
-                help="Data e hora da submissão"
             )
         }
     )
