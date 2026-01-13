@@ -6,6 +6,7 @@ Solução moderna de formulários web com Streamlit (frontend) e FastAPI (backen
 
 - **Frontend:** Streamlit (UX institucional, formulários, navegação)
 - **Backend:** FastAPI (API REST, webhooks, download seguro, LGPD)
+- **Banco de Dados:** PostgreSQL (persistência, consultas, relatórios)
 - **Proxy:** Nginx (HTTPS, roteamento, SSL Let's Encrypt)
 - **Armazenamento:** Google Drive, Google Sheets
 - **Notificações:** E-mail institucional
@@ -29,11 +30,13 @@ Solução moderna de formulários web com Streamlit (frontend) e FastAPI (backen
 - ✅ **Formulário Plano de Ensino** aceita qualquer tipo de arquivo (PDF, DOC, DOCX, ODT, imagens, etc)
 - ✅ **Formulário Projetos** para submissão de projetos de ensino, pesquisa e extensão
 - ✅ **Formulário Social** para coleta de dados socioeconômicos dos estudantes
+- ✅ **Consulta de Projetos Docentes** visualização e análise de projetos submetidos com filtros e métricas
 - ✅ **Ofertas de Disciplinas** para consulta de grades curriculares e ofertas por período/turma
 - ✅ **FAQ** página de perguntas frequentes e suporte
 - ✅ **Diretor Virtual (RAG)** chatbot inteligente com busca semântica em documentos PPC
+- ✅ **Banco de dados PostgreSQL** para persistência e consulta de dados estruturados
 - ✅ **Upload seguro** de arquivos ao Google Drive
-- ✅ **Registro automático** em Google Sheets
+- ✅ **Registro automático** em Google Sheets e banco de dados
 - ✅ **Notificações por e-mail** para coordenação
 - ✅ **UX moderna** com design responsivo e identidade visual institucional
 
@@ -53,6 +56,7 @@ Solução moderna de formulários web com Streamlit (frontend) e FastAPI (backen
 │   │       ├── FormPlanoEnsino.py      # Formulário Plano de Ensino
 │   │       ├── FormProjetos.py         # Formulário Projetos
 │   │       ├── FormSocial.py           # Formulário Social
+│   │       ├── PageDataDocentesProjetos.py # Consulta de Projetos Docentes
 │   │       ├── OfertasDisciplinas.py   # Ofertas de Disciplinas
 │   │       ├── PageDiretorVirtual.py   # Diretor Virtual (RAG Chatbot)
 │   │       └── FAQ.py                  # Página FAQ
@@ -63,7 +67,10 @@ Solução moderna de formulários web com Streamlit (frontend) e FastAPI (backen
 │   │   ├── email_service.py            # Envio de e-mails
 │   │   ├── rag_ppc.py                  # Serviço RAG para Diretor Virtual
 │   │   └── acc_processor.py            # Processamento ACC específico
-│   ├── models/         # Schemas Pydantic
+│   ├── database/       # Camada de banco de dados
+│   │   ├── engine.py                   # Engine SQLModel e sessões
+│   │   └── repository.py               # Repositórios e consultas
+│   ├── models/         # Schemas Pydantic e modelos SQLModel
 │   └── utils/          # Utilitários (validadores, criptografia)
 ├── api/                # Backend FastAPI (opcional)
 ├── credentials/        # Credenciais Google divididas por ambiente
@@ -81,6 +88,7 @@ Solução moderna de formulários web com Streamlit (frontend) e FastAPI (backen
 - **Formulário Plano de Ensino**: Aceita qualquer tipo de arquivo (PDF, DOC, DOCX, ODT, imagens, etc)
 - **Formulário Projetos**: Submissão de projetos de ensino, pesquisa e extensão
 - **Formulário Social**: Coleta de dados socioeconômicos dos estudantes
+- **Consulta de Projetos Docentes**: Visualização de projetos submetidos com filtros por docente e natureza, métricas em tempo real
 - **Ofertas de Disciplinas**: Consulta de grades curriculares e ofertas por período/turma com visualização colorida por turma
 - **FAQ**: Página de perguntas frequentes e suporte aos usuários
 
@@ -450,6 +458,7 @@ flowchart TB
 - **`https://www.fasitech.com.br/?page=FormProjetos`** - Formulário Projetos
 - **`https://www.fasitech.com.br/?page=FormSocial`** - Formulário Social
 - **`https://www.fasitech.com.br/?page=FormPlanoEnsino`** - Formulário Plano de Ensino
+- **`https://www.fasitech.com.br/?page=PageDataDocentesProjetos`** - 📊 Consulta de Projetos Docentes
 - **`https://www.fasitech.com.br/?page=OfertasDisciplinas`** - Ofertas de Disciplinas
 - **`https://www.fasitech.com.br/?page=PageDiretorVirtual`** - 🤖 Diretor Virtual (RAG Chatbot)
 - **`https://www.fasitech.com.br/?page=FAQ`** - Página FAQ
