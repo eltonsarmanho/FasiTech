@@ -99,28 +99,47 @@ class SocialDataService:
     """Serviço para gerenciar dados sociais."""
 
     @staticmethod
-    def _parse_datetime(date_str: str) -> Optional[datetime]:
-        """Parse de string de data/hora."""
-        if not date_str or pd.isna(date_str):
+    def _parse_datetime(date_value: Any) -> Optional[datetime]:
+        """Parse de data/hora - aceita string ou Timestamp."""
+        if not date_value or pd.isna(date_value):
             return None
-        try:
-            return datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
-        except ValueError:
+        
+        # Se já é um objeto datetime/Timestamp (do pandas), retornar como datetime
+        if hasattr(date_value, 'to_pydatetime'):
+            return date_value.to_pydatetime()
+        elif isinstance(date_value, datetime):
+            return date_value
+        
+        # Se é string, fazer parse
+        if isinstance(date_value, str):
             try:
-                return datetime.strptime(date_str, "%d/%m/%Y %H:%M:%S")
+                return datetime.strptime(date_value, "%Y-%m-%d %H:%M:%S")
             except ValueError:
-                logger.warning(f"Formato de data não reconhecido: {date_str}")
-                return None
+                try:
+                    return datetime.strptime(date_value, "%d/%m/%Y %H:%M:%S")
+                except ValueError:
+                    logger.warning(f"Formato de data não reconhecido: {date_value}")
+                    return None
+        
+        logger.warning(f"Tipo de data não reconhecido: {type(date_value)} - {date_value}")
+        return None
 
     @staticmethod
     def _parse_enum_value(value: Any, enum_class) -> Optional[Any]:
-        """Parse seguro de valores enum."""
-        if pd.isna(value) or not value:
+        """Parse seguro de valores enum com tratamento de valores especiais."""
+        if pd.isna(value) or not value or str(value).lower() in ['null', 'none', '']:
             return None
+        
+        value_str = str(value).strip()
+        
+        # Tratamento especial para NULL do banco
+        if value_str == 'NULL':
+            return None
+            
         try:
-            return enum_class(str(value))
+            return enum_class(value_str)
         except ValueError:
-            logger.warning(f"Valor não reconhecido para {enum_class.__name__}: {value}")
+            logger.warning(f"Valor não reconhecido para {enum_class.__name__}: {value_str}")
             return None
 
     @staticmethod

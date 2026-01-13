@@ -11,11 +11,11 @@ from sqlmodel import SQLModel, Session, create_engine
 # Usa variável de ambiente se disponível, senão usa padrão local via SSH tunnel
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://postgres:adminadmin@localhost:5432/fasitech"
+    "postgresql://postgres:adminadmin@72.60.6.113:5432/fasitech"
 )
 
 # Para produção na VM UFPA, usar:
-# DATABASE_URL = "postgresql://postgres:adminadmin@localhost:5432/fasitech"
+# DATABASE_URL = "postgresql://postgres:adminadmin@72.60.6.113:5432/fasitech"
 
 # Configuração de conexão
 connect_args = {}

@@ -29,6 +29,7 @@ class CorEtnia(str, Enum):
 class SimNao(str, Enum):
     SIM = "Sim"
     NAO = "Não"
+    PREFIRO_NAO_RESPONDER = "Prefiro não responder"
 
 
 class TipoTrabalho(str, Enum):
@@ -45,6 +46,7 @@ class TipoRenda(str, Enum):
     DE_1_A_3_SALARIOS = "1 a 3 salários mínimos"
     DE_3_A_5_SALARIOS = "3 a 5 salários mínimos"
     ACIMA_5_SALARIOS = "Acima de 5 salários mínimos"
+    ACIMA_5_A_10_SALARIOS = "Acima de 5 a 10 salários mínimos"
 
 
 class TipoDeslocamento(str, Enum):
@@ -104,6 +106,7 @@ class TipoMoradia(str, Enum):
     CEDIDA = "Cedida"
     FINANCIADA = "Financiada"
     OUTRA = "Outra"
+    PREFIRO_NAO_RESPONDER = "Prefiro não responder"
 
 
 class AcessoInternet(str, Enum):
