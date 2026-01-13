@@ -29,3 +29,4 @@ streamlit-feedback
 pylance
 sqlmodel
 psycopg2-binary
+plotly

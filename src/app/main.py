@@ -487,6 +487,15 @@ def _render_available_forms() -> None:
             key="btn_projetos",
             gradient_colors="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"  # Cor Padrão
         )
+    with col9:
+        _render_form_card(
+            title="Consulta de Projetos",
+            description="Visualização e análise de projetos submetidos pelos docentes. Acompanhe status, estatísticas e detalhes dos projetos.",
+            icon="📊",
+            page_name="PageDataDocentesProjetos.py",
+            key="btn_consulta_projetos",
+            gradient_colors="linear-gradient(135deg, #4a1d7a 0%, #2d1650 100%)"  # Roxo escuro para diferenciação
+        )
 
     st.markdown("<br><br>", unsafe_allow_html=True)
 
