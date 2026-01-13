@@ -77,8 +77,8 @@ def test_connection():
         elif "authentication failed" in error_msg or "password" in error_msg:
             print("\n🔍 Problema: Credenciais incorretas")
             print("\n✅ SOLUÇÃO:")
-            print("   Verifique as credenciais no DATABASE_URL")
-            print("   Atual: postgresql://postgres:adminadmin@localhost:5432/fasitech")
+            print("   Verifique as credenciais no DATABASE_URL ou variáveis de ambiente")
+            print("   Configure: DB_HOST, DB_USER, DB_PASSWORD, DB_PORT, DB_NAME")
         
         else:
             print(f"\n🔍 Problema: {error_msg}")

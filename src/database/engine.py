@@ -8,14 +8,14 @@ from typing import Generator
 from sqlmodel import SQLModel, Session, create_engine
 
 # Configuração do banco de dados
-# Usa variável de ambiente se disponível, senão usa padrão local via SSH tunnel
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql://postgres:adminadmin@72.60.6.113:5432/fasitech"
-)
+# Usa variável de ambiente DATABASE_URL
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-# Para produção na VM UFPA, usar:
-# DATABASE_URL = "postgresql://postgres:adminadmin@72.60.6.113:5432/fasitech"
+if not DATABASE_URL:
+    raise ValueError(
+        "DATABASE_URL environment variable is required. "
+        "Please set it with your PostgreSQL connection string."
+    )
 
 # Configuração de conexão
 connect_args = {}

@@ -1,6 +1,7 @@
 """Script para criar o banco de dados fasitech se não existir."""
 from __future__ import annotations
 
+import os
 import sys
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import OperationalError, ProgrammingError
@@ -13,7 +14,15 @@ def create_database():
     print("=" * 60)
     
     # URL base para conectar ao PostgreSQL (sem especificar banco)
-    base_url = "postgresql://postgres:adminadmin@localhost:5432/postgres"
+    db_host = os.getenv("DB_HOST", "localhost")
+    db_user = os.getenv("DB_USER", "postgres")
+    db_password = os.getenv("DB_PASSWORD")
+    db_port = os.getenv("DB_PORT", "5432")
+    
+    if not db_password:
+        raise ValueError("DB_PASSWORD environment variable is required")
+    
+    base_url = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/postgres"
     
     try:
         print("\n1. Conectando ao PostgreSQL...")
@@ -38,7 +47,7 @@ def create_database():
         
         # Testar conexão com o banco criado
         print("\n3. Testando conexão com banco 'fasitech'...")
-        test_url = "postgresql://postgres:adminadmin@localhost:5432/fasitech"
+        test_url = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/fasitech"
         test_engine = create_engine(test_url)
         
         with test_engine.connect() as conn:
@@ -69,8 +78,8 @@ def create_database():
         
         elif "authentication failed" in error_msg or "password" in error_msg:
             print("\n2. Credenciais incorretas")
-            print("   Verifique usuário/senha no DATABASE_URL")
-            print("   Atual: postgresql://postgres:adminadmin@localhost:5432/postgres")
+            print("   Verifique usuário/senha no DATABASE_URL ou variáveis de ambiente")
+            print(f"   Atual: postgresql://{db_user}:***@{db_host}:{db_port}/postgres")
         
         else:
             print(f"\n3. Outro erro: {error_msg}")

@@ -18,7 +18,15 @@ def create_database_if_not_exists():
     print("🔧 Verificando se banco 'fasitech' existe...")
     
     # URL para conectar ao postgres padrão
-    base_url = "postgresql://postgres:adminadmin@72.60.6.113:5432/postgres"
+    db_host = os.getenv("DB_HOST", "localhost")
+    db_user = os.getenv("DB_USER", "postgres")
+    db_password = os.getenv("DB_PASSWORD")
+    db_port = os.getenv("DB_PORT", "5432")
+    
+    if not db_password:
+        raise ValueError("DB_PASSWORD environment variable is required")
+    
+    base_url = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/postgres"
     
     try:
         base_engine = create_engine(base_url, isolation_level="AUTOCOMMIT")
@@ -51,7 +59,16 @@ def init_remote_database():
     print("=" * 60)
     
     # Definir URL para a VM
-    os.environ["DATABASE_URL"] = "postgresql://postgres:adminadmin@72.60.6.113:5432/fasitech"
+    db_host = os.getenv("DB_HOST", "localhost")
+    db_user = os.getenv("DB_USER", "postgres")
+    db_password = os.getenv("DB_PASSWORD")
+    db_port = os.getenv("DB_PORT", "5432")
+    db_name = os.getenv("DB_NAME", "fasitech")
+    
+    if not db_password:
+        raise ValueError("DB_PASSWORD environment variable is required")
+    
+    os.environ["DATABASE_URL"] = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
     
     try:
         # 1. Criar banco se não existir
