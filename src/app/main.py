@@ -292,6 +292,55 @@ def _render_custom_styles() -> None:
                 border-bottom: 3px solid #7c3aed;
                 display: inline-block;
             }
+
+            /* Seções de documentos */
+            .docs-section {
+                margin-top: 12px;
+                margin-bottom: 40px;
+            }
+
+            .docs-card {
+                background: #ffffff;
+                border-radius: 16px;
+                padding: 24px;
+                box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+                border: 1px solid rgba(124, 58, 237, 0.12);
+            }
+
+            .docs-card h3 {
+                color: #1a0d2e;
+                font-size: 1.3rem;
+                margin-bottom: 12px;
+                font-weight: 700;
+            }
+
+            .docs-list {
+                list-style: none;
+                padding: 0;
+                margin: 0;
+            }
+
+            .docs-list li {
+                margin-bottom: 10px;
+            }
+
+            .docs-link {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                color: #4a1d7a;
+                text-decoration: none;
+                font-weight: 600;
+                padding: 8px 12px;
+                border-radius: 10px;
+                background: rgba(124, 58, 237, 0.08);
+                transition: all 0.2s ease;
+            }
+
+            .docs-link:hover {
+                background: rgba(124, 58, 237, 0.18);
+                transform: translateY(-1px);
+            }
             
             /* Logo container */
             .logo-container {
@@ -595,6 +644,88 @@ def _render_info_section() -> None:
     )
 
 
+def _render_documents_portal() -> None:
+    """Renderiza seção de documentos institucionais da FASI."""
+    st.markdown('<h2 class="section-title">📚 Documentos Institucionais da FASI</h2>', unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    col1, col2 = st.columns(2, gap="large")
+    with col1:
+        st.markdown(
+            """
+            <div class="docs-card">
+                <h3>📘 Projeto Pedagógico do Curso (PPC)</h3>
+                <ul class="docs-list">
+                    <li><a class="docs-link" href="https://drive.google.com/file/d/1FX1ETtGQM47xcv_qE73GyuoEJTEhUJJk/view?usp=sharing" target="_blank">📄 Novo PPC - 2023</a></li>
+                    <li><a class="docs-link" href="https://drive.google.com/file/d/1QyDQB7rUwzSCQUkpwrjOg-6zKXh1PCL9/view?usp=sharing" target="_blank">📄 PPC (Antigo)</a></li>
+                </ul>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        st.markdown("<div class=\"docs-section\"></div>", unsafe_allow_html=True)
+
+        st.markdown(
+            """
+            <div class="docs-card">
+                <h3>🧩 Atividades Curriculares Complementares (ACC)</h3>
+                <ul class="docs-list">
+                    <li><a class="docs-link" href="https://drive.google.com/file/d/1JTH-RGtNjXghqfukl95vBmJSATIOXP7o/view?usp=sharing" target="_blank">📄 Nova Resolução das ACC's</a></li>
+                    <li><a class="docs-link" href="https://drive.google.com/file/d/1L4xfx73IMLWTfiJp8qE5KDg1hOzBEqc7/view?usp=sharing" target="_blank">📄 Anexo ACC</a></li>
+                </ul>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    with col2:
+        st.markdown(
+            """
+            <div class="docs-card">
+                <h3>🧑‍💼 Estágio</h3>
+                <ul class="docs-list">
+                    <li><a class="docs-link" href="https://drive.google.com/file/d/1w6Q-JfYybV3Xf7LEU3K0U_dYjnQek7Uf/view?usp=sharing" target="_blank">📄 Modelo de Plano de Estágio</a></li>
+                    <li><a class="docs-link" href="https://docs.google.com/document/d/188VMnCiqckEY6jWL6vzbCCfzoEGiV78h/edit?usp=sharing&ouid=104533156519023564459&rtpof=true&sd=true" target="_blank">📄 Resolução de Estágio</a></li>
+                    <li><a class="docs-link" href="https://drive.google.com/file/d/1JCQG1klfekTTaxg-hXEyhJfDZ1OcYCAE/view?usp=sharing" target="_blank">📄 Modelo de Relatório Final de Estágio</a></li>
+                </ul>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        st.markdown("<div class=\"docs-section\"></div>", unsafe_allow_html=True)
+
+        st.markdown(
+            """
+            <div class="docs-card">
+                <h3>🎓 Trabalho de Conclusão de Curso (TCC)</h3>
+                <ul class="docs-list">
+                    <li><a class="docs-link" href="https://docs.google.com/document/d/125WbjVhAaAqGporWUcXmWZKXLV-QVN9B/edit?usp=sharing&ouid=104533156519023564459&rtpof=true&sd=true" target="_blank">📄 Diretrizes TCC FASI 2024</a></li>
+                    <li><a class="docs-link" href="https://drive.google.com/file/d/10ncOkDrPkRJSqY9IzLD850qUwllXwHv7/view?usp=sharing" target="_blank">📄 Modelo Pré-Projeto TCC 1 (Anexo 2)</a></li>
+                    <li><a class="docs-link" href="https://www.overleaf.com/latex/templates/modelo-de-monografia-do-curso-de-latex-ufpa/tmttydywvynb" target="_blank">📄 Template TCC FASI (Overleaf)</a></li>
+                </ul>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        st.markdown("<div class=\"docs-section\"></div>", unsafe_allow_html=True)
+
+        st.markdown(
+            """
+            <div class="docs-card">
+                <h3>📜 Regimento</h3>
+                <ul class="docs-list">
+                    <li><a class="docs-link" href="https://drive.google.com/file/d/1FItcWP485eOyFRPTKisTxUL--KbbOv1N/view?usp=sharing" target="_blank">📄 Regimento Interno</a></li>
+                    <li><a class="docs-link" href="https://drive.google.com/file/d/1L2_jkfUYybO8yraQqN-ploqdZTRjVJQc/view?usp=sharing" target="_blank">📄 Regimento do Laboratório de SI</a></li>
+                </ul>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+
 def main() -> None:
     """Página principal do portal de formulários."""
     st.set_page_config(
@@ -615,6 +746,7 @@ def main() -> None:
     # Renderizar conteúdo principal
     _render_header()
     _render_available_forms()
+    _render_documents_portal()
     _render_info_section()
     
     # Rodapé com autor e LinkedIn

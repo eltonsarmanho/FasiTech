@@ -297,6 +297,26 @@ def _render_filters(df: pd.DataFrame) -> Dict[str, Any]:
             options=naturezas,
             key="filter_natureza"
         )
+
+    with col3:
+        # Filtro por ano do edital
+        anos = ['Todos']
+        if 'ano_edital' in df.columns:
+            anos_disponiveis = (
+                df['ano_edital']
+                .dropna()
+                .astype(str)
+                .unique()
+                .tolist()
+            )
+            # Remover N/C e S/D de anos_disponiveis
+            anos_disponiveis = [ano for ano in anos_disponiveis if ano != 'N/C' and ano != 'S/D']
+            anos = ['Todos'] + sorted(anos_disponiveis)
+        filters['ano'] = st.selectbox(
+            "Ano",
+            options=anos,
+            key="filter_ano"
+        )
     
     
     
@@ -312,6 +332,9 @@ def _apply_filters(df: pd.DataFrame, filters: Dict[str, Any]) -> pd.DataFrame:
     
     if filters['natureza'] != 'Todas' and 'natureza' in filtered_df.columns:
         filtered_df = filtered_df[filtered_df['natureza'] == filters['natureza']]
+
+    if filters.get('ano') and filters['ano'] != 'Todos' and 'ano_edital' in filtered_df.columns:
+        filtered_df = filtered_df[filtered_df['ano_edital'].astype(str) == str(filters['ano'])]
     
    
     return filtered_df
