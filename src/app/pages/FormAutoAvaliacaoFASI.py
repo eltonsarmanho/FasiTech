@@ -38,32 +38,6 @@ ESCALA_CONCORDANCIA = [
 ]
 
 
-def _load_avaliacao_settings() -> Dict[str, Any]:
-    """Resgata configurações específicas do formulário de avaliação via secrets."""
-    try:
-        avaliacao_settings = st.secrets["AvalicaoFaculdade"]
-        sheet_id = avaliacao_settings["sheet_id"]
-    except (KeyError, FileNotFoundError):
-        st.error(
-            """
-            **Erro de Configuração: `sheet_id` não encontrado.**
-
-            Por favor, adicione a seção `[AvalicaoFaculdade]` com a chave `sheet_id` no seu arquivo `secrets.toml`.
-
-            Exemplo:
-            ```toml
-            [AvalicaoFaculdade]
-            sheet_id = "seu-id-da-planilha-aqui"
-            ```
-            """
-        )
-        raise ValueError("Configuração 'AvalicaoFaculdade' ausente no secrets.toml")
-
-    return {
-        "sheet_id": sheet_id,
-    }
-
-
 def _render_custom_styles():
     """Renderiza estilos customizados para o formulário de avaliação."""
     st.markdown(
@@ -201,10 +175,6 @@ def get_periodo_atual():
 
 def render_form():
     """Renderiza o formulário de avaliação da gestão."""
-    try:
-        config = _load_avaliacao_settings()
-    except ValueError:
-        st.stop()
 
     # Logo
     col_left, col_center, col_right = st.columns([1, 2, 1])
@@ -354,8 +324,15 @@ def render_form():
 
         # Botão de envio
         st.markdown("<br>", unsafe_allow_html=True)
-        submitted = st.form_submit_button("📤 Enviar Avaliação", use_container_width=True)
-
+        col1, col2 = st.columns([1, 1])
+	    
+        with col1:
+                submitted = st.form_submit_button("📤 Enviar Avaliação", width='stretch')      
+		
+        with col2:
+             if st.form_submit_button("🏠 Voltar ao Menu Principal", width='stretch'):
+                   st.switch_page("main.py")
+        
         # Controle de estado para evitar duplo processamento
         if "avaliacao_processing" not in st.session_state:
             st.session_state.avaliacao_processing = False

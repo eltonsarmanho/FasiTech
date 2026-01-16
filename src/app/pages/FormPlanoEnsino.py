@@ -265,7 +265,6 @@ def render_form() -> None:
             key="docente_outro_input"
         )
     
-    st.markdown("<br><hr><br>", unsafe_allow_html=True)
     
     # ============================================
     # FORMULÁRIO PRINCIPAL
@@ -304,8 +303,14 @@ def render_form() -> None:
         st.markdown("<br>", unsafe_allow_html=True)
         
         # Botão de envio
-        submitted = st.form_submit_button("Enviar", width='stretch')
         
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            submitted = st.form_submit_button("Enviar", width='stretch')
+
+        with col2:
+            if st.form_submit_button("🏠 Voltar ao Menu Principal", width='stretch'):
+                st.switch_page("main.py")
         st.markdown('</div>', unsafe_allow_html=True)
         
         # Processar submissão

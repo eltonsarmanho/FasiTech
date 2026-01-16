@@ -353,6 +353,44 @@ def _render_custom_styles() -> None:
                 box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
                 margin-bottom: 20px;
             }
+
+            /* Estilização das Abas */
+            .stTabs [data-baseweb="tab-list"] {
+                gap: 16px;
+                background-color: transparent;
+                padding-bottom: 15px;
+            }
+
+            .stTabs [data-baseweb="tab"] {
+                height: 48px;
+                white-space: pre-wrap;
+                background-color: #f8fafc;
+                border-radius: 10px;
+                color: #475569;
+                font-size: 0.95rem;
+                font-weight: 600;
+                padding: 0 24px;
+                border: 1px solid #e2e8f0;
+                transition: all 0.2s ease;
+            }
+
+            .stTabs [aria-selected="true"] {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+                color: #ffffff !important;
+                border: none !important;
+                box-shadow: 0 4px 12px rgba(118, 75, 162, 0.25) !important;
+            }
+
+            .stTabs [data-baseweb="tab"]:hover {
+                transform: translateY(-1px);
+                background-color: #ffffff;
+                border-color: #764ba2;
+                color: #764ba2;
+            }
+
+            .stTabs [aria-selected="true"]:hover {
+                color: #ffffff !important;
+            }
         </style>
         """,
         unsafe_allow_html=True,
@@ -372,9 +410,9 @@ def _render_header() -> None:
     st.markdown(
         """
         <div class="institutional-header">
-            <h1>🎓 Portal de Formulários Acadêmicos</h1>
-            <p>Bem-vindo ao sistema de formulários da FASI.</p>
-            <p>Selecione o formulário desejado abaixo e preencha com atenção todas as informações solicitadas.</p>
+            <h1>🎓 Portal Acadêmico da FASI</h1>
+            <p>Central integrada de serviços, formulários e documentos institucionais.</p>
+            <p>Acesse abaixo todos os recursos acadêmicos de forma rápida e unificada.</p>
         </div>
         """,
         unsafe_allow_html=True,
@@ -729,7 +767,7 @@ def _render_documents_portal() -> None:
 def main() -> None:
     """Página principal do portal de formulários."""
     st.set_page_config(
-        page_title="FasiTech Forms Portal",
+        page_title="FasiTech Portal Acadêmico",
         layout="wide",
         page_icon="🎓",
         initial_sidebar_state="collapsed",
@@ -745,8 +783,16 @@ def main() -> None:
     
     # Renderizar conteúdo principal
     _render_header()
-    _render_available_forms()
-    _render_documents_portal()
+    
+    # Organização em abas para melhor experiência do usuário
+    tab_forms, tab_docs = st.tabs(["📋 Formulários Acadêmicos", "📚 Documentos Institucionais"])
+    
+    with tab_forms:
+        _render_available_forms()
+        
+    with tab_docs:
+        _render_documents_portal()
+
     _render_info_section()
     
     # Rodapé com autor e LinkedIn

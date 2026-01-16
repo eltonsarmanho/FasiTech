@@ -297,8 +297,13 @@ def render_form() -> None:
 			accept_multiple_files=False,
 			help="Arquivo PDF consolidado com todos os certificados (máximo 50 MB)",
 		)
-		submitted = st.form_submit_button("Enviar para análise", width='stretch')
-
+		col1, col2 = st.columns([1, 1])
+		with col1:
+			submitted = st.form_submit_button("Enviar para análise", width='stretch')
+		with col2:
+		# Botão voltar
+			if st.form_submit_button("🏠 Voltar ao Menu Principal", width='stretch'):
+					st.switch_page("main.py")
 		if not submitted:
 			return
 
@@ -372,6 +377,8 @@ def main() -> None:
 		}
 	)
 	render_form()
+	
+
 
 
 main()

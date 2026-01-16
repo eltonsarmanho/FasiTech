@@ -385,7 +385,14 @@ def render_form():
             ]
         )
 
-        submitted = st.form_submit_button("Salvar", width='stretch')
+        
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            submitted = st.form_submit_button("Enviar Dados", width='stretch')
+
+        with col2:
+            if st.form_submit_button("🏠 Voltar ao Menu Principal", width='stretch'):
+                st.switch_page("main.py")
         st.markdown('</div>', unsafe_allow_html=True)
 
         if "social_processing" not in st.session_state:
