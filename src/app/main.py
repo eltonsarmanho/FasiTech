@@ -764,6 +764,40 @@ def _render_documents_portal() -> None:
         )
 
 
+def _render_calendarios_portal() -> None:
+    """Renderiza seção de calendários acadêmicos da FASI."""
+    st.markdown('<h2 class="section-title">📅 Calendários Acadêmicos da FASI</h2>', unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    col1, col2 = st.columns(2, gap="large")
+    
+    with col1:
+        st.markdown(
+            """
+            <div class="docs-card">
+                <h3>📋 Ofertas das Turmas</h3>
+                <ul class="docs-list">
+                    <li><a class="docs-link" href="https://docs.google.com/spreadsheets/d/1YJAky7xNUpcAI4JvkFaaS2eC2GTn7eLFFoqRV5NhEMA/edit?usp=sharing" target="_blank">📊 Planilha de Ofertas por Período</a></li>
+                </ul>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    
+    with col2:
+        st.markdown(
+            """
+            <div class="docs-card">
+                <h3>🎓 Jornada do TCC</h3>
+                <ul class="docs-list">
+                    <li><a class="docs-link" href="https://docs.google.com/spreadsheets/d/1jGC1pcBySaH3vqPAeseg2hvK_U-QL7Tu/edit?usp=sharing&ouid=104533156519023564459&rtpof=true&sd=true" target="_blank">📅 Cronograma e Etapas do TCC</a></li>
+                </ul>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+
 def main() -> None:
     """Página principal do portal de formulários."""
     st.set_page_config(
@@ -785,13 +819,16 @@ def main() -> None:
     _render_header()
     
     # Organização em abas para melhor experiência do usuário
-    tab_forms, tab_docs = st.tabs(["📋 Formulários Acadêmicos", "📚 Documentos Institucionais"])
+    tab_forms, tab_docs, tab_calendarios = st.tabs(["📋 Formulários Acadêmicos", "📚 Documentos Institucionais", "📅 Calendários"])
     
     with tab_forms:
         _render_available_forms()
         
     with tab_docs:
         _render_documents_portal()
+        
+    with tab_calendarios:
+        _render_calendarios_portal()
 
     _render_info_section()
     
