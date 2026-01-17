@@ -359,11 +359,13 @@ def _render_custom_styles() -> None:
                 gap: 16px;
                 background-color: transparent;
                 padding-bottom: 15px;
+                flex-wrap: wrap;
+                justify-content: center;
             }
 
             .stTabs [data-baseweb="tab"] {
                 height: 48px;
-                white-space: pre-wrap;
+                white-space: nowrap;
                 background-color: #f8fafc;
                 border-radius: 10px;
                 color: #475569;
@@ -390,6 +392,74 @@ def _render_custom_styles() -> None:
 
             .stTabs [aria-selected="true"]:hover {
                 color: #ffffff !important;
+            }
+
+            /* Responsividade Mobile para Abas */
+            @media (max-width: 768px) {
+                .stTabs [data-baseweb="tab-list"] {
+                    gap: 8px;
+                    padding-bottom: 10px;
+                }
+                
+                .stTabs [data-baseweb="tab"] {
+                    height: auto;
+                    min-height: 40px;
+                    font-size: 0.8rem;
+                    padding: 8px 12px;
+                    flex: 1 1 auto;
+                    text-align: center;
+                    justify-content: center;
+                }
+                
+                /* Cabeçalho responsivo */
+                .institutional-header {
+                    padding: 24px 16px;
+                    margin-bottom: 24px;
+                }
+                
+                .institutional-header h1 {
+                    font-size: 1.4rem;
+                }
+                
+                .institutional-header p {
+                    font-size: 0.9rem;
+                }
+                
+                /* Cards de documentos responsivos */
+                .docs-card {
+                    padding: 16px;
+                }
+                
+                .docs-card h3 {
+                    font-size: 1.1rem;
+                }
+                
+                .docs-link {
+                    font-size: 0.85rem;
+                    padding: 6px 10px;
+                }
+                
+                /* Títulos de seção responsivos */
+                .section-title {
+                    font-size: 1.3rem;
+                    margin-bottom: 16px;
+                }
+            }
+            
+            /* Telas muito pequenas (celulares) */
+            @media (max-width: 480px) {
+                .stTabs [data-baseweb="tab"] {
+                    font-size: 0.75rem;
+                    padding: 6px 8px;
+                }
+                
+                .institutional-header h1 {
+                    font-size: 1.2rem;
+                }
+                
+                .section-title {
+                    font-size: 1.1rem;
+                }
             }
         </style>
         """,
