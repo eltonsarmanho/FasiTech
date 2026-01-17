@@ -371,7 +371,10 @@ def _render_header() -> None:
         unsafe_allow_html=True,
     )
 
-    col_left, col_right = st.columns([5, 1])
+    col_left, col_center, col_right = st.columns([4, 1, 1])
+    with col_center:
+        if st.button("🏠 Voltar", use_container_width=True, key="btn_voltar_menu"):
+            st.switch_page("main.py")
     with col_right:
         st.button(
             "Reiniciar",
@@ -626,20 +629,10 @@ def main() -> None:
     user_input = st.chat_input(
         "Digite aqui sua pergunta sobre o curso de Sistemas de Informação...",
     )
-   
 
     user_message = pending_question or user_input
     if user_message:
         _handle_new_question(user_message)
-
-    # st.markdown(
-    #     """
-    #     <div class="footer-note">
-    #         🤖 <strong>Diretor Virtual</strong> • Plataforma FasiTech • Projeto Pedagógico do Curso de Sistemas de Informação
-    #     </div>
-    #     """,
-    #     unsafe_allow_html=True,
-    # )
 
 
 if __name__ == "__main__":

@@ -191,7 +191,12 @@ def main():
         3.  Nos resultados, clique sobre o nome da base (ex: **IEEE Xplore Digital Library**).
         4.  Na página seguinte, clique no link para acessar a base.
         """)
-
+    # Botão voltar ao menu principal
+    st.markdown("---")
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        if st.button("🏠 Voltar ao Menu Principal", use_container_width=True):
+            st.switch_page("main.py")
 
 if __name__ == "__main__":
     main()
