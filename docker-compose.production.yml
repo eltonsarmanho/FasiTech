@@ -46,6 +46,9 @@ services:
     volumes:
       - ./credentials:/app/credentials:ro
       - ./config:/app/config:ro
+      # Volumes adicionados para persistência e performance:
+      - ollama_data:/home/appuser/.ollama  # Evita baixar modelo IA toda vez
+      - app_cache:/home/appuser/.cache   # Evita reindexar PDFs toda vez
     restart: unless-stopped
     depends_on:
       api:
@@ -80,3 +83,8 @@ services:
 networks:
   fasitech-network:
     driver: bridge
+
+# Definição dos volumes globais
+volumes:
+  ollama_data:
+  app_cache:

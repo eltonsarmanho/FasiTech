@@ -230,7 +230,7 @@ class ChatbotService:
             try:
                 print("   Tentando carregar modelo Maritaca...")
                 model = OpenAILike(
-                        id="sabiazinho-4",
+                        id="sabia-4",
                         name="Maritaca Sabia 4",
                         api_key=maritaca_api_key,
                         base_url="https://chat.maritaca.ai/api",
