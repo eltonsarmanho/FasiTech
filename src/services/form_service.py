@@ -591,7 +591,6 @@ def process_plano_submission(
     # Carregar configurações de plano de ensino
     try:
         drive_folder_id = st.secrets["plano"]["drive_folder_id"]
-        sheet_id = st.secrets["plano"]["sheet_id"]
         notification_recipients = st.secrets["plano"].get("notification_recipients", [])
     except (KeyError, FileNotFoundError) as e:
         raise ValueError("Configurações de Plano de Ensino não encontradas em secrets.toml") from e
