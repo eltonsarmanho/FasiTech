@@ -78,3 +78,7 @@ services:
 networks:
   fasitech-network:
     driver: bridge
+# Definição dos volumes globais
+volumes:
+  ollama_data:
+  app_cache:
