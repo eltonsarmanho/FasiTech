@@ -1,0 +1,1567 @@
+User: Ao abrir navegador minha aplicação www.fasitech.com.br diz que nao é segura. Qual motivo ? Sistema está funcionando porem dá esse aviso
+
+GitHub Copilot: O aviso de "site não seguro" aparece porque seu domínio `www.fasitech.com.br` não possui um certificado SSL/TLS válido configurado. Isso significa que a conexão não está criptografada (HTTP em vez de HTTPS).
+
+## Principais causas:
+
+1. **Certificado SSL não instalado** ou expirado
+2. **Configuração incorreta** do servidor web/proxy reverso
+3. **Redirecionamento inadequado** de HTTP para HTTPS
+
+## Soluções:
+
+### 1. Verificar certificado atual
+````bash
+# Verificar status do certificado
+openssl s_client -connect fasitech.com.br:443 -servername fasitech.com.br
+
+# Verificar expiração
+echo | openssl s_client -connect fasitech.com.br:443 2>/dev/null | openssl x509 -noout -dates
+````
+
+### 2. Instalar certificado SSL gratuito (Let's Encrypt)
+````bash
+# Instalar certbot
+sudo apt update
+sudo apt install certbot python3-certbot-nginx
+
+# Obter certificado
+sudo certbot --nginx -d fasitech.com.br -d www.fasitech.com.br
+
+# Testar renovação automática
+sudo certbot renew --dry-run
+````
+
+### 3. Configurar Nginx para HTTPS
+````nginx
+server {
+    listen 80;
+    server_name fasitech.com.br www.fasitech.com.br;
+    return 301 https://$server_name$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name fasitech.com.br www.fasitech.com.br;
+
+    ssl_certificate /etc/letsencrypt/live/fasitech.com.br/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/fasitech.com.br/privkey.pem;
+
+    # Configurações SSL recomendadas
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384;
+    ssl_session_timeout 1d;
+    ssl_session_cache shared:MozTLS:10m;
+
+    location / {
+        proxy_pass http://localhost:8501;  # Porta do Streamlit
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+````
+
+### 4. Testar configuração
+````bash
+# Reiniciar nginx
+sudo systemctl restart nginx
+
+# Verificar status
+sudo systemctl status nginx
+
+# Testar configuração
+sudo nginx -t
+````
+
+### 5. Verificar firewall
+````bash
+# Permitir HTTPS
+sudo ufw allow 443/tcp
+sudo ufw allow 80/tcp
+````
+
+Após implementar essas correções, o navegador mostrará o cadeado verde indicando conexão segura.
+
+User: root@srv1090453:~# echo | openssl s_client -connect fasitech.com.br:443 2>/dev/null | openssl x509 -noout -dates
+notBefore=Oct 24 01:13:28 2025 GMT
+notAfter=Jan 22 01:13:27 2026 GMT
+
+
+GitHub Copilot: Baseado na saída do comando, vejo que o certificado SSL está **expirado hoje** (22 de janeiro de 2026). O certificado expirou e por isso o navegador está mostrando o aviso de site não seguro.
+
+## Problema identificado:
+- **Certificado expirou hoje**: `notAfter=Jan 22 01:13:27 2026 GMT`
+- **Data atual**: 22 de janeiro de 2026
+
+## Solução - Renovar certificado Let's Encrypt:
+
+### 1. Acessar o servidor
+````bash
+ssh root@72.60.6.113
+````
+
+### 2. Parar temporariamente o nginx para renovação
+````bash
+cd /home/ubuntu/appStreamLit/
+sudo docker-compose -f docker-compose.production.yml stop nginx
+````
+
+### 3. Renovar o certificado
+````bash
+# Renovar certificado Let's Encrypt
+sudo certbot renew --force-renewal --standalone
+
+# Ou especificamente para o domínio
+sudo certbot certonly --standalone --force-renewal -d fasitech.com.br -d www.fasitech.com.br
+````
+
+### 4. Verificar se o certificado foi renovado
+````bash
+echo | openssl s_client -connect fasitech.com.br:443 2>/dev/null | openssl x509 -noout -dates
+````
+
+### 5. Reiniciar os serviços
+````bash
+# Reiniciar todos os containers
+sudo docker-compose -f docker-compose.production.yml up -d
+
+# Verificar se estão rodando
+sudo docker-compose -f docker-compose.production.yml ps
+````
+
+### 6. Testar no navegador
+Acesse `https://fasitech.com.br` e verifique se o cadeado verde aparece.
+
+### 7. Configurar renovação automática (opcional)
+````bash
+# Verificar se o cron job existe
+sudo crontab -l | grep certbot
+
+# Se não existir, adicionar renovação automática
+sudo crontab -e
+
+# Adicionar linha (roda todo dia às 2h da manhã):
+0 2 * * * /usr/bin/certbot renew --quiet && docker-compose -f /home/ubuntu/appStreamLit/docker-compose.production.yml restart nginx
+````
+
+### Verificação final:
+````bash
+# Ver logs do nginx após reiniciar
+sudo docker logs fasitech-nginx-prod
+
+# Testar HTTPS
+curl -I https://fasitech.com.br
+````
+
+O problema será resolvido após a renovação do certificado SSL.
+
+User: root@srv1090453:/home/ubuntu/appStreamLit# sudo docker-compose -f docker-compose.production.yml stop nginx
+Stopping fasitech-nginx-prod ... done
+root@srv1090453:/home/ubuntu/appStreamLit# sudo certbot renew --force-renewal --standalone
+sudo: certbot: command not found
+root@srv1090453:/home/ubuntu/appStreamLit# sudo certbot certonly --standalone --force-renewal -d fasitech.com.br -d www.fasitech.com.br
+sudo: certbot: command not found
+root@srv1090453:/home/ubuntu/appStreamLit# cd
+root@srv1090453:~# ls
+root@srv1090453:~# cd /home/ubuntu/
+root@srv1090453:/home/ubuntu# ls
+appStreamLit  appStreamLit2  certbot  conf  nginx.conf  www
+root@srv1090453:/home/ubuntu# sudo certbot certonly --standalone --force-renewal -d fasitech.com.br -d www.fasitech.com.br
+sudo: certbot: command not found
+root@srv1090453:/home/ubuntu# cd appStreamLit
+root@srv1090453:/home/ubuntu/appStreamLit# 
+
+
+GitHub Copilot: O certbot não está instalado no servidor. Vamos instalar e renovar o certificado SSL:
+
+## 1. Instalar certbot
+
+````bash
+# Atualizar pacotes
+sudo apt update
+
+# Instalar certbot
+sudo apt install certbot python3-certbot-nginx -y
+````
+
+## 2. Verificar se nginx está parado
+
+````bash
+# Verificar se nginx do docker está parado
+sudo docker-compose -f docker-compose.production.yml ps nginx
+
+# Se estiver rodando, pare
+sudo docker-compose -f docker-compose.production.yml stop nginx
+````
+
+## 3. Renovar certificado usando standalone
+
+````bash
+# Renovar certificado (modo standalone - sem nginx rodando)
+sudo certbot certonly --standalone --force-renewal -d fasitech.com.br -d www.fasitech.com.br
+````
+
+## 4. Verificar se o certificado foi renovado
+
+````bash
+# Verificar novas datas
+echo | openssl s_client -connect localhost:443 -servername fasitech.com.br 2>/dev/null | openssl x509 -noout -dates
+
+# Verificar arquivos do certificado
+sudo ls -la /etc/letsencrypt/live/fasitech.com.br/
+````
+
+## 5. Reiniciar serviços
+
+````bash
+# Voltar para diretório da aplicação
+cd /home/ubuntu/appStreamLit
+
+# Reiniciar todos os containers
+sudo docker-compose -f docker-compose.production.yml up -d
+
+# Verificar status
+sudo docker-compose -f docker-compose.production.yml ps
+````
+
+## 6. Testar certificado
+
+````bash
+# Testar HTTPS
+curl -I https://fasitech.com.br
+
+# Verificar datas do novo certificado
+echo | openssl s_client -connect fasitech.com.br:443 2>/dev/null | openssl x509 -noout -dates
+````
+
+## 7. Configurar renovação automática
+
+````bash
+# Adicionar job no cron para renovação automática
+sudo crontab -e
+
+# Adicionar esta linha (executa às 2h da manhã todo dia):
+0 2 * * * /usr/bin/certbot renew --quiet --deploy-hook "cd /home/ubuntu/appStreamLit && docker-compose -f docker-compose.production.yml restart nginx"
+````
+
+Execute estes comandos na sequência e o certificado SSL será renovado, resolvendo o problema de site não seguro.
+
+User: Could not bind TCP port 80 because it is already in use by another process on
+this system (such as a web server). Please stop the program in question and then
+try again.
+
+
+GitHub Copilot: O erro indica que a porta 80 já está sendo usada por outro processo. Vamos identificar e resolver o conflito:
+
+## 1. Identificar o que está usando a porta 80
+
+````bash
+# Verificar qual processo está usando a porta 80
+sudo netstat -tulpn | grep :80
+
+# Ou usando ss (mais moderno)
+sudo ss -tulpn | grep :80
+
+# Verificar processos Docker
+sudo docker ps
+````
+
+## 2. Verificar containers Docker rodando
+
+````bash
+cd /home/ubuntu/appStreamLit
+
+# Ver status atual dos containers
+sudo docker-compose -f docker-compose.production.yml ps
+
+# Ver todos os containers (incluindo parados)
+sudo docker ps -a
+````
+
+## 3. Parar containers conflitantes
+
+````bash
+# Parar todos os containers do docker-compose atual
+sudo docker-compose -f docker-compose.production.yml down
+
+# Parar containers antigos que podem estar rodando
+sudo docker stop nginx-proxy fasitech-nginx-prod fasi_container 2>/dev/null
+sudo docker rm nginx-proxy fasitech-nginx-prod fasi_container 2>/dev/null
+
+# Verificar se ainda há algo na porta 80
+sudo netstat -tulpn | grep :80
+````
+
+## 4. Se necessário, matar processo na porta 80
+
+````bash
+# Encontrar PID do processo na porta 80
+sudo lsof -i :80
+
+# Matar o processo (substitua PID pelo número encontrado)
+sudo kill -9 PID
+
+# Ou forçar parada de nginx sistema (se existir)
+sudo systemctl stop nginx 2>/dev/null
+sudo systemctl disable nginx 2>/dev/null
+````
+
+## 5. Renovar certificado SSL
+
+````bash
+# Agora que a porta 80 está livre, renovar o certificado
+sudo certbot certonly --standalone --force-renewal -d fasitech.com.br -d www.fasitech.com.br
+````
+
+## 6. Verificar se certificado foi renovado
+
+````bash
+# Verificar novas datas
+echo | openssl s_client -connect fasitech.com.br:443 2>/dev/null | openssl x509 -noout -dates
+
+# Verificar arquivos do certificado
+sudo ls -la /etc/letsencrypt/live/fasitech.com.br/
+````
+
+## 7. Reiniciar aplicação
+
+````bash
+cd /home/ubuntu/appStreamLit
+
+# Subir novamente os serviços
+sudo docker-compose -f docker-compose.production.yml up -d
+
+# Verificar se tudo está rodando
+sudo docker-compose -f docker-compose.production.yml ps
+````
+
+## 8. Testar o site
+
+````bash
+# Testar HTTPS
+curl -I https://fasitech.com.br
+
+# Verificar logs do nginx
+sudo docker-compose -f docker-compose.production.yml logs nginx
+````
+
+Execute estes passos sequencialmente para resolver o conflito de porta e renovar o certificado SSL.
+
+User: root@srv1090453:/home/ubuntu/appStreamLit# sudo netstat -tulpn | grep :80
+tcp        0      0 0.0.0.0:80              0.0.0.0:*               LISTEN      49632/nginx: master 
+tcp6       0      0 :::80                   :::*                    LISTEN      49632/nginx: master 
+root@srv1090453:/home/ubuntu/appStreamLit# sudo docker ps
+CONTAINER ID   IMAGE                             COMMAND                  CREATED         STATUS                   PORTS                                         NAMES
+3f762fc54265   dashboard-monitoramento-treinos   "streamlit run main.…"   9 minutes ago   Up 9 minutes (healthy)   0.0.0.0:8502->8502/tcp, [::]:8502->8502/tcp   dashboard-treinos
+40c88fe619b1   appstreamlit-streamlit            "/app/start.sh"          4 days ago      Up 10 hours (healthy)    8501/tcp                                      fasitech-streamlit-prod
+4bd3911d8dd5   appstreamlit-api                  "uvicorn api.main:ap…"   4 days ago      Up 10 hours (healthy)    8000/tcp                                      fasitech-api-prod
+
+
+GitHub Copilot: Vejo que há um nginx rodando no sistema (não dockerizado) que está ocupando a porta 80. Vamos resolver isso:
+
+## 1. Parar o nginx do sistema
+
+````bash
+# Parar nginx do sistema
+sudo systemctl stop nginx
+
+# Verificar se parou
+sudo netstat -tulpn | grep :80
+````
+
+## 2. Verificar onde está o nginx do Docker Compose
+
+````bash
+# Ver status do docker-compose
+sudo docker-compose -f docker-compose.production.yml ps
+
+# Verificar se o nginx do compose está configurado
+sudo docker-compose -f docker-compose.production.yml ps nginx
+````
+
+## 3. Se necessário, parar nginx do sistema permanentemente
+
+````bash
+# Desabilitar nginx do sistema para não iniciar automaticamente
+sudo systemctl disable nginx
+
+# Verificar status
+sudo systemctl status nginx
+````
+
+## 4. Agora renovar o certificado SSL
+
+````bash
+# Com a porta 80 livre, renovar certificado
+sudo certbot certonly --standalone --force-renewal -d fasitech.com.br -d www.fasitech.com.br
+````
+
+## 5. Verificar se certificado foi renovado
+
+````bash
+# Verificar novas datas do certificado
+echo | openssl s_client -connect fasitech.com.br:443 2>/dev/null | openssl x509 -noout -dates
+
+# Verificar arquivos
+sudo ls -la /etc/letsencrypt/live/fasitech.com.br/
+````
+
+## 6. Iniciar nginx via Docker Compose
+
+````bash
+# Verificar se há configuração de nginx no docker-compose
+cat docker-compose.production.yml | grep -A 10 nginx
+
+# Se houver, iniciar
+sudo docker-compose -f docker-compose.production.yml up -d nginx
+
+# Se não houver nginx no compose, verificar configuração atual
+sudo docker-compose -f docker-compose.production.yml ps
+````
+
+## 7. Verificar site funcionando
+
+````bash
+# Testar HTTPS
+curl -I https://fasitech.com.br
+
+# Verificar se o site está acessível
+curl -I http://fasitech.com.br
+````
+
+Baseado nos containers que estão rodando, parece que o nginx não está sendo gerenciado pelo Docker Compose atual. Após parar o nginx do sistema e renovar o certificado, você pode precisar reconfigurar o nginx para trabalhar com os containers Streamlit e API que estão rodando.
+
+Execute os comandos sequencialmente e me informe o resultado para continuarmos a configuração se necessário.
+
+User: sudo certbot certonly --standalone --force-renewal -d fasitech.com.br -d www.fasitech.com.br
+Saving debug log to /var/log/letsencrypt/letsencrypt.log
+Requesting a certificate for fasitech.com.br and www.fasitech.com.br
+An unexpected error occurred:
+requests.exceptions.ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
+Ask for help or search for solutions at https://community.letsencrypt.org. See the logfile /var/log/letsencrypt/letsencrypt.log or re-run Certbot with -v for more details.
+root@srv1090453:/home/ubuntu/appStreamLit# sudo docker-compose -f docker-compose.production.yml ps
+Name   Command   State   Ports
+------------------------------
+
+
+GitHub Copilot: O erro indica problema de conectividade com os servidores Let's Encrypt. Vamos resolver isso e também verificar a configuração do Docker Compose:
+
+## 1. Primeiro, verificar conectividade de rede
+
+````bash
+# Testar conectividade com servidores Let's Encrypt
+ping -c 4 acme-v02.api.letsencrypt.org
+
+# Testar DNS
+nslookup fasitech.com.br
+nslookup www.fasitech.com.br
+
+# Verificar se as portas estão abertas
+sudo ufw status
+````
+
+## 2. Tentar renovação com mais detalhes de debug
+
+````bash
+# Renovar com logs verbosos para ver o erro exato
+sudo certbot certonly --standalone --force-renewal -d fasitech.com.br -d www.fasitech.com.br -v
+
+# Ou verificar o log detalhado
+sudo tail -50 /var/log/letsencrypt/letsencrypt.log
+````
+
+## 3. Verificar configuração do Docker Compose
+
+````bash
+cd /home/ubuntu/appStreamLit
+
+# Verificar se o arquivo docker-compose existe e está correto
+ls -la docker-compose.production.yml
+
+# Ver conteúdo do docker-compose
+cat docker-compose.production.yml
+
+# Verificar redes Docker
+sudo docker network ls
+````
+
+## 4. Se o docker-compose estiver vazio/com problemas, criar um básico
+
+````yaml
+version: '3.8'
+
+services:
+  streamlit:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: fasitech-streamlit-prod
+    ports:
+      - "8501:8501"
+    env_file:
+      - .env.production
+    networks:
+      - fasitech-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    container_name: fasitech-api-prod
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env.production
+    networks:
+      - fasitech-network
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    container_name: fasitech-nginx-prod
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    networks:
+      - fasitech-network
+    depends_on:
+      - streamlit
+      - api
+    restart: unless-stopped
+
+networks:
+  fasitech-network:
+    driver: bridge
+````
+
+## 5. Alternativa: usar certbot com webroot (nginx rodando)
+
+````bash
+# Iniciar nginx primeiro
+sudo docker-compose -f docker-compose.production.yml up -d nginx
+
+# Usar webroot ao invés de standalone
+sudo certbot certonly --webroot -w /var/www/html -d fasitech.com.br -d www.fasitech.com.br --force-renewal
+
+# Ou criar diretório webroot temporário
+sudo mkdir -p /var/www/html
+sudo certbot certonly --webroot -w /var/www/html -d fasitech.com.br -d www.fasitech.com.br --force-renewal
+````
+
+## 6. Se ainda não funcionar, usar método DNS
+
+````bash
+# Usar validação DNS (manual)
+sudo certbot certonly --manual --preferred-challenges dns -d fasitech.com.br -d www.fasitech.com.br --force-renewal
+````
+
+## 7. Como último recurso, copiar certificado válido existente
+
+````bash
+# Verificar se já existe certificado backup
+sudo ls -la /etc/letsencrypt/live/
+sudo ls -la /etc/letsencrypt/archive/
+
+# Se houver backup, verificar datas
+sudo ls -la /etc/letsencrypt/archive/fasitech.com.br/
+````
+
+## 8. Após resolver certificado, iniciar aplicação
+
+````bash
+cd /home/ubuntu/appStreamLit
+
+# Subir todos os serviços
+sudo docker-compose -f docker-compose.production.yml up -d
+
+# Verificar status
+sudo docker-compose -f docker-compose.production.yml ps
+
+# Ver logs
+sudo docker-compose -f docker-compose.production.yml logs -f
+````
+
+Execute primeiro o teste de conectividade e depois tente a renovação com logs verbosos para identificar a causa exata do problema de conexão.
+
+User: /home/ubuntu/appStreamLit# sudo certbot certonly --standalone --force-renewal -d fasitech.com.br -d www.fasitech.com.br
+Saving debug log to /var/log/letsencrypt/letsencrypt.log
+Requesting a certificate for fasitech.com.br and www.fasitech.com.br
+
+Successfully received certificate.
+Certificate is saved at: /etc/letsencrypt/live/fasitech.com.br/fullchain.pem
+Key is saved at:         /etc/letsencrypt/live/fasitech.com.br/privkey.pem
+This certificate expires on 2026-04-22.
+These files will be updated when the certificate renews.
+Certbot has set up a scheduled task to automatically renew this certificate in the background.
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+If you like Certbot, please consider supporting our work by:
+ * Donating to ISRG / Let's Encrypt:   https://letsencrypt.org/donate
+ * Donating to EFF:                    https://eff.org/donate-le
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+
+GitHub Copilot: Excelente! O certificado SSL foi renovado com sucesso. Agora vamos finalizar a configuração para que o site volte a funcionar com HTTPS seguro.
+
+## 1. Verificar o novo certificado
+
+````bash
+# Verificar as novas datas do certificado
+echo | openssl s_client -connect fasitech.com.br:443 2>/dev/null | openssl x509 -noout -dates
+
+# Verificar arquivos do certificado
+sudo ls -la /etc/letsencrypt/live/fasitech.com.br/
+````
+
+## 2. Reiniciar a aplicação
+
+````bash
+cd /home/ubuntu/appStreamLit
+
+# Verificar se o docker-compose está funcionando
+sudo docker-compose -f docker-compose.production.yml ps
+
+# Reiniciar todos os serviços (incluindo nginx para carregar novo certificado)
+sudo docker-compose -f docker-compose.production.yml up -d
+
+# Verificar status dos containers
+sudo docker-compose -f docker-compose.production.yml ps
+````
+
+## 3. Testar o site
+
+````bash
+# Testar HTTP (deve redirecionar para HTTPS)
+curl -I http://fasitech.com.br
+
+# Testar HTTPS
+curl -I https://fasitech.com.br
+
+# Verificar certificado no navegador
+echo "Teste no navegador: https://fasitech.com.br"
+````
+
+## 4. Verificar logs se houver problemas
+
+````bash
+# Ver logs do nginx
+sudo docker-compose -f docker-compose.production.yml logs nginx
+
+# Ver logs do streamlit
+sudo docker-compose -f docker-compose.production.yml logs streamlit
+
+# Ver logs da API
+sudo docker-compose -f docker-compose.production.yml logs api
+````
+
+## 5. Configurar renovação automática (importante!)
+
+````bash
+# Criar script de renovação que funciona com Docker
+sudo tee /etc/cron.d/certbot-renew > /dev/null << 'EOF'
+# Renovar certificado SSL automaticamente às 2h da manhã
+0 2 * * * root /usr/bin/certbot renew --quiet --deploy-hook "cd /home/ubuntu/appStreamLit && docker-compose -f docker-compose.production.yml restart nginx" >> /var/log/letsencrypt/renew.log 2>&1
+EOF
+
+# Verificar se o cron foi criado
+sudo cat /etc/cron.d/certbot-renew
+
+# Testar renovação (dry-run)
+sudo certbot renew --dry-run
+````
+
+## Resultado esperado:
+
+✅ **Certificado válido até**: 22 de abril de 2026  
+✅ **Site seguro**: https://fasitech.com.br deve mostrar cadeado verde  
+✅ **Renovação automática**: Configurada para renovar automaticamente  
+
+## Em caso de problemas:
+
+Se o site ainda não carregar após estes passos, verifique:
+
+````bash
+# Verificar se o nginx está rodando corretamente
+sudo docker-compose -f docker-compose.production.yml logs nginx | tail -20
+
+# Verificar configuração do nginx
+sudo docker exec fasitech-nginx-prod nginx -t
+
+# Se necessário, reiniciar apenas o nginx
+sudo docker-compose -f docker-compose.production.yml restart nginx
+````
+
+O certificado SSL foi renovado com sucesso! Agora teste o site no navegador - deve aparecer com o cadeado verde indicando conexão segura.
+
+User: root@srv1090453:/home/ubuntu/appStreamLit# echo | openssl s_client -connect fasitech.com.br:443 2>/dev/null | openssl x509 -noout -dates
+Could not read certificate from <stdin>
+Unable to load certificate
+root@srv1090453:/home/ubuntu/appStreamLit# echo | openssl s_client -connect fasitech.com.br:443 2>/dev/null | openssl x509 -noout -dates
+Could not read certificate from <stdin>
+Unable to load certificate
+
+
+GitHub Copilot: O erro indica que o nginx não está rodando ou não está configurado corretamente com o novo certificado SSL. Vamos diagnosticar e resolver:
+
+## 1. Verificar status dos containers
+
+````bash
+# Verificar se os containers estão rodando
+sudo docker-compose -f docker-compose.production.yml ps
+
+# Ver todos os containers
+sudo docker ps
+
+# Verificar se há algum processo na porta 443
+sudo netstat -tulpn | grep :443
+````
+
+## 2. Verificar se o nginx existe no docker-compose
+
+````bash
+# Ver conteúdo do docker-compose
+cat docker-compose.production.yml | grep -A 20 nginx
+````
+
+## 3. Se não há nginx no docker-compose, vamos criá-lo
+
+Baseado na estrutura do projeto FasiTech, vamos configurar o nginx corretamente:
+
+````yaml
+version: '3.8'
+
+services:
+  streamlit:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: fasitech-streamlit-prod
+    ports:
+      - "8501:8501"
+    env_file:
+      - .env.production
+    networks:
+      - fasitech-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    container_name: fasitech-api-prod
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env.production
+    networks:
+      - fasitech-network
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    container_name: fasitech-nginx-prod
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/www/certbot:/var/www/certbot:ro
+    networks:
+      - fasitech-network
+    depends_on:
+      - streamlit
+      - api
+    restart: unless-stopped
+
+networks:
+  fasitech-network:
+    driver: bridge
+````
+
+## 4. Criar configuração do nginx
+
+````nginx
+events {
+    worker_connections 1024;
+}
+
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+
+    # Redirect HTTP to HTTPS
+    server {
+        listen 80;
+        server_name fasitech.com.br www.fasitech.com.br;
+        
+        location /.well-known/acme-challenge/ {
+            root /var/www/certbot;
+        }
+
+        location / {
+            return 301 https://$server_name$request_uri;
+        }
+    }
+
+    # HTTPS Configuration
+    server {
+        listen 443 ssl http2;
+        server_name fasitech.com.br www.fasitech.com.br;
+
+        # SSL Configuration
+        ssl_certificate /etc/letsencrypt/live/fasitech.com.br/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/fasitech.com.br/privkey.pem;
+
+        # SSL Settings
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384;
+        ssl_prefer_server_ciphers off;
+        ssl_session_cache shared:SSL:10m;
+        ssl_session_timeout 10m;
+
+        # Security Headers
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+        add_header X-Content-Type-Options nosniff;
+        add_header X-Frame-Options DENY;
+        add_header X-XSS-Protection "1; mode=block";
+
+        # Streamlit Application
+        location / {
+            proxy_pass http://fasitech-streamlit-prod:8501;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            
+            # WebSocket support for Streamlit
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_read_timeout 86400;
+        }
+
+        # API Routes
+        location /api/ {
+            proxy_pass http://fasitech-api-prod:8000/;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+    }
+}
+````
+
+## 5. Criar diretório nginx se não existir
+
+````bash
+# Criar diretório para configuração nginx
+sudo mkdir -p /home/ubuntu/appStreamLit/docker/nginx/
+
+# Verificar se o arquivo foi criado
+ls -la /home/ubuntu/appStreamLit/docker/nginx/
+````
+
+## 6. Reiniciar com a nova configuração
+
+````bash
+cd /home/ubuntu/appStreamLit
+
+# Parar tudo
+sudo docker-compose -f docker-compose.production.yml down
+
+# Subir tudo novamente
+sudo docker-compose -f docker-compose.production.yml up -d
+
+# Verificar status
+sudo docker-compose -f docker-compose.production.yml ps
+
+# Ver logs do nginx
+sudo docker-compose -f docker-compose.production.yml logs nginx
+````
+
+## 7. Testar o certificado agora
+
+````bash
+# Testar conexão HTTPS
+echo | openssl s_client -connect fasitech.com.br:443 2>/dev/null | openssl x509 -noout -dates
+
+# Testar no navegador
+curl -I https://fasitech.com.br
+````
+
+## 8. Se ainda não funcionar, verificar logs
+
+````bash
+# Ver logs detalhados do nginx
+sudo docker-compose -f docker-compose.production.yml logs nginx
+
+# Verificar se nginx conseguiu iniciar
+sudo docker exec fasitech-nginx-prod nginx -t
+
+# Ver se o certificado está acessível dentro do container
+sudo docker exec fasitech-nginx-prod ls -la /etc/letsencrypt/live/fasitech.com.br/
+````
+
+Execute estes passos sequencialmente para configurar o nginx corretamente com o certificado SSL renovado.
+
+User: root@srv1090453:/home/ubuntu/appStreamLit# cat docker-compose.production.yml | grep -A 20 nginx
+  nginx:
+    image: nginx:alpine
+    container_name: fasitech-nginx-prod
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - /home/ubuntu/certbot/conf:/etc/nginx/ssl:ro  # Certificados SSL (Certbot)
+      - /home/ubuntu/certbot/www:/var/www/certbot:ro  # Para renovação de certificados
+    depends_on:
+      - api
+      - streamlit
+    restart: unless-stopped
+    networks:
+      - fasitech-network
+
+networks:
+  fasitech-network:
+    driver: bridge
+
+# Definição dos volumes globais
+volumes:
+  ollama_data:
+  app_cache:
+
+
+GitHub Copilot: Vejo que o nginx já está configurado no docker-compose, mas está usando um caminho diferente para os certificados SSL. O problema é que o nginx está procurando os certificados em `/home/ubuntu/certbot/conf` mas o Let's Encrypt os salvou em `/etc/letsencrypt/live/`.
+
+## 1. Verificar estrutura atual dos certificados
+
+````bash
+# Verificar onde estão os certificados Let's Encrypt
+sudo ls -la /etc/letsencrypt/live/fasitech.com.br/
+
+# Verificar se existe o diretório certbot
+sudo ls -la /home/ubuntu/certbot/conf/
+````
+
+## 2. Corrigir o volume do docker-compose
+
+````yaml
+# ...existing code...
+  nginx:
+    image: nginx:alpine
+    container_name: fasitech-nginx-prod
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro  # Certificados SSL (Let's Encrypt)
+      - /home/ubuntu/certbot/www:/var/www/certbot:ro  # Para renovação de certificados
+    depends_on:
+      - api
+      - streamlit
+    restart: unless-stopped
+    networks:
+      - fasitech-network
+# ...existing code...
+````
+
+## 3. Verificar configuração do nginx
+
+````bash
+# Ver configuração atual do nginx
+cat ./docker/nginx/nginx.conf
+````
+
+## 4. Corrigir configuração nginx se necessário
+
+````nginx
+events {
+    worker_connections 1024;
+}
+
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+    
+    sendfile        on;
+    keepalive_timeout  65;
+
+    # Redirect HTTP to HTTPS
+    server {
+        listen 80;
+        server_name fasitech.com.br www.fasitech.com.br;
+        
+        location /.well-known/acme-challenge/ {
+            root /var/www/certbot;
+        }
+
+        location / {
+            return 301 https://$host$request_uri;
+        }
+    }
+
+    # HTTPS Configuration
+    server {
+        listen 443 ssl http2;
+        server_name fasitech.com.br www.fasitech.com.br;
+
+        # SSL Configuration
+        ssl_certificate /etc/letsencrypt/live/fasitech.com.br/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/fasitech.com.br/privkey.pem;
+
+        # SSL Settings
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384;
+        ssl_prefer_server_ciphers off;
+        ssl_session_cache shared:SSL:10m;
+        ssl_session_timeout 10m;
+
+        # Security Headers
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+        # Proxy settings
+        proxy_buffering off;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Streamlit Application
+        location / {
+            proxy_pass http://fasitech-streamlit-prod:8501;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_read_timeout 86400;
+        }
+
+        # API Routes
+        location /api/ {
+            proxy_pass http://fasitech-api-prod:8000/;
+        }
+    }
+}
+````
+
+## 5. Aplicar as mudanças
+
+````bash
+cd /home/ubuntu/appStreamLit
+
+# Parar nginx
+sudo docker-compose -f docker-compose.production.yml stop nginx
+
+# Subir nginx novamente com nova configuração
+sudo docker-compose -f docker-compose.production.yml up -d nginx
+
+# Verificar status
+sudo docker-compose -f docker-compose.production.yml ps nginx
+````
+
+## 6. Verificar logs do nginx
+
+````bash
+# Ver logs do nginx
+sudo docker-compose -f docker-compose.production.yml logs nginx
+
+# Testar configuração dentro do container
+sudo docker exec fasitech-nginx-prod nginx -t
+
+# Verificar se certificados estão acessíveis no container
+sudo docker exec fasitech-nginx-prod ls -la /etc/letsencrypt/live/fasitech.com.br/
+````
+
+## 7. Testar o certificado
+
+````bash
+# Testar conexão HTTPS
+echo | openssl s_client -connect fasitech.com.br:443 2>/dev/null | openssl x509 -noout -dates
+
+# Testar no navegador
+curl -I https://fasitech.com.br
+````
+
+## 8. Se ainda não funcionar, verificar se o nginx consegue acessar os certificados
+
+````bash
+# Verificar permissões
+sudo ls -la /etc/letsencrypt/live/fasitech.com.br/
+sudo ls -la /etc/letsencrypt/archive/fasitech.com.br/
+
+# Se necessário, ajustar permissões
+sudo chmod 755 /etc/letsencrypt/live/
+sudo chmod 755 /etc/letsencrypt/archive/
+````
+
+A principal mudança é corrigir o volume do nginx para apontar para `/etc/letsencrypt` onde o Let's Encrypt salvou os certificados, em vez de `/home/ubuntu/certbot/conf`.
+
+User: Podemos atualizar certificado considerando /home/ubuntu/certbot/conf ? Pois tudo estava funcionando normal considerando
+
+GitHub Copilot: Analisando seu arquivo nginx.conf, vejo que a configuração está apontando para `/etc/nginx/ssl` (que é mapeado do `/home/ubuntu/certbot/conf` no docker-compose). Vamos mover os certificados renovados para o local correto onde o nginx espera encontrá-los:
+
+## 1. Verificar estrutura atual dos certificados
+
+````bash
+# Verificar certificados Let's Encrypt (recém renovados)
+sudo ls -la /etc/letsencrypt/live/fasitech.com.br/
+
+# Verificar estrutura certbot atual
+sudo ls -la /home/ubuntu/certbot/conf/
+sudo ls -la /home/ubuntu/certbot/conf/live/ 2>/dev/null
+````
+
+## 2. Copiar certificados renovados para o local correto
+
+````bash
+# Criar estrutura de diretórios se não existir
+sudo mkdir -p /home/ubuntu/certbot/conf/live/fasitech.com.br/
+sudo mkdir -p /home/ubuntu/certbot/conf/archive/fasitech.com.br/
+
+# Copiar certificados renovados
+sudo cp /etc/letsencrypt/live/fasitech.com.br/* /home/ubuntu/certbot/conf/live/fasitech.com.br/
+sudo cp -r /etc/letsencrypt/archive/fasitech.com.br/* /home/ubuntu/certbot/conf/archive/fasitech.com.br/ 2>/dev/null
+
+# Ajustar permissões
+sudo chmod 644 /home/ubuntu/certbot/conf/live/fasitech.com.br/*
+sudo chmod 644 /home/ubuntu/certbot/conf/archive/fasitech.com.br/* 2>/dev/null
+````
+
+## 3. Verificar se certificados estão no local correto
+
+````bash
+# Verificar se certificados estão disponíveis
+sudo ls -la /home/ubuntu/certbot/conf/live/fasitech.com.br/
+
+# Verificar conteúdo dos certificados
+sudo openssl x509 -in /home/ubuntu/certbot/conf/live/fasitech.com.br/fullchain.pem -noout -dates
+````
+
+## 4. Reiniciar nginx com os certificados atualizados
+
+````bash
+cd /home/ubuntu/appStreamLit
+
+# Parar nginx
+sudo docker-compose -f docker-compose.production.yml stop nginx
+
+# Subir nginx novamente
+sudo docker-compose -f docker-compose.production.yml up -d nginx
+
+# Verificar status
+sudo docker-compose -f docker-compose.production.yml ps nginx
+````
+
+## 5. Verificar se certificados estão acessíveis no container
+
+````bash
+# Verificar se nginx consegue acessar certificados
+sudo docker exec fasitech-nginx-prod ls -la /etc/nginx/ssl/live/fasitech.com.br/
+
+# Testar configuração nginx
+sudo docker exec fasitech-nginx-prod nginx -t
+
+# Ver logs do nginx
+sudo docker-compose -f docker-compose.production.yml logs nginx
+````
+
+## 6. Testar o certificado SSL
+
+````bash
+# Testar conexão HTTPS
+echo | openssl s_client -connect fasitech.com.br:443 2>/dev/null | openssl x509 -noout -dates
+
+# Testar acesso ao site
+curl -I https://fasitech.com.br
+````
+
+## 7. Configurar renovação automática para o local correto
+
+````bash
+# Criar script de renovação que copia para o local correto
+sudo tee /etc/cron.d/certbot-renew > /dev/null << 'EOF'
+# Renovar certificado SSL e copiar para local correto
+0 2 * * * root /usr/bin/certbot renew --quiet --deploy-hook "cp -r /etc/letsencrypt/live/* /home/ubuntu/certbot/conf/live/ && cp -r /etc/letsencrypt/archive/* /home/ubuntu/certbot/conf/archive/ && cd /home/ubuntu/appStreamLit && docker-compose -f docker-compose.production.yml restart nginx" >> /var/log/letsencrypt/renew.log 2>&1
+EOF
+
+# Verificar cron
+sudo cat /etc/cron.d/certbot-renew
+````
+
+## 8. Verificar se tudo está funcionando
+
+````bash
+# Testar no navegador
+echo "Teste o site: https://fasitech.com.br"
+
+# Verificar logs finais
+sudo docker-compose -f docker-compose.production.yml logs nginx | tail -20
+````
+
+## Explicação da solução:
+
+Sua configuração original estava funcionando porque:
+- O nginx no container esperava certificados em `/etc/nginx/ssl/live/fasitech.com.br/`
+- O docker-compose mapeava `/home/ubuntu/certbot/conf` para `/etc/nginx/ssl` no container
+- Quando renovamos via Let's Encrypt, os certificados foram salvos em `/etc/letsencrypt/`
+
+A solução copia os certificados renovados para o local onde o nginx espera encontrá-los, mantendo sua configuração original funcionando.
+
+User: root@srv1090453:/home/ubuntu/appStreamLit# sudo ls -la /etc/letsencrypt/live/fasitech.com.br/
+total 12
+drwxr-xr-x 2 root root 4096 Jan 22 18:19 .
+drwx------ 3 root root 4096 Jan 22 18:19 ..
+-rw-r--r-- 1 root root  692 Jan 22 18:19 README
+lrwxrwxrwx 1 root root   39 Jan 22 18:19 cert.pem -> ../../archive/fasitech.com.br/cert1.pem
+lrwxrwxrwx 1 root root   40 Jan 22 18:19 chain.pem -> ../../archive/fasitech.com.br/chain1.pem
+lrwxrwxrwx 1 root root   44 Jan 22 18:19 fullchain.pem -> ../../archive/fasitech.com.br/fullchain1.pem
+lrwxrwxrwx 1 root root   42 Jan 22 18:19 privkey.pem -> ../../archive/fasitech.com.br/privkey1.pem
+root@srv1090453:/home/ubuntu/appStreamLit# sudo ls -la /home/ubuntu/certbot/conf/
+total 28
+drwxr-xr-x 7 ubuntu ubuntu 4096 Oct 24 02:12 .
+drwxr-xr-x 4 ubuntu ubuntu 4096 Oct 24 02:04 ..
+drwxr-xr-x 3 ubuntu ubuntu 4096 Oct 24 02:11 accounts
+drwxr-xr-x 3 ubuntu ubuntu 4096 Oct 24 02:12 archive
+drwxr-xr-x 3 ubuntu ubuntu 4096 Oct 24 02:12 live
+drwxr-xr-x 2 ubuntu ubuntu 4096 Oct 24 02:12 renewal
+drwxr-xr-x 5 ubuntu ubuntu 4096 Oct 24 02:11 renewal-hooks
+root@srv1090453:/home/ubuntu/appStreamLit# sudo ls -la /home/ubuntu/certbot/conf/live/ 2>/dev/null
+total 20
+drwxr-xr-x 3 ubuntu ubuntu 4096 Oct 24 02:12 .
+drwxr-xr-x 7 ubuntu ubuntu 4096 Oct 24 02:12 ..
+-rwxr-xr-x 1 ubuntu ubuntu  740 Oct 24 02:12 README
+drwxr-xr-x 2 ubuntu ubuntu 4096 Oct 24 02:12 fasitech.com.br
+root@srv1090453:/home/ubuntu/appStreamLit# 
+
+
+
+GitHub Copilot: Perfeito! Vejo que já existe a estrutura do certbot no local correto. Agora vamos copiar os certificados renovados para onde o nginx está esperando:
+
+## 1. Copiar certificados renovados para o local correto
+
+````bash
+# Copiar certificados renovados do Let's Encrypt para o certbot
+sudo cp -L /etc/letsencrypt/live/fasitech.com.br/* /home/ubuntu/certbot/conf/live/fasitech.com.br/
+
+# Copiar também os arquivos do archive (certificados físicos)
+sudo cp /etc/letsencrypt/archive/fasitech.com.br/fullchain1.pem /home/ubuntu/certbot/conf/archive/fasitech.com.br/
+sudo cp /etc/letsencrypt/archive/fasitech.com.br/privkey1.pem /home/ubuntu/certbot/conf/archive/fasitech.com.br/
+sudo cp /etc/letsencrypt/archive/fasitech.com.br/cert1.pem /home/ubuntu/certbot/conf/archive/fasitech.com.br/
+sudo cp /etc/letsencrypt/archive/fasitech.com.br/chain1.pem /home/ubuntu/certbot/conf/archive/fasitech.com.br/
+````
+
+## 2. Ajustar permissões
+
+````bash
+# Ajustar proprietário para ubuntu (igual aos outros arquivos)
+sudo chown -R ubuntu:ubuntu /home/ubuntu/certbot/conf/live/fasitech.com.br/
+sudo chown -R ubuntu:ubuntu /home/ubuntu/certbot/conf/archive/fasitech.com.br/
+
+# Ajustar permissões de leitura
+sudo chmod 644 /home/ubuntu/certbot/conf/live/fasitech.com.br/*
+sudo chmod 644 /home/ubuntu/certbot/conf/archive/fasitech.com.br/*
+````
+
+## 3. Verificar se certificados foram copiados corretamente
+
+````bash
+# Verificar arquivos copiados
+sudo ls -la /home/ubuntu/certbot/conf/live/fasitech.com.br/
+
+# Verificar se certificados são válidos
+sudo openssl x509 -in /home/ubuntu/certbot/conf/live/fasitech.com.br/fullchain.pem -noout -dates
+````
+
+## 4. Reiniciar nginx com certificados atualizados
+
+````bash
+cd /home/ubuntu/appStreamLit
+
+# Parar nginx
+sudo docker-compose -f docker-compose.production.yml stop nginx
+
+# Subir nginx novamente
+sudo docker-compose -f docker-compose.production.yml up -d nginx
+
+# Verificar status
+sudo docker-compose -f docker-compose.production.yml ps
+````
+
+## 5. Verificar se nginx consegue acessar os certificados
+
+````bash
+# Verificar se certificados estão acessíveis no container
+sudo docker exec fasitech-nginx-prod ls -la /etc/nginx/ssl/live/fasitech.com.br/
+
+# Testar configuração nginx
+sudo docker exec fasitech-nginx-prod nginx -t
+
+# Ver logs do nginx para verificar se não há erros
+sudo docker-compose -f docker-compose.production.yml logs nginx
+````
+
+## 6. Testar o certificado SSL
+
+````bash
+# Testar conexão HTTPS
+echo | openssl s_client -connect fasitech.com.br:443 2>/dev/null | openssl x509 -noout -dates
+
+# Testar acesso HTTP (deve redirecionar)
+curl -I http://fasitech.com.br
+
+# Testar acesso HTTPS
+curl -I https://fasitech.com.br
+````
+
+## 7. Configurar renovação automática
+
+````bash
+# Criar script de renovação que mantém os certificados no local correto
+sudo tee /etc/cron.d/certbot-renew > /dev/null << 'EOF'
+# Renovar certificado SSL e copiar para local do nginx
+0 2 * * * root /usr/bin/certbot renew --quiet --deploy-hook "cp -L /etc/letsencrypt/live/fasitech.com.br/* /home/ubuntu/certbot/conf/live/fasitech.com.br/ && chown ubuntu:ubuntu /home/ubuntu/certbot/conf/live/fasitech.com.br/* && cd /home/ubuntu/appStreamLit && docker-compose -f docker-compose.production.yml restart nginx" >> /var/log/letsencrypt/renew.log 2>&1
+EOF
+
+# Verificar se cron foi criado
+sudo cat /etc/cron.d/certbot-renew
+````
+
+## 8. Testar no navegador
+
+Agora teste o site no navegador: `https://fasitech.com.br`
+
+O certificado deve aparecer válido com:
+- **Válido até**: 22 de abril de 2026
+- **Cadeado verde** indicando conexão segura
+- **Redirecionamento automático** de HTTP para HTTPS
+
+Se ainda houver problemas, verifique os logs:
+
+````bash
+sudo docker-compose -f docker-compose.production.yml logs nginx | tail -20
+
+
+User: Como vai ficar arquivo nginx.conf ? Copio que esta na maquina local para VM?
+
+GitHub Copilot: Sim, você pode copiar o arquivo nginx.conf da máquina local para a VM. O arquivo local está bem estruturado e atualizado. Vamos fazer isso:
+
+## 1. Copiar arquivo nginx.conf para a VM
+
+````bash
+# No seu terminal local (máquina de desenvolvimento)
+# Use o comando rsync que já está configurado no seu comandosEspeciais.txt
+rsync -avz --progress \
+    --exclude 'lancedb/' --exclude 'data/' --exclude 'venv/' --exclude 'env/' \
+    --exclude '.venv/' --exclude '.git/' --exclude '.gitignore' \
+    --exclude '__pycache__/' --exclude '*.pyc' --exclude '*.pyo' \
+    --exclude '*.pyd' --exclude '.Python' --exclude '*.so' \
+    --exclude '*.egg' --exclude '*.egg-info/' --exclude 'dist/' \
+    --exclude 'build/' --exclude '.pytest_cache/' --exclude '.vscode/' \
+    --exclude '.idea/' --exclude '*.log' --exclude '*.key' \
+    --exclude '.DS_Store' --exclude 'Thumbs.db' --exclude '*~' \
+    -e "ssh" \
+    /home/nees/Documents/VSCodigo/FasiTech/ \
+    root@72.60.6.113:/home/ubuntu/appStreamLit/
+````
+
+## 2. Ou copiar apenas o arquivo nginx.conf específico
+
+````bash
+# Copiar apenas o arquivo nginx.conf
+scp /home/nees/Documents/VSCodigo/FasiTech/docker/nginx/nginx.conf \
+    root@72.60.6.113:/home/ubuntu/appStreamLit/docker/nginx/nginx.conf
+````
+
+## 3. Na VM, verificar se o arquivo foi copiado corretamente
+
+````bash
+# Conectar na VM
+ssh root@72.60.6.113
+
+# Verificar se arquivo foi copiado
+cd /home/ubuntu/appStreamLit
+ls -la docker/nginx/nginx.conf
+
+# Ver conteúdo
+cat docker/nginx/nginx.conf
+````
+
+## 4. O arquivo nginx.conf local está perfeito para produção
+
+O arquivo local tem todas as configurações necessárias:
+
+✅ **SSL configurado** corretamente com Let's Encrypt  
+✅ **Upstreams definidos** para `streamlit:8501` e `api:8000`  
+✅ **Redirecionamento HTTP → HTTPS**  
+✅ **Headers de segurança** e performance  
+✅ **Rotas API** bem configuradas  
+✅ **Suporte WebSocket** para Streamlit  
+
+## 5. Após copiar, reiniciar nginx na VM
+
+````bash
+# Na VM, reiniciar nginx com nova configuração
+cd /home/ubuntu/appStreamLit
+
+# Parar nginx
+sudo docker-compose -f docker-compose.production.yml stop nginx
+
+# Subir nginx com nova configuração
+sudo docker-compose -f docker-compose.production.yml up -d nginx
+
+# Verificar se está funcionando
+sudo docker-compose -f docker-compose.production.yml ps nginx
+
+# Ver logs
+sudo docker-compose -f docker-compose.production.yml logs nginx
+````
+
+## 6. Verificar se certificados estão sendo encontrados
+
+````bash
+# Verificar se nginx consegue acessar certificados
+sudo docker exec fasitech-nginx-prod nginx -t
+
+# Se der erro, verificar certificados
+sudo docker exec fasitech-nginx-prod ls -la /etc/nginx/ssl/live/fasitech.com.br/
+````
+
+## 7. Testar funcionamento
+
+````bash
+# Testar HTTPS
+curl -I https://fasitech.com.br
+
+# Verificar certificado
+echo | openssl s_client -connect fasitech.com.br:443 2>/dev/null | openssl x509 -noout -dates
+````
+
+**Recomendação**: Use o comando rsync completo do seu comandosEspeciais.txt para sincronizar todo o projeto, pois isso garante que todas as atualizações sejam enviadas de uma vez. O arquivo nginx.conf local está mais atualizado e melhor estruturado que o atual na VM.
+
+User: Funcionou. Porem faça tutorial simples e direto quando expirar novamente. Considere pasta certbot 
+
+GitHub Copilot: # Tutorial: Renovar Certificado SSL - FasiTech
+
+## Quando o certificado expirar novamente
+
+### 🔍 **1. Identificar problema**
+```bash
+# Verificar se certificado expirou
+echo | openssl s_client -connect fasitech.com.br:443 2>/dev/null | openssl x509 -noout -dates
+```
+
+### 🛑 **2. Parar nginx**
+```bash
+cd /home/ubuntu/appStreamLit
+sudo docker-compose -f docker-compose.production.yml stop nginx
+```
+
+### 🔄 **3. Renovar certificado**
+```bash
+sudo certbot renew --force-renewal --standalone
+```
+
+### 📋 **4. Copiar certificados para pasta certbot**
+```bash
+# Copiar certificados renovados
+sudo cp -L /etc/letsencrypt/live/fasitech.com.br/* /home/ubuntu/certbot/conf/live/fasitech.com.br/
+
+# Ajustar permissões
+sudo chown -R ubuntu:ubuntu /home/ubuntu/certbot/conf/live/fasitech.com.br/
+sudo chmod 644 /home/ubuntu/certbot/conf/live/fasitech.com.br/*
+```
+
+### ✅ **5. Verificar certificados**
+```bash
+# Confirmar que certificados estão no local correto
+sudo ls -la /home/ubuntu/certbot/conf/live/fasitech.com.br/
+
+# Verificar datas do certificado
+sudo openssl x509 -in /home/ubuntu/certbot/conf/live/fasitech.com.br/fullchain.pem -noout -dates
+```
+
+### 🚀 **6. Reiniciar nginx**
+```bash
+cd /home/ubuntu/appStreamLit
+sudo docker-compose -f docker-compose.production.yml up -d nginx
+```
+
+### 🧪 **7. Testar funcionamento**
+```bash
+# Verificar se nginx está rodando
+sudo docker-compose -f docker-compose.production.yml ps nginx
+
+# Testar HTTPS
+curl -I https://fasitech.com.br
+
+# Verificar certificado online
+echo | openssl s_client -connect fasitech.com.br:443 2>/dev/null | openssl x509 -noout -dates
+```
+
+---
+
+## ⚡ **Script Completo (Copy & Paste)**
+
+```bash
+# Renovação SSL FasiTech - Execute em sequência
+cd /home/ubuntu/appStreamLit
+sudo docker-compose -f docker-compose.production.yml stop nginx
+sudo certbot renew --force-renewal --standalone
+sudo cp -L /etc/letsencrypt/live/fasitech.com.br/* /home/ubuntu/certbot/conf/live/fasitech.com.br/
+sudo chown -R ubuntu:ubuntu /home/ubuntu/certbot/conf/live/fasitech.com.br/
+sudo chmod 644 /home/ubuntu/certbot/conf/live/fasitech.com.br/*
+sudo docker-compose -f docker-compose.production.yml up -d nginx
+curl -I https://fasitech.com.br
+```
+
+---
+
+## 🔧 **Troubleshooting**
+
+**Se der erro "port 80 in use":**
+```bash
+sudo systemctl stop nginx
+# Depois continue com renovação
+```
+
+**Se nginx não subir:**
+```bash
+sudo docker-compose -f docker-compose.production.yml logs nginx
+sudo docker exec fasitech-nginx-prod nginx -t
+```
+
+**Se certificados não estiverem no local correto:**
+```bash
+sudo docker exec fasitech-nginx-prod ls -la /etc/nginx/ssl/live/fasitech.com.br/
+```
+
+---
+
+## 📅 **Renovação Automática (Configurar uma vez)**
+
+```bash
+sudo tee /etc/cron.d/certbot-renew > /dev/null << 'EOF'
+0 2 * * * root /usr/bin/certbot renew --quiet --deploy-hook "cp -L /etc/letsencrypt/live/fasitech.com.br/* /home/ubuntu/certbot/conf/live/fasitech.com.br/ && chown ubuntu:ubuntu /home/ubuntu/certbot/conf/live/fasitech.com.br/* && cd /home/ubuntu/appStreamLit && docker-compose -f docker-compose.production.yml restart nginx" >> /var/log/letsencrypt/renew.log 2>&1
+EOF
+```
+
+**Resultado esperado:** ✅ Site com cadeado verde em `https://fasitech.com.br`
