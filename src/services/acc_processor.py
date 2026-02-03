@@ -7,7 +7,6 @@ Extrai cargas horárias de PDFs mesclados que podem conter:
 - Documentos convertidos (.doc → PDF)
 - Orientação paisagem ou retrato
 
-Usa Groq Llama 3.3 70B + Vision para extrair e somar cargas horárias.
 """
 import os
 from typing import List, Dict, Any
