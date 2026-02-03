@@ -19,8 +19,9 @@ except ImportError as exc:
 
 from agno.agent import Agent
 from agno.models.google import Gemini
+from agno.models.openai import OpenAILike
 
-from agno.media import Image
+from agno.media import Image, File
 from pathlib import Path
 
 # Carregar variáveis de ambiente
@@ -153,14 +154,17 @@ def extrair_total_geral(texto: str) -> str:
     return "⚠️  TOTAL GERAL não encontrado na resposta"
 
 
-def criar_agente_extrator() -> Agent:
+def criar_agente_extrator() -> tuple[Agent, str]:
     """
     Cria um agente especializado em extrair cargas horárias de certificados.
+    
+    Returns:
+        Tupla (agent, modelo_tipo) onde modelo_tipo é 'gemini' ou 'maritaca'
     """
     INSTRUCOES = """Você é um especialista em extrair informações de certificados acadêmicos.
 
 TAREFA:
-1. Analise cada imagem de certificado fornecida
+1. Analise cada certificado PDF fornecido
 2. Extraia a CARGA HORÁRIA (em horas) de cada certificado
 3. Identifique o nome/título da atividade quando possível
 4. Retorne os dados em formato estruturado
@@ -194,9 +198,35 @@ TOTAL GERAL: [soma de todas as cargas] horas
 """
 
     try:
-        print("   🤖 Criando modelo Gemini...")
-        modelo = Gemini(id="gemini-2.5-flash")
-        print("   ✓ Modelo Gemini criado")
+        modelo_tipo = "gemini"  # Padrão
+        modelo = None
+        
+        # Tentar Maritaca primeiro
+        maritaca_api_key = os.getenv("MARITALK_API_KEY")
+        if maritaca_api_key:
+            print("   🤖 Criando modelo Maritaca Sabia...")
+            print("   ✓ MARITALK_API_KEY configurada")
+            try:
+                modelo = OpenAILike(
+                    id="sabia-4",
+                    name="Maritaca Sabia 4",
+                    api_key=maritaca_api_key,
+                    base_url="https://chat.maritaca.ai/api",
+                    temperature=0
+                )
+                modelo_tipo = "maritaca"
+                print("   ✓ Modelo Maritaca Sabia criado")
+            except Exception as e:
+                print(f"   ⚠️ Erro ao criar Maritaca: {e}")
+                print("   🔄 Tentando usar Gemini...")
+                modelo = None
+        
+        # Fallback para Gemini
+        if not modelo:
+            print("   🤖 Criando modelo Gemini...")
+            modelo = Gemini(id="gemini-2.5-flash")
+            modelo_tipo = "gemini"
+            print("   ✓ Modelo Gemini criado")
         
         agent = Agent(
             name="Extrator ACC",
@@ -205,13 +235,13 @@ TOTAL GERAL: [soma de todas as cargas] horas
             markdown=True,
             debug_mode=False
         )
-        print("   ✓ Agente configurado com sucesso")
+        print(f"   ✓ Agente configurado com sucesso (usando {modelo_tipo})")
         
-        return agent
+        return agent, modelo_tipo
         
     except Exception as e:
         print(f"   ❌ Erro ao criar agente: {e}")
-        raise RuntimeError(f"Falha ao inicializar agente Gemini: {e}")
+        raise RuntimeError(f"Falha ao inicializar agente: {e}")
 
 
 def salvar_resultado_txt(conteudo: str, matricula: str, nome: str, output_dir: str = "/tmp/acc_results") -> str:
@@ -315,46 +345,28 @@ def processar_certificados_acc(
         except ImportError as e:
             raise ImportError(f"agno não disponível: {e}")
         
-        # 1. Converter PDF para imagens
-        print("\n📄 Convertendo PDF para imagens...")
-        image_paths = pdf_to_images(pdf_path)
-        print(f"✓ Total de páginas convertidas: {len(image_paths)}")
-        
-        if not image_paths:
-            raise ValueError("Nenhuma página foi convertida do PDF")
-        
-        # 2. Criar agente extrator
+        # 1. Criar agente extrator
         print("\n🤖 Inicializando agente de extração...")
-        agent = criar_agente_extrator()
-        print("✓ Agente criado com sucesso")
+        agent, modelo_tipo = criar_agente_extrator()
+        print(f"✓ Agente criado com sucesso (modelo: {modelo_tipo})")
         
-        # 3. Preparar imagens para o agente
-        print("\n📊 Preparando imagens para análise...")
-        images = []
-        for i, img_path in enumerate(image_paths):
-            try:
-                img = Image(filepath=img_path)
-                images.append(img)
-                print(f"  ✓ Imagem {i+1}/{len(image_paths)} carregada")
-            except Exception as e:
-                print(f"  ⚠️ Erro ao carregar imagem {i+1}: {e}")
-        
-        if not images:
-            raise ValueError("Nenhuma imagem foi carregada com sucesso")
-        
-        # 4. Montar prompt com contexto
-        prompt = f"""Analise os {len(images)} certificados anexados e extraia as cargas horárias.
+        # 2. Montar prompt com contexto
+        prompt = f"""Analise o documento PDF de certificados ACC anexado e extraia as cargas horárias.
 
-Cada imagem representa uma página do documento ACC do aluno {nome} (Matrícula: {matricula}).
-Processe todas as páginas e forneça o TOTAL GERAL ao final."""
+O arquivo contém certificados do aluno {nome} (Matrícula: {matricula}).
+Processe todas as páginas do PDF e forneça o TOTAL GERAL ao final."""
     
-        # 5. Processar com o agente
-        print("\n⚙️  Processando certificados com Gemini...\n")
+        # 3. Processar com o agente (PDF direto)
+        print(f"\n⚙️  Processando certificados com {modelo_tipo.upper()}...\n")
         print("-"*70)
         
+        # Criar objeto File para o agente
+        pdf_file = File(filepath=pdf_path)
+        
+        # Enviar PDF diretamente (ambos modelos suportam)
         response = agent.run(
             input=prompt,
-            images=images,
+            files=[pdf_file],
             stream=False
         )
         
@@ -373,16 +385,8 @@ Processe todas as páginas e forneça o TOTAL GERAL ao final."""
         print("\n💾 Salvando resultado em arquivo TXT...")
         txt_path = salvar_resultado_txt(response.content, matricula, nome)
         
-        # 7. Limpar imagens temporárias
-        print("\n🧹 Limpando imagens temporárias...")
-        for img_path in image_paths:
-            try:
-                os.remove(img_path)
-            except Exception as e:
-                print(f"  ⚠️  Erro ao remover {img_path}: {e}")
-        
         return {
-            "total_paginas": len(image_paths),
+            "total_paginas": 1,  # PDF processado diretamente
             "resposta_completa": response.content,
             "total_geral": total_geral,
             "txt_path": txt_path,
@@ -395,17 +399,6 @@ Processe todas as páginas e forneça o TOTAL GERAL ao final."""
         print(f"\n❌ ERRO CRÍTICO no processamento ACC:")
         print(f"   Tipo: {type(e).__name__}")
         print(f"   Mensagem: {str(e)}")
-        
-        # Tentar limpar imagens temporárias mesmo com erro
-        try:
-            if 'image_paths' in locals():
-                for img_path in image_paths:
-                    try:
-                        os.remove(img_path)
-                    except:
-                        pass
-        except:
-            pass
         
         # Retornar resultado de erro
         return {
