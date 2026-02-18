@@ -1,0 +1,98 @@
+title FasiTech - Arquitetura Atual Completa (Producao + Multiambiente)
+
+participant Usuario
+participant ClienteAPI
+participant Operador
+participant DNS_Internet
+participant Nginx
+participant Streamlit
+participant FastAPI
+participant AuthMiddleware
+participant SocialDataService
+participant FormService
+participant RepositorySQLModel
+participant PostgreSQL
+participant GoogleDrive
+participant GoogleSheets
+participant GmailSMTP
+participant ACCProcessor
+participant RAGService
+participant OllamaEmbedder
+participant LanceDB
+participant SQLiteHistory
+participant LLMProviders
+participant DockerCompose
+participant VolumesCache
+
+note over Usuario,ClienteAPI: Atores\n- Usuario (discente/docente/coordenacao)\n- ClienteAPI (consumo externo de dados sociais)
+note over DNS_Internet,Nginx: Entrada publica\n- Dominio: www.fasitech.com.br\n- TLS/SSL com Certbot (Hostinger)\n- Ambiente UFPA: acesso por IP interno/externo
+
+Usuario->DNS_Internet: Acessa portal web
+DNS_Internet->Nginx: HTTPS 443 (ou HTTP 80 com redirect)
+Nginx->Streamlit: Proxy "/" -> streamlit:8501
+Nginx->FastAPI: Proxy "/api/*" -> api:8000
+
+note over Streamlit,FastAPI: Containers Docker em rede "fasitech-network"\n- Env: .env/.env.production\n- Volumes RO: ./credentials, ./config
+note over DockerCompose: Multiambiente\n- dev: portas 8501/8000 publicas + API_BASE_URL interno\n- prod Hostinger: Nginx 80/443 + API_BASE_URL https://www.fasitech.com.br\n- prod UFPA: variacao com acesso por IP
+
+Operador->DockerCompose: deploy/restart (up -d --build)
+DockerCompose->FastAPI: start + healthcheck /health
+DockerCompose->Streamlit: start apos API healthy
+DockerCompose->Nginx: start proxy reverso
+DockerCompose->VolumesCache: monta ollama_data + app_cache (producao)
+Streamlit->VolumesCache: usa cache local em /home/appuser/.cache/fasitech/rag
+
+note over Streamlit: Camada de apresentacao (pages)\n- FormACC, FormTCC, FormEstagio, FormRequerimentoTCC\n- FormPlanoEnsino, FormProjetos, FormSocial, FormAutoAvaliacaoFASI\n- PageDataDocentesProjetos, OfertasDisciplinas, FAQ, PageDiretorVirtual
+
+Usuario->Streamlit: Preenche e envia formulario
+Streamlit->FormService: processa regras de negocio (ACC/TCC/Estagio/Plano/Projetos)
+FormService->GoogleDrive: upload de anexos e organizacao hierarquica de pastas
+FormService->RepositorySQLModel: persistencia estruturada das submissoes
+RepositorySQLModel->PostgreSQL: INSERT/UPDATE/SELECT via SQLModel
+FormService->GmailSMTP: notificacoes e confirmacoes por email
+FormService->GoogleSheets: append_rows (compatibilidade/fluxos legados)
+
+note over Streamlit,RepositorySQLModel: Fluxos diretos por pagina\n- Requerimento TCC, Social e Avaliacao da Gestao salvam direto no repositorio\n- Consulta de Projetos Docentes le PostgreSQL para dashboards
+
+Streamlit->RepositorySQLModel: save_requerimento_tcc_submission
+Streamlit->RepositorySQLModel: save_social_submission
+Streamlit->RepositorySQLModel: save_avaliacao_gestao_submission
+Streamlit->GmailSMTP: emails de requerimento/social
+Streamlit->GoogleSheets: leitura de ofertas de disciplinas + feedback do Diretor Virtual
+
+note over FormService,ACCProcessor: Fluxo ACC assincrono\n- Upload imediato + persistencia\n- Processamento IA em thread background\n- Envio de email final com resultado
+
+FormService->ACCProcessor: processar_certificados_acc(pdf)
+ACCProcessor->LLMProviders: extracao de carga horaria (Gemini/Maritaca)
+ACCProcessor->GmailSMTP: resultado final (sucesso/falha)
+
+note over Usuario,RAGService: Diretor Virtual (RAG PPC)
+Usuario->Streamlit: Pergunta no chat
+Streamlit->RAGService: ask_question(session_id, question)
+RAGService->OllamaEmbedder: gera embeddings (nomic-embed-text)
+RAGService->LanceDB: busca vetorial hibrida + cache semantico
+RAGService->LLMProviders: gera resposta contextualizada (Maritaca/Gemini/HF fallback)
+RAGService->SQLiteHistory: persistencia historico conversacional por sessao
+RAGService-->Streamlit: resposta + fontes + latencia + cache_info
+Streamlit->GoogleSheets: salva feedback do usuario
+Streamlit->RAGService: salva no cache semantico quando feedback = 5
+
+note over ClienteAPI,FastAPI: API de Dados Sociais\n- Rotas protegidas por API Key (Bearer/X-API-Key)\n- Download CSV/XLSX publico\n- Cache em memoria (TTL 30 min)
+
+ClienteAPI->DNS_Internet: Chama endpoint /api/v1/dados-sociais
+DNS_Internet->Nginx: HTTPS /api/*
+Nginx->FastAPI: Encaminha requisicao
+FastAPI->AuthMiddleware: valida API Key para rotas protegidas
+AuthMiddleware-->FastAPI: autorizacao read/write
+FastAPI->SocialDataService: get_dados_sociais / estatisticas / opcoes
+SocialDataService->PostgreSQL: SELECT em social_submissions
+SocialDataService->SocialDataService: anonimiza matricula (hash LGPD)
+FastAPI-->ClienteAPI: JSON paginado e estatisticas
+
+ClienteAPI->DNS_Internet: Download publico /api/v1/dados-sociais/download/csv|excel
+DNS_Internet->Nginx: HTTPS download
+Nginx->FastAPI: rota publica de download
+FastAPI->SocialDataService: carrega e formata dataset anonimizado
+FastAPI-->ClienteAPI: arquivo CSV/XLSX
+
+note over Nginx,FastAPI: Endpoints operacionais\n- /health (API)\n- /_stcore/health (Streamlit)\n- /api/v1/dados-sociais/*\n- /api/webhooks/submit (placeholder)

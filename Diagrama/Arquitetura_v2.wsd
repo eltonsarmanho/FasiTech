@@ -1,0 +1,105 @@
+@startuml
+!theme plain
+top to bottom direction
+
+skinparam packageStyle rectangle
+skinparam componentStyle rectangle
+
+actor Usuario
+actor ClienteAPI as "Cliente API Externo"
+actor Operador
+
+package "Borda e Acesso" {
+    component DNS_Internet as "DNS + Internet"
+    component NginxTLS as "Nginx Reverse Proxy\nTLS/SSL + roteamento"
+}
+
+package "Canal de Atendimento" {
+    component StreamlitUI as "Portal Web (Streamlit)"
+    component FastAPI as "API REST (FastAPI)"
+}
+
+package "Core do Sistema FasiTech" {
+    component FormOrchestrator as "Orquestrador de Formularios\n(form_service + pages)"
+    component AuthAPIKey as "Autenticacao API Key\n(src/middleware/auth.py)"
+    component SocialDataService as "Dominio Dados Sociais\nfiltros + paginacao + cache + LGPD"
+    component Repository as "Repository SQLModel"
+    database PostgreSQL as "PostgreSQL"
+
+    rectangle "Modulo de IA - Diretor Virtual (RAG)" {
+        component RAGService as "ChatbotService"
+        component OllamaEmbedder as "Ollama Embedder\nnomic-embed-text"
+        database VectorDB as "LanceDB"
+        database ChatHistoryDB as "SQLite Historico"
+        component LLM as "LLM Provider\nMaritaca / Gemini / HF"
+    }
+}
+
+package "Integracoes Externas" {
+    component GoogleDrive as "Google Drive"
+    component GoogleSheets as "Google Sheets"
+    component SMTP as "SMTP Gmail"
+}
+
+package "Operacao e Runtime" {
+    component DockerCompose as "Docker Compose\n(dev / prod / prodUFPA)"
+    component CacheVolumes as "Volumes de Cache\nollama_data + app_cache"
+}
+
+' Entrada principal
+Usuario --> DNS_Internet
+ClienteAPI --> DNS_Internet
+DNS_Internet --> NginxTLS
+NginxTLS --> StreamlitUI : "/"
+NginxTLS --> FastAPI : "/api/*"
+
+' Fluxo de formularios
+StreamlitUI --> FormOrchestrator : Envio de formularios
+FormOrchestrator --> GoogleDrive : Upload de anexos
+FormOrchestrator --> Repository : Persistencia estruturada
+Repository --> PostgreSQL
+FormOrchestrator --> SMTP : Notificacoes por email
+FormOrchestrator --> GoogleSheets : Append rows (legado)
+
+' Fluxos diretos de paginas Streamlit
+StreamlitUI --> Repository : Requerimento/Social/Avaliacao
+StreamlitUI --> GoogleSheets : Feedback RAG + Ofertas
+
+' API de dados sociais
+FastAPI --> AuthAPIKey : Valida chave (rotas protegidas)
+FastAPI --> SocialDataService : Dados sociais/estatisticas/download
+SocialDataService --> PostgreSQL : SELECT social_submissions
+SocialDataService --> SocialDataService : Anonimizacao de matricula (hash LGPD)
+
+' Diretor Virtual (RAG)
+StreamlitUI --> RAGService : Perguntas e respostas
+RAGService --> OllamaEmbedder : Gera embeddings
+RAGService --> VectorDB : Busca vetorial + cache semantico
+RAGService --> LLM : Gera resposta contextualizada
+RAGService --> ChatHistoryDB : Historico por sessao
+StreamlitUI --> RAGService : save_to_semantic_cache (feedback 5)
+
+' Operacao
+Operador --> DockerCompose : Deploy/restart (up -d --build)
+DockerCompose --> NginxTLS
+DockerCompose --> StreamlitUI
+DockerCompose --> FastAPI
+DockerCompose --> CacheVolumes
+CacheVolumes --> StreamlitUI : Cache RAG/Ollama
+
+note right of DockerCompose
+Ambientes:
+- local: docker-compose.yml
+- prod hostinger: docker-compose.production.yml
+- prod UFPA: docker-compose.productionUFPA.yml
+end note
+
+note right of FastAPI
+Endpoints:
+- /health
+- /api/docs
+- /api/v1/dados-sociais/*
+- /api/webhooks/submit (placeholder)
+end note
+
+@enduml
