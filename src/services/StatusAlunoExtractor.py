@@ -134,6 +134,93 @@ class StatusAlunoExtractor:
         return StatusAlunoExtractor._extrair_dados_texto(texto)
 
     @staticmethod
+    def extrair_ultimo_periodo_componente(pdf_input: PdfInput) -> str:
+        """
+        Extrai o último Ano/Período da seção
+        'Componentes Curriculares Cursados/Cursando'.
+        """
+        texto = StatusAlunoExtractor._pdf_to_text(pdf_input)
+        StatusAlunoExtractor._validar_documento_historico_texto(texto)
+        return StatusAlunoExtractor._extrair_ultimo_periodo_texto(texto)
+
+    @staticmethod
+    def _extrair_ultimo_periodo_texto(texto: str) -> str:
+        secao = StatusAlunoExtractor._extrair_secao_componentes(texto)
+        if not secao:
+            return ""
+
+        periodos = re.findall(r"\b(20\d{2}\.[1-9])\b", secao)
+        if not periodos:
+            return ""
+        return periodos[-1]
+
+    @staticmethod
+    def extrair_periodo_matriculado(pdf_input: PdfInput) -> str:
+        """
+        Extrai o último Ano/Período cuja Situação seja MATRICULADO
+        na seção 'Componentes Curriculares Cursados/Cursando'.
+        """
+        texto = StatusAlunoExtractor._pdf_to_text(pdf_input)
+        StatusAlunoExtractor._validar_documento_historico_texto(texto)
+        return StatusAlunoExtractor._extrair_periodo_matriculado_texto(texto)
+
+    @staticmethod
+    def _extrair_periodo_matriculado_texto(texto: str) -> str:
+        secao = StatusAlunoExtractor._extrair_secao_componentes(texto)
+        if not secao:
+            return ""
+
+        lines = [line.strip() for line in secao.splitlines() if line.strip()]
+        period_indices: list[tuple[int, str]] = []
+        for idx, line in enumerate(lines):
+            match_periodo = re.match(r"^(20\d{2}\.[1-9])\b", line)
+            if match_periodo:
+                period_indices.append((idx, match_periodo.group(1)))
+
+        if not period_indices:
+            return ""
+
+        periodos_matriculados: list[str] = []
+        for i, (start_idx, periodo) in enumerate(period_indices):
+            end_idx = period_indices[i + 1][0] if i + 1 < len(period_indices) else len(lines)
+            bloco = "\n".join(lines[start_idx:end_idx])
+            if re.search(r"\bMATRICULADO\b", bloco, flags=re.IGNORECASE):
+                periodos_matriculados.append(periodo)
+
+        if periodos_matriculados:
+            return periodos_matriculados[-1]
+
+        # Fallback por proximidade: MATRICULADO pode aparecer fora do bloco no texto extraído.
+        matriculado_indices = [idx for idx, line in enumerate(lines) if re.search(r"\bMATRICULADO\b", line, re.IGNORECASE)]
+        if not matriculado_indices:
+            return ""
+
+        ultimo_matriculado_idx = matriculado_indices[-1]
+        periodos_anteriores = [periodo for idx, periodo in period_indices if idx <= ultimo_matriculado_idx]
+        if periodos_anteriores:
+            return periodos_anteriores[-1]
+        return ""
+
+    @staticmethod
+    def _extrair_secao_componentes(texto: str) -> str:
+        inicio_match = re.search(
+            r"Componentes\s+Curriculares\s+Cursados/Cursando",
+            texto,
+            flags=re.IGNORECASE,
+        )
+        if not inicio_match:
+            return ""
+
+        inicio = inicio_match.start()
+        fim_match = re.search(
+            r"\bLegenda\b|\bCarga\s+Hor[aá]ria\s+Integralizada/Pendente\b",
+            texto[inicio:],
+            flags=re.IGNORECASE,
+        )
+        fim = inicio + fim_match.start() if fim_match else len(texto)
+        return texto[inicio:fim]
+
+    @staticmethod
     def _extrair_dados_texto(texto: str) -> dict[str, str]:
         cpf = StatusAlunoExtractor._extrair_cpf(texto)
         nome = StatusAlunoExtractor._extrair_nome(texto)

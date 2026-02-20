@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import tempfile
 from datetime import datetime
@@ -27,6 +28,22 @@ def _resolver_caminho_certificado() -> Path:
         "Certificado PFX não encontrado. Configure CERTIFICADO_PFX_PATH "
         "ou garanta o arquivo src/resources/certificado.pfx."
     )
+
+
+def _resolver_caminho_serpro() -> Path | None:
+    """Resolve caminho da imagem do selo SERPRO (opcional)."""
+    env_path = os.getenv("SERPRO_SIGNATURE_IMAGE")
+    candidates = [
+        Path(env_path).expanduser() if env_path else None,
+        Path(__file__).resolve().parents[1] / "resources" / "serpro.png",
+        Path.cwd() / "src" / "resources" / "serpro.png",
+        Path("/app/src/resources/serpro.png"),
+    ]
+
+    for candidate in candidates:
+        if candidate and candidate.exists():
+            return candidate
+    return None
 
 
 def _normalizar_senha(senha: str | None) -> str | None:
@@ -62,18 +79,55 @@ def _ler_dados_certificado(caminho_certificado: Path, senha: str | None) -> dict
         raise ValueError("Certificado PFX inválido ou sem chave privada.")
 
     common_name = "Certificado ICP-Brasil"
+    issuer_name = "ICP-Brasil"
+    cert_tipo = "ICP-Brasil"
+    referencia = str(cert.serial_number)
+    titular = common_name
     try:
         common_name = cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
     except Exception:
         pass
 
+    try:
+        issuer_name = cert.issuer.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
+    except Exception:
+        pass
+
+    try:
+        cert_tipo = cert.subject.get_attributes_for_oid(NameOID.ORGANIZATION_NAME)[0].value
+    except Exception:
+        pass
+
+    try:
+        ou_value = cert.subject.get_attributes_for_oid(NameOID.ORGANIZATIONAL_UNIT_NAME)[0].value
+        match_ref = re.search(r"refer[eê]ncia\s+(\d+)", ou_value, flags=re.IGNORECASE)
+        if match_ref:
+            referencia = match_ref.group(1)
+    except Exception:
+        pass
+
+    titular = common_name.split(":")[0].strip()
     serial = hex(cert.serial_number)[2:].upper()
     serial_curto = serial[-16:] if len(serial) > 16 else serial
-    return {"common_name": common_name, "serial": serial_curto}
+    return {
+        "common_name": common_name,
+        "serial": serial_curto,
+        "titular": titular,
+        "issuer_name": issuer_name,
+        "cert_tipo": cert_tipo,
+        "referencia": referencia,
+    }
 
 
-def _aplicar_assinatura_visual(caminho_pdf: Path, dados_cert: dict[str, str], texto_assinatura: str) -> None:
-    """Aplica bloco visual da assinatura acima da linha do diretor."""
+def _aplicar_assinatura_visual(
+    caminho_pdf: Path,
+    dados_cert: dict[str, str],
+    texto_assinatura: str,
+    *,
+    anchor_x: float | None = None,
+    anchor_y: float | None = None,
+) -> None:
+    """Aplica selo visual com layout leve usando a imagem SERPRO."""
     try:
         from PyPDF2 import PdfReader, PdfWriter
     except ImportError:
@@ -93,21 +147,67 @@ def _aplicar_assinatura_visual(caminho_pdf: Path, dados_cert: dict[str, str], te
         largura = float(ultima_pagina.mediabox.width)
         altura = float(ultima_pagina.mediabox.height)
 
-        # Posição acima da linha de assinatura do diretor.
-        assinatura_x = 70
-        assinatura_y = 238
+        # Selo visual ancorado acima da linha do diretor (escala reduzida em 50%).
+        scale = 0.5
+
+        def s(value: float) -> float:
+            return value * scale
+
+        assinatura_largura = s(390)
+        assinatura_altura = s(90)
+        base_x = (anchor_x - (assinatura_largura / 2)) if anchor_x else (largura - assinatura_largura - 54)
+        base_y = (anchor_y + s(8)) if anchor_y else 78
+        assinatura_x = max(36, min(base_x, largura - assinatura_largura - 36))
+        assinatura_y = max(36, min(base_y, altura - assinatura_altura - 36))
 
         c = canvas.Canvas(str(overlay_path), pagesize=(largura, altura))
-        c.setFont("Helvetica-Bold", 9)
-        c.drawString(assinatura_x, assinatura_y + 12, "ASSINATURA DIGITAL")
-        c.setFont("Helvetica", 8)
-        c.drawString(assinatura_x, assinatura_y, texto_assinatura)
-        c.drawString(assinatura_x, assinatura_y - 11, f"Titular: {dados_cert['common_name']}")
-        c.drawString(assinatura_x, assinatura_y - 22, f"Serial: {dados_cert['serial']}")
+        c.setFillColorRGB(0.96, 0.97, 0.99)
+        c.setStrokeColorRGB(0.60, 0.71, 0.86)
+        c.setLineWidth(1)
+        c.roundRect(assinatura_x, assinatura_y, assinatura_largura, assinatura_altura, s(7), stroke=1, fill=1)
+
+        logo_box_w = s(76)
+        logo_box_h = assinatura_altura - s(16)
+        logo_box_x = assinatura_x + s(8)
+        logo_box_y = assinatura_y + s(8)
+        c.setStrokeColorRGB(0.86, 0.89, 0.95)
+        c.setFillColorRGB(0.96, 0.97, 0.99)
+        c.rect(logo_box_x, logo_box_y, logo_box_w, logo_box_h, stroke=1, fill=1)
+
+        serpro_img = _resolver_caminho_serpro()
+        if serpro_img:
+            c.drawImage(
+                str(serpro_img),
+                logo_box_x + s(8),
+                logo_box_y + s(8),
+                width=s(60),
+                height=logo_box_h - s(16),
+                preserveAspectRatio=True,
+                mask="auto",
+            )
+
+        texto_x = logo_box_x + logo_box_w + s(12)
+        c.setFillColorRGB(0.05, 0.30, 0.66)
+        c.setFont("Helvetica-Bold", s(12))
+        c.drawString(texto_x, assinatura_y + s(68), "ASSINATURA ELETRÔNICA")
+
+        c.setFillColorRGB(0.1, 0.15, 0.25)
+        c.setFont("Helvetica", s(8.7))
+        c.drawString(texto_x, assinatura_y + s(52), f"Documento assinado eletronicamente por {dados_cert['titular'][:42]}")
         c.drawString(
-            assinatura_x,
-            assinatura_y - 33,
-            f"Carimbo de tempo: {datetime.now().strftime('%d/%m/%Y %H:%M')}",
+            texto_x,
+            assinatura_y + s(39),
+            f"Em {datetime.now().strftime('%d/%m/%Y %H:%M:%S')} (horário oficial de Brasília)",
+        )
+        c.drawString(
+            texto_x,
+            assinatura_y + s(26),
+            f"Certificado: {dados_cert['cert_tipo'][:16]} | {dados_cert['issuer_name'][:40]}",
+        )
+        c.drawString(
+            texto_x,
+            assinatura_y + s(13),
+            f"Referência: {dados_cert['referencia']}",
         )
         c.save()
 
@@ -161,7 +261,7 @@ def _aplicar_assinatura_criptografica(caminho_pdf: Path, caminho_certificado: Pa
                     writer,
                     fields.SigFieldSpec(
                         sig_field_name=sig_field_name,
-                        box=(65, 235, 315, 285),
+                        box=(0, 0, 0, 0),
                         on_page=-1,
                     ),
                 )
@@ -192,6 +292,8 @@ def assinar_pdf(
     *,
     caminho_saida: str | None = None,
     texto_assinatura: str = "Assinado digitalmente com certificado ICP-Brasil",
+    anchor_x: float | None = None,
+    anchor_y: float | None = None,
 ) -> str:
     """
     Assina o PDF com base no certificado PFX:
@@ -219,7 +321,13 @@ def assinar_pdf(
         else:
             raise
 
-    _aplicar_assinatura_visual(destino, dados_certificado, texto_assinatura)
+    _aplicar_assinatura_visual(
+        destino,
+        dados_certificado,
+        texto_assinatura,
+        anchor_x=anchor_x,
+        anchor_y=anchor_y,
+    )
     assinatura_criptografica_ok = _aplicar_assinatura_criptografica(
         destino,
         caminho_certificado,

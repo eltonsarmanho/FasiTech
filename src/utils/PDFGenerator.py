@@ -5,6 +5,8 @@ from reportlab.pdfbase.ttfonts import TTFont
 import os
 import locale
 from datetime import datetime
+from typing import Any
+from pathlib import Path
 
 
 def _resolver_caminho_pdf(nome_arquivo):
@@ -12,6 +14,44 @@ def _resolver_caminho_pdf(nome_arquivo):
     if os.path.exists('/tmp'):
         return os.path.join('/tmp', nome_arquivo)
     return nome_arquivo
+
+
+def _resolver_caminho_logo_ufpa() -> str | None:
+    """Resolve caminho da logo UFPA em ambiente local/VM."""
+    candidates = [
+        Path(__file__).resolve().parents[1] / "resources" / "logo_ufpa.png",
+        Path.cwd() / "src" / "resources" / "logo_ufpa.png",
+        Path("/app/src/resources/logo_ufpa.png"),
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return str(candidate)
+    return None
+
+
+def _desenhar_logo_ufpa(c, largura: float, altura: float) -> float:
+    """
+    Desenha logo UFPA no topo, centralizada, e retorna o Y recomendado
+    para iniciar o texto do cabeçalho institucional.
+    """
+    logo_path = _resolver_caminho_logo_ufpa()
+    if not logo_path:
+        return altura - 60
+
+    logo_width = 78
+    logo_height = 78
+    y_logo = altura - 16 - logo_height
+    x_logo = (largura - logo_width) / 2
+    c.drawImage(
+        logo_path,
+        x_logo,
+        y_logo,
+        width=logo_width,
+        height=logo_height,
+        preserveAspectRatio=True,
+        mask="auto",
+    )
+    return y_logo - 16
 
 
 def _obter_fontes_padrao():
@@ -63,7 +103,6 @@ def gerar_pdf_projetos(resposta):
     largura, altura = A4
     margem_esquerda = 80
     margem_direita = largura - 80
-    margem_superior = altura - 50  # Ajuste do topo
     largura_texto = margem_direita - margem_esquerda
 
     # Criar canvas com encoding UTF-8 e configuração de fontes melhorada
@@ -84,7 +123,8 @@ def gerar_pdf_projetos(resposta):
     ano_edital = str(resposta[8])
     solicitacao = str(resposta[9]).encode('utf-8', 'replace').decode('utf-8')  # Novo, Encerramento ou Renovação
 
-    # Cabeçalho (centralizado)
+    # Cabeçalho (centralizado) com logo oficial no topo
+    margem_superior = _desenhar_logo_ufpa(c, largura, altura)
     c.setFont(fonte_bold, 12)
     c.drawCentredString(largura / 2, margem_superior, "UNIVERSIDADE FEDERAL DO PARÁ")
     c.drawCentredString(largura / 2, margem_superior - 15, "CAMPUS UNIVERSITÁRIO DO TOCANTINS/CAMETÁ")
@@ -151,8 +191,8 @@ def gerar_pdf_declaracao_projeto(resposta):
     c = canvas.Canvas(caminho_pdf, pagesize=A4)
     fonte_normal, fonte_bold = _obter_fontes_padrao()
 
-    # Cabeçalho
-    y_pos = altura - 60
+    # Cabeçalho com logo oficial no topo
+    y_pos = _desenhar_logo_ufpa(c, largura, altura)
     c.setFont(fonte_bold, 12)
     cabecalho = [
         "SERVIÇO PÚBLICO FEDERAL",
@@ -314,7 +354,7 @@ def _obter_data_extenso_capitalizada() -> str:
     return f"{agora.day:02d} de {mes} de {agora.year}"
 
 
-def _desenhar_cabecalho_comprovante(c, largura: float, y_pos: float, fonte_bold: str) -> float:
+def _desenhar_cabecalho_comprovante(c, largura: float, altura: float, fonte_bold: str) -> float:
     cabecalho = [
         "SERVIÇO PÚBLICO FEDERAL",
         "UNIVERSIDADE FEDERAL DO PARÁ",
@@ -322,6 +362,7 @@ def _desenhar_cabecalho_comprovante(c, largura: float, y_pos: float, fonte_bold:
         "FACULDADE DE SISTEMAS DE INFORMAÇÃO",
     ]
 
+    y_pos = _desenhar_logo_ufpa(c, largura, altura)
     c.setFont(fonte_bold, 12)
     for linha in cabecalho:
         c.drawCentredString(largura / 2, y_pos, linha)
@@ -341,6 +382,38 @@ def _normalizar_cpf(cpf: str | None) -> str:
     return cpf.strip()
 
 
+def _desenhar_bloco_diretor(
+    c, largura: float, y_base_texto: float, fonte_normal: str, fonte_bold: str
+) -> dict[str, float]:
+    """Desenha linha e identificação do diretor centralizadas, logo após o texto principal."""
+    # Espaço reservado para selo digital acima da linha do diretor.
+    linha_y = max(y_base_texto - 112, 110)
+    linha_largura = 320
+    linha_x1 = (largura - linha_largura) / 2
+    linha_x2 = linha_x1 + linha_largura
+    c.line(linha_x1, linha_y, linha_x2, linha_y)
+
+    y = linha_y - 20
+    c.setFont(fonte_bold, 10)
+    c.drawCentredString(largura / 2, y, "Prof. Dr. Elton Sarmanho Siqueira")
+    y -= 14
+    c.setFont(fonte_normal, 9)
+    c.drawCentredString(largura / 2, y, "Diretor da Faculdade de Sistemas de Informação - FASI")
+    y -= 12
+    c.drawCentredString(largura / 2, y, "PORTARIA N° 3686/2024 - REITORIA/UFPA")
+    y -= 12
+    c.drawCentredString(largura / 2, y, "Trav. Padre Antônio Franco, 2617-Matinha")
+    y -= 12
+    c.drawCentredString(largura / 2, y, "Cametá-Pará - CEP: 68400-000 - Fone: (91) 3781-1182/1258")
+
+    return {
+        "line_y": linha_y,
+        "line_x1": linha_x1,
+        "line_x2": linha_x2,
+        "center_x": largura / 2,
+    }
+
+
 def gerar_pdf_comprovante_conclusao(
     *,
     nome: str,
@@ -348,7 +421,8 @@ def gerar_pdf_comprovante_conclusao(
     cpf: str = "",
     periodo_letivo: str = "período letivo vigente",
     previsao_colacao: str = "",
-) -> str:
+    return_layout: bool = False,
+) -> str | tuple[str, dict[str, Any]]:
     """Gera comprovante de conclusão de curso no padrão institucional."""
     nome_arquivo = f"Comprovante_Conclusao_{matricula}.pdf"
     caminho_pdf = _resolver_caminho_pdf(nome_arquivo)
@@ -361,8 +435,7 @@ def gerar_pdf_comprovante_conclusao(
     c = canvas.Canvas(caminho_pdf, pagesize=A4)
     fonte_normal, fonte_bold = _obter_fontes_padrao()
 
-    y_pos = altura - 60
-    y_pos = _desenhar_cabecalho_comprovante(c, largura, y_pos, fonte_bold)
+    y_pos = _desenhar_cabecalho_comprovante(c, largura, altura, fonte_bold)
 
     c.line(margem_esquerda, y_pos, margem_direita, y_pos)
     y_pos -= 40
@@ -375,7 +448,7 @@ def gerar_pdf_comprovante_conclusao(
     c.drawRightString(margem_direita, y_pos, f"Cametá, {_obter_data_extenso_capitalizada()}")
     y_pos -= 40
 
-    nome_aluno = _normalizar_nome_aluno(nome, matricula)
+    nome_aluno = _normalizar_nome_aluno(nome, matricula).replace(" Matrícula", "")
     cpf_formatado = _normalizar_cpf(cpf)
 
     colacao_texto = (
@@ -395,24 +468,11 @@ def gerar_pdf_comprovante_conclusao(
     )
 
     y_pos = desenhar_texto_justificado(c, texto_declaracao, margem_esquerda, y_pos, largura_texto, fonte_normal)
-    # Reserva uma área padrão para assinatura digital e bloco do diretor.
-    y_pos = min(y_pos - 40, 220)
-
-    c.line(margem_esquerda, y_pos, margem_esquerda + 260, y_pos)
-    y_pos -= 20
-    c.setFont(fonte_bold, 10)
-    c.drawString(margem_esquerda, y_pos, "Prof. Dr. Elton Sarmanho Siqueira")
-    y_pos -= 14
-    c.setFont(fonte_normal, 9)
-    c.drawString(margem_esquerda, y_pos, "Diretor da Faculdade de Sistemas de Informação - FASI")
-    y_pos -= 12
-    c.drawString(margem_esquerda, y_pos, "PORTARIA N° 3686/2024 - REITORIA/UFPA")
-    y_pos -= 12
-    c.drawString(margem_esquerda, y_pos, "Trav. Padre Antônio Franco, 2617-Matinha")
-    y_pos -= 12
-    c.drawString(margem_esquerda, y_pos, "Cametá-Pará - CEP: 68400-000 - Fone: (91) 3781-1182/1258")
+    layout_info = _desenhar_bloco_diretor(c, largura, y_pos, fonte_normal, fonte_bold)
 
     c.save()
+    if return_layout:
+        return caminho_pdf, layout_info
     return caminho_pdf
 
 
@@ -422,7 +482,8 @@ def gerar_pdf_comprovante_matricula_ativa(
     matricula: str,
     cpf: str = "",
     semestre_atual: str = "",
-) -> str:
+    return_layout: bool = False,
+) -> str | tuple[str, dict[str, Any]]:
     """Gera comprovante de matrícula ativa no semestre atual."""
     nome_arquivo = f"Comprovante_Matricula_Ativa_{matricula}.pdf"
     caminho_pdf = _resolver_caminho_pdf(nome_arquivo)
@@ -435,8 +496,7 @@ def gerar_pdf_comprovante_matricula_ativa(
     c = canvas.Canvas(caminho_pdf, pagesize=A4)
     fonte_normal, fonte_bold = _obter_fontes_padrao()
 
-    y_pos = altura - 60
-    y_pos = _desenhar_cabecalho_comprovante(c, largura, y_pos, fonte_bold)
+    y_pos = _desenhar_cabecalho_comprovante(c, largura, altura, fonte_bold)
 
     c.line(margem_esquerda, y_pos, margem_direita, y_pos)
     y_pos -= 40
@@ -449,7 +509,7 @@ def gerar_pdf_comprovante_matricula_ativa(
     c.drawRightString(margem_direita, y_pos, f"Cametá, {_obter_data_extenso_capitalizada()}")
     y_pos -= 40
 
-    nome_aluno = _normalizar_nome_aluno(nome, matricula)
+    nome_aluno = _normalizar_nome_aluno(nome, matricula).replace(" Matrícula", "")
     cpf_formatado = _normalizar_cpf(cpf)
     semestre_texto = semestre_atual if semestre_atual else "semestre letivo vigente"
 
@@ -462,22 +522,9 @@ def gerar_pdf_comprovante_matricula_ativa(
     )
 
     y_pos = desenhar_texto_justificado(c, texto_declaracao, margem_esquerda, y_pos, largura_texto, fonte_normal)
-    # Reserva uma área padrão para assinatura digital e bloco do diretor.
-    y_pos = min(y_pos - 40, 220)
-
-    c.line(margem_esquerda, y_pos, margem_esquerda + 260, y_pos)
-    y_pos -= 20
-    c.setFont(fonte_bold, 10)
-    c.drawString(margem_esquerda, y_pos, "Prof. Dr. Elton Sarmanho Siqueira")
-    y_pos -= 14
-    c.setFont(fonte_normal, 9)
-    c.drawString(margem_esquerda, y_pos, "Diretor da Faculdade de Sistemas de Informação - FASI")
-    y_pos -= 12
-    c.drawString(margem_esquerda, y_pos, "PORTARIA N° 3686/2024 - REITORIA/UFPA")
-    y_pos -= 12
-    c.drawString(margem_esquerda, y_pos, "Trav. Padre Antônio Franco, 2617-Matinha")
-    y_pos -= 12
-    c.drawString(margem_esquerda, y_pos, "Cametá-Pará - CEP: 68400-000 - Fone: (91) 3781-1182/1258")
+    layout_info = _desenhar_bloco_diretor(c, largura, y_pos, fonte_normal, fonte_bold)
 
     c.save()
+    if return_layout:
+        return caminho_pdf, layout_info
     return caminho_pdf

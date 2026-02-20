@@ -120,23 +120,33 @@ def process_document_emission_submission(
     nome = dados_aluno.get("nome", "")
     cpf_extraido = dados_aluno.get("cpf", "")
     cpf_final = cpf_informado or cpf_extraido
+    ultimo_periodo = StatusAlunoExtractor.extrair_ultimo_periodo_componente(pdf_bytes)
+    periodo_matriculado = StatusAlunoExtractor.extrair_periodo_matriculado(pdf_bytes)
 
     if document_type == DOCUMENTO_CONCLUSAO:
-        caminho_pdf = gerar_pdf_comprovante_conclusao(
+        periodo_referencia = ultimo_periodo if ultimo_periodo else semestre
+        caminho_pdf, layout_info = gerar_pdf_comprovante_conclusao(
             nome=nome,
             matricula=matricula,
             cpf=cpf_final,
-            periodo_letivo=f"semestre letivo {semestre}",
+            periodo_letivo=f"semestre letivo {periodo_referencia}",
+            return_layout=True,
         )
     else:
-        caminho_pdf = gerar_pdf_comprovante_matricula_ativa(
+        periodo_referencia = periodo_matriculado if periodo_matriculado else semestre
+        caminho_pdf, layout_info = gerar_pdf_comprovante_matricula_ativa(
             nome=nome,
             matricula=matricula,
             cpf=cpf_final,
-            semestre_atual=f"semestre letivo {semestre}",
+            semestre_atual=f"semestre letivo {periodo_referencia}",
+            return_layout=True,
         )
 
-    caminho_assinado = assinar_pdf(caminho_pdf)
+    caminho_assinado = assinar_pdf(
+        caminho_pdf,
+        anchor_x=float(layout_info.get("center_x", 0)),
+        anchor_y=float(layout_info.get("line_y", 0)),
+    )
 
     recipients = _coerce_recipients(notification_recipients)
     if email and email not in recipients:
@@ -148,7 +158,7 @@ def process_document_emission_submission(
             "Olá,\n\n"
             f"Seu documento '{document_type}' foi emitido com sucesso.\n\n"
             f"Matrícula: {matricula}\n"
-            f"Semestre de referência: {semestre}\n"
+            f"Semestre de referência: {periodo_referencia}\n"
             f"Data de emissão: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n\n"
             "O comprovante assinado digitalmente segue em anexo.\n\n"
             "Atenciosamente,\n"
