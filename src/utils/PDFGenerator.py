@@ -305,3 +305,179 @@ def obter_data_formatada():
     """Retorna a data atual formatada corretamente em português."""
     locale.setlocale(locale.LC_TIME, "C")
     return datetime.now().strftime("%d/%m/%Y")
+
+
+def _obter_data_extenso_capitalizada() -> str:
+    """Retorna data no formato '17 de Fevereiro de 2025'."""
+    agora = datetime.now()
+    mes = MESES_PT.get(agora.month, "").capitalize()
+    return f"{agora.day:02d} de {mes} de {agora.year}"
+
+
+def _desenhar_cabecalho_comprovante(c, largura: float, y_pos: float, fonte_bold: str) -> float:
+    cabecalho = [
+        "SERVIÇO PÚBLICO FEDERAL",
+        "UNIVERSIDADE FEDERAL DO PARÁ",
+        "CAMPUS UNIVERSITÁRIO DE CAMETÁ",
+        "FACULDADE DE SISTEMAS DE INFORMAÇÃO",
+    ]
+
+    c.setFont(fonte_bold, 12)
+    for linha in cabecalho:
+        c.drawCentredString(largura / 2, y_pos, linha)
+        y_pos -= 15
+    return y_pos
+
+
+def _normalizar_nome_aluno(nome: str | None, matricula: str) -> str:
+    if nome and nome.strip():
+        return " ".join(nome.strip().split())
+    return f"discente de matrícula {matricula}"
+
+
+def _normalizar_cpf(cpf: str | None) -> str:
+    if not cpf:
+        return "não informado no histórico acadêmico"
+    return cpf.strip()
+
+
+def gerar_pdf_comprovante_conclusao(
+    *,
+    nome: str,
+    matricula: str,
+    cpf: str = "",
+    periodo_letivo: str = "período letivo vigente",
+    previsao_colacao: str = "",
+) -> str:
+    """Gera comprovante de conclusão de curso no padrão institucional."""
+    nome_arquivo = f"Comprovante_Conclusao_{matricula}.pdf"
+    caminho_pdf = _resolver_caminho_pdf(nome_arquivo)
+
+    largura, altura = A4
+    margem_esquerda = 80
+    margem_direita = largura - 80
+    largura_texto = margem_direita - margem_esquerda
+
+    c = canvas.Canvas(caminho_pdf, pagesize=A4)
+    fonte_normal, fonte_bold = _obter_fontes_padrao()
+
+    y_pos = altura - 60
+    y_pos = _desenhar_cabecalho_comprovante(c, largura, y_pos, fonte_bold)
+
+    c.line(margem_esquerda, y_pos, margem_direita, y_pos)
+    y_pos -= 40
+
+    c.setFont(fonte_bold, 14)
+    c.drawCentredString(largura / 2, y_pos, "DECLARAÇÃO DE CONCLUSÃO DE CURSO")
+
+    y_pos -= 30
+    c.setFont(fonte_normal, 12)
+    c.drawRightString(margem_direita, y_pos, f"Cametá, {_obter_data_extenso_capitalizada()}")
+    y_pos -= 40
+
+    nome_aluno = _normalizar_nome_aluno(nome, matricula)
+    cpf_formatado = _normalizar_cpf(cpf)
+
+    colacao_texto = (
+        f" A colação de grau está prevista para {previsao_colacao}."
+        if previsao_colacao
+        else ""
+    )
+
+    texto_declaracao = (
+        "Declara-se, para os devidos efeitos, que "
+        f"{nome_aluno}, cujo CPF {cpf_formatado}, graduando(a) em Bacharelado em Sistemas "
+        "de Informação pela Universidade Federal do Pará Campus Cametá, integralizou as "
+        f"suas atividades acadêmicas no {periodo_letivo}, cumprindo com todas as suas "
+        "obrigações conforme o projeto político pedagógico do curso. Este documento foi "
+        "expedido mediante solicitação do discente e tem validade de 120 dias a contar da "
+        f"data de expedição.{colacao_texto}"
+    )
+
+    y_pos = desenhar_texto_justificado(c, texto_declaracao, margem_esquerda, y_pos, largura_texto, fonte_normal)
+    # Reserva uma área padrão para assinatura digital e bloco do diretor.
+    y_pos = min(y_pos - 40, 220)
+
+    c.line(margem_esquerda, y_pos, margem_esquerda + 260, y_pos)
+    y_pos -= 20
+    c.setFont(fonte_bold, 10)
+    c.drawString(margem_esquerda, y_pos, "Prof. Dr. Elton Sarmanho Siqueira")
+    y_pos -= 14
+    c.setFont(fonte_normal, 9)
+    c.drawString(margem_esquerda, y_pos, "Diretor da Faculdade de Sistemas de Informação - FASI")
+    y_pos -= 12
+    c.drawString(margem_esquerda, y_pos, "PORTARIA N° 3686/2024 - REITORIA/UFPA")
+    y_pos -= 12
+    c.drawString(margem_esquerda, y_pos, "Trav. Padre Antônio Franco, 2617-Matinha")
+    y_pos -= 12
+    c.drawString(margem_esquerda, y_pos, "Cametá-Pará - CEP: 68400-000 - Fone: (91) 3781-1182/1258")
+
+    c.save()
+    return caminho_pdf
+
+
+def gerar_pdf_comprovante_matricula_ativa(
+    *,
+    nome: str,
+    matricula: str,
+    cpf: str = "",
+    semestre_atual: str = "",
+) -> str:
+    """Gera comprovante de matrícula ativa no semestre atual."""
+    nome_arquivo = f"Comprovante_Matricula_Ativa_{matricula}.pdf"
+    caminho_pdf = _resolver_caminho_pdf(nome_arquivo)
+
+    largura, altura = A4
+    margem_esquerda = 80
+    margem_direita = largura - 80
+    largura_texto = margem_direita - margem_esquerda
+
+    c = canvas.Canvas(caminho_pdf, pagesize=A4)
+    fonte_normal, fonte_bold = _obter_fontes_padrao()
+
+    y_pos = altura - 60
+    y_pos = _desenhar_cabecalho_comprovante(c, largura, y_pos, fonte_bold)
+
+    c.line(margem_esquerda, y_pos, margem_direita, y_pos)
+    y_pos -= 40
+
+    c.setFont(fonte_bold, 14)
+    c.drawCentredString(largura / 2, y_pos, "DECLARAÇÃO DE MATRÍCULA ATIVA")
+
+    y_pos -= 30
+    c.setFont(fonte_normal, 12)
+    c.drawRightString(margem_direita, y_pos, f"Cametá, {_obter_data_extenso_capitalizada()}")
+    y_pos -= 40
+
+    nome_aluno = _normalizar_nome_aluno(nome, matricula)
+    cpf_formatado = _normalizar_cpf(cpf)
+    semestre_texto = semestre_atual if semestre_atual else "semestre letivo vigente"
+
+    texto_declaracao = (
+        "Declara-se, para os devidos efeitos, que "
+        f"{nome_aluno}, matrícula {matricula}, CPF {cpf_formatado}, está regularmente "
+        "matriculado(a) no curso de Bacharelado em Sistemas de Informação da Universidade "
+        f"Federal do Pará Campus Cametá no {semestre_texto}. Este comprovante foi emitido "
+        "mediante solicitação do discente e tem validade de 120 dias a contar da data de expedição."
+    )
+
+    y_pos = desenhar_texto_justificado(c, texto_declaracao, margem_esquerda, y_pos, largura_texto, fonte_normal)
+    # Reserva uma área padrão para assinatura digital e bloco do diretor.
+    y_pos = min(y_pos - 40, 220)
+
+    c.line(margem_esquerda, y_pos, margem_esquerda + 260, y_pos)
+    y_pos -= 20
+    c.setFont(fonte_bold, 10)
+    c.drawString(margem_esquerda, y_pos, "Prof. Dr. Elton Sarmanho Siqueira")
+    y_pos -= 14
+    c.setFont(fonte_normal, 9)
+    c.drawString(margem_esquerda, y_pos, "Diretor da Faculdade de Sistemas de Informação - FASI")
+    y_pos -= 12
+    c.drawString(margem_esquerda, y_pos, "PORTARIA N° 3686/2024 - REITORIA/UFPA")
+    y_pos -= 12
+    c.drawString(margem_esquerda, y_pos, "Trav. Padre Antônio Franco, 2617-Matinha")
+    y_pos -= 12
+    c.drawString(margem_esquerda, y_pos, "Cametá-Pará - CEP: 68400-000 - Fone: (91) 3781-1182/1258")
+
+    c.save()
+    return caminho_pdf

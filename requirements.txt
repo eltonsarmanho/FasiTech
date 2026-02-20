@@ -30,3 +30,4 @@ pylance
 sqlmodel
 psycopg2-binary
 plotly
+pyHanko>=0.25.0

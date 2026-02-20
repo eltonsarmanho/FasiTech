@@ -504,6 +504,7 @@ def _render_form_card(
         "Formulário TCC": "Formulário",
         "Formulário de Estágio": "Formulário",
         "Requerimento de TCC": "Requerimento",
+        "Emissão de Documentos": "Emissão",
         "Formulário Social": "Formulário",
         "FAQ - Perguntas Frequentes": "FAQ",
         "Plano de Ensino": "Planos",
@@ -589,7 +590,7 @@ def _render_available_forms() -> None:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Segunda linha: Requerimento TCC | Formulário Social
+    # Segunda linha: Requerimento TCC | Emissão de Documentos | Formulário Social
     col4, col5, col6 = st.columns(3, gap="large")
     with col4:
         _render_form_card(
@@ -602,6 +603,15 @@ def _render_available_forms() -> None:
         )
     with col5:
         _render_form_card(
+            title="Emissão de Documentos",
+            description="Solicite comprovante de conclusão de curso ou comprovante de matrícula ativa.",
+            icon="📄",
+            page_name="FormEmissaoDocumentos.py",
+            key="btn_emissao_documentos",
+            gradient_colors="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"  # Azul/Roxo - Discentes
+        )
+    with col6:
+        _render_form_card(
             title="Formulário Social",
             description="Questionário de perfil social, acadêmico, inclusão, diversidade e saúde mental. Dados para políticas institucionais e estudantil.",
             icon="🤝",
@@ -609,7 +619,12 @@ def _render_available_forms() -> None:
             key="btn_social",
             gradient_colors="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"  # Azul/Roxo - Discentes
         )
-    with col6:
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # Terceira linha: Avaliação da Gestão
+    col13, col14, col15 = st.columns(3, gap="large")
+    with col13:
         _render_form_card(
             title="Avaliação da Gestão",
             description="Avalie a gestão da Faculdade de Sistemas de Informação. Feedback anônimo sobre transparência, comunicação e suporte.",

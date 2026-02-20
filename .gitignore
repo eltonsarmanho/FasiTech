@@ -239,3 +239,5 @@ comandosEspeciais.txt
 *.sql
 # Security incident reports (sensitive information)
 SECURITY_INCIDENT.md
+
+*.pfx
