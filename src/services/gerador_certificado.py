@@ -4,10 +4,15 @@ import os
 import re
 import shutil
 import tempfile
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from reportlab.pdfgen import canvas
+
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:  # pragma: no cover
+    ZoneInfo = None
 
 
 def _resolver_caminho_certificado() -> Path:
@@ -62,6 +67,14 @@ def _obter_senha_certificado() -> str:
     """
     senha_env = _normalizar_senha(os.getenv("CERTIFICADO_PFX_PASSWORD"))
     return senha_env or "1234"
+
+
+def _agora_brasilia() -> datetime:
+    """Retorna horário atual ajustado para Brasília."""
+    if ZoneInfo is not None:
+        return datetime.now(timezone.utc).astimezone(ZoneInfo("America/Sao_Paulo"))
+    # Fallback para ambientes sem zoneinfo
+    return datetime.utcnow() - timedelta(hours=3)
 
 
 def _ler_dados_certificado(caminho_certificado: Path, senha: str | None) -> dict[str, str]:
@@ -197,7 +210,7 @@ def _aplicar_assinatura_visual(
         c.drawString(
             texto_x,
             assinatura_y + s(39),
-            f"Em {datetime.now().strftime('%d/%m/%Y %H:%M:%S')} (horário oficial de Brasília)",
+            f"Em {_agora_brasilia().strftime('%d/%m/%Y %H:%M:%S')} (horário oficial de Brasília)",
         )
         c.drawString(
             texto_x,

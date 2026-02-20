@@ -3,8 +3,8 @@
 
 ### ⏳ Pendentes & Em Progresso
 
-* [ ] **Expedição de Documentos** `[Alta]`
-*Emitir documento de: Conclusão e carteira municipal.*
+* [ ] **Estrutura Gestão do Conhecimento - RAG** `[Média]`
+*Converter PDF [JSON ou Markdown]/Reduzir numero de documentos.*
 * [ ] **Adotar Modelo Gratuito** `[Média]`
 *Coletar dados para treinamento.*
 * [ ] **Cache Semântico** `[Média]`
@@ -18,8 +18,11 @@
 ---
 
 ### ✅ Concluídas
+* [x] **Expedição de Documentos** `[Alta]`
+*Emitir documento de: Conclusão e carteira municipal.*
 
 * [x] **Registrar Banco de Dados** `[Alta]`
 *Implementação de banco de dados para salvar todos os registros, substituindo a planilha do Google Sheets para evitar indisponibilidade.*
+
 * [x] **Hospedar VM** `[Média]`
 *Hospedagem realizada na VM da UFPA.*
