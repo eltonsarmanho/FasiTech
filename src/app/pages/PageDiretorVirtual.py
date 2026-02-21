@@ -259,7 +259,7 @@ def _init_session_state() -> None:
 def _save_feedback_to_sheet(feedback_response: dict, pergunta: str = "", resposta: str = "") -> bool:
     """
     Salva o feedback do usuário na planilha do Google Sheets.
-    Se o feedback for 5 (melhor avaliação), também salva no cache semântico.
+    Também registra o feedback no cache semântico do Diretor Virtual.
     
     Args:
         feedback_response: Dict retornado pelo streamlit_feedback com keys: 'type', 'score', 'text'
@@ -306,12 +306,12 @@ def _save_feedback_to_sheet(feedback_response: dict, pergunta: str = "", respost
             body=body
         ).execute()
         
-        # Se feedback for 5 (melhor avaliação), salvar no cache semântico
-        if avaliacao == 5 and pergunta and resposta:
+        # Registrar feedback no cache semântico (1 a 5)
+        if pergunta and resposta:
             try:
-                print(f"🎯 Feedback=5 detectado! Salvando no cache: '{pergunta[:50]}...'")
+                print(f"🎯 Registrando feedback={avaliacao} no cache: '{pergunta[:50]}...'")
                 chatbot_service = _get_service()
-                saved = chatbot_service.save_to_semantic_cache(pergunta, resposta)
+                saved = chatbot_service.save_to_semantic_cache(pergunta, resposta, rating=avaliacao)
                 print(f"📦 Resultado do cache: {saved}")
             except Exception as e:
                 print(f"⚠️ Erro ao salvar no cache semântico: {e}")

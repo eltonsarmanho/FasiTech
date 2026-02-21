@@ -3,12 +3,12 @@
 Script para adicionar novos documentos ao banco vetorial do RAG.
 
 Este script permite:
-1. Adicionar novos PDFs à pasta src/resources/
+1. Adicionar novos arquivos Markdown à pasta src/resources/
 2. Limpar o banco vetorial existente para reprocessar todos os documentos
 3. Verificar quais documentos estão atualmente indexados
 
 Uso:
-    python scripts/add_documents_to_rag.py --add documento.pdf
+    python scripts/add_documents_to_rag.py --add documento.md
     python scripts/add_documents_to_rag.py --clear
     python scripts/add_documents_to_rag.py --list
 """
@@ -40,21 +40,21 @@ def get_cache_dir() -> Path:
     return Path.home() / ".cache" / "fasitech" / "rag"
 
 def list_documents() -> List[Path]:
-    """Lista todos os documentos PDF na pasta resources."""
+    """Lista todos os documentos Markdown na pasta resources."""
     resources_dir = get_resources_dir()
-    pdf_files = list(resources_dir.glob("*.pdf"))
-    return pdf_files
+    md_files = list(resources_dir.glob("*.md")) + list(resources_dir.glob("*.MD"))
+    return sorted(md_files, key=lambda p: p.name.lower())
 
 def add_document(source_path: str) -> bool:
-    """Adiciona um novo documento PDF à pasta resources."""
+    """Adiciona um novo documento Markdown à pasta resources."""
     source = Path(source_path)
     
     if not source.exists():
         print(f"❌ Arquivo não encontrado: {source}")
         return False
     
-    if source.suffix.lower() != '.pdf':
-        print(f"❌ Arquivo deve ser PDF: {source}")
+    if source.suffix.lower() != '.md':
+        print(f"❌ Arquivo deve ser Markdown (.md): {source}")
         return False
     
     resources_dir = get_resources_dir()
@@ -96,7 +96,7 @@ def clear_vector_cache() -> bool:
         shutil.rmtree(cache_dir)
         print(f"✅ Cache do RAG limpo: {cache_dir}")
         print("\n📝 Na próxima inicialização do RAG:")
-        print("   - Todos os PDFs em src/resources/ serão reprocessados")
+        print("   - Todos os arquivos .md em src/resources/ serão reprocessados")
         print("   - Novo banco vetorial será criado")
         print("   - Pode demorar alguns minutos na primeira vez")
         return True
@@ -111,7 +111,7 @@ def main():
         epilog="""
 Exemplos:
   %(prog)s --list                    # Listar documentos atuais
-  %(prog)s --add manual.pdf         # Adicionar novo documento  
+  %(prog)s --add manual.md          # Adicionar novo documento
   %(prog)s --clear                  # Limpar cache para reprocessar
         """
     )
@@ -119,14 +119,14 @@ Exemplos:
     parser.add_argument(
         '--list', 
         action='store_true',
-        help='Listar todos os documentos PDF atuais'
+        help='Listar todos os documentos Markdown atuais'
     )
     
     parser.add_argument(
         '--add',
         type=str,
-        metavar='ARQUIVO.pdf',
-        help='Adicionar um novo documento PDF'
+        metavar='ARQUIVO.md',
+        help='Adicionar um novo documento Markdown'
     )
     
     parser.add_argument(
@@ -157,7 +157,7 @@ Exemplos:
                 size_mb = doc.stat().st_size / (1024 * 1024)
                 print(f"   {i}. {doc.name} ({size_mb:.1f}MB)")
         else:
-            print("\n⚠️  Nenhum documento PDF encontrado.")
+            print("\n⚠️  Nenhum documento Markdown encontrado.")
             print("   Use --add para adicionar documentos.")
     
     # Adicionar documento

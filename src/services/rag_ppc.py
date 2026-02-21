@@ -5,12 +5,13 @@ Este serviço permite fazer perguntas sobre o Projeto Pedagógico do Curso usand
 
 from __future__ import annotations
 import os
+import shutil
 import logging
 import hashlib
 import json
 from typing import Optional, Dict, Any, List
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from agno.models.google import Gemini
 
 from agno.agent import Agent
@@ -31,8 +32,13 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Configuração do cache semântico
-SEMANTIC_CACHE_SIMILARITY_THRESHOLD = 0.85  # 85% de similaridade para cache hit
+# Apenas entradas "trusted" podem ser servidas para o usuário.
+SEMANTIC_CACHE_SIMILARITY_THRESHOLD = 0.90
 SEMANTIC_CACHE_TABLE_NAME = "semantic_cache"
+SEMANTIC_CACHE_TRUSTED_MIN_AVG_RATING = 4.4
+SEMANTIC_CACHE_MIN_RATINGS_FOR_PROMOTION = 2
+SEMANTIC_CACHE_TTL_DAYS_TRUSTED = 30
+SEMANTIC_CACHE_TTL_DAYS_CANDIDATE = 14
 
 
 class ChatbotService:
@@ -74,23 +80,28 @@ class ChatbotService:
     
     def _find_document_files(self) -> List[Path]:
         """
-        Encontra todos os documentos PDF na pasta resources.
+        Encontra todos os documentos Markdown na pasta resources.
         Usa variável de ambiente RAG_DOCUMENTS_DIR se configurada.
         Suporta detecção automática de ambiente (local vs VM).
         """
+        def _list_markdown_files(resource_dir: Path) -> List[Path]:
+            """Lista arquivos .md de forma determinística."""
+            md_files = list(resource_dir.glob("*.md")) + list(resource_dir.glob("*.MD"))
+            return sorted(md_files, key=lambda p: p.name.lower())
+
         # Prioridade 1: Variável de ambiente configurável (para produção)
         env_dir = os.getenv("RAG_DOCUMENTS_DIR")
         if env_dir and env_dir.strip():
             resource_dir = Path(env_dir.strip())
             if resource_dir.exists():
-                pdf_files = list(resource_dir.glob("*.pdf"))
-                if pdf_files:
+                md_files = _list_markdown_files(resource_dir)
+                if md_files:
                     logger.info(f"✅ Documentos encontrados (via RAG_DOCUMENTS_DIR): {resource_dir}")
-                    for pdf_file in pdf_files:
-                        logger.info(f"   📄 {pdf_file.name}")
-                    return pdf_files
+                    for md_file in md_files:
+                        logger.info(f"   📄 {md_file.name}")
+                    return md_files
                 else:
-                    logger.warning(f"⚠️  RAG_DOCUMENTS_DIR existe mas não contém PDFs: {resource_dir}")
+                    logger.warning(f"⚠️  RAG_DOCUMENTS_DIR existe mas não contém arquivos .md: {resource_dir}")
         
         # Prioridade 2: Busca padrão em possíveis diretórios
         resource_dirs = [
@@ -102,16 +113,16 @@ class ChatbotService:
         
         for resource_dir in resource_dirs:
             if resource_dir.exists():
-                pdf_files = list(resource_dir.glob("*.pdf"))
-                if pdf_files:
+                md_files = _list_markdown_files(resource_dir)
+                if md_files:
                     logger.info(f"✅ Documentos encontrados em: {resource_dir}")
-                    for pdf_file in pdf_files:
-                        logger.info(f"   📄 {pdf_file.name}")
-                    return pdf_files
+                    for md_file in md_files:
+                        logger.info(f"   📄 {md_file.name}")
+                    return md_files
         
-        # Fallback: se não encontrar nenhum, usar PPC.pdf padrão
-        default_path = Path(__file__).resolve().parents[2] / "src" / "resources" / "PPC.pdf"
-        logger.warning(f"⚠️  Nenhum PDF encontrado. Usando fallback: {default_path}")
+        # Fallback: se não encontrar nenhum, usar PPC_Docling.md padrão
+        default_path = Path(__file__).resolve().parents[2] / "src" / "resources" / "PPC_Docling.md"
+        logger.warning(f"⚠️  Nenhum arquivo .md encontrado. Usando fallback: {default_path}")
         return [default_path]
     
     def _compute_documents_hash(self, document_files: List[Path]) -> str:
@@ -195,7 +206,7 @@ class ChatbotService:
         self.db_url = str(data_dir / "lancedb")
         self.sqlite_db_path = str(data_dir / "ppc_chat.db")
         
-        # Localizar documentos PDF
+        # Localizar documentos Markdown
         self.document_files = self._find_document_files()
         
         logger.info(f"📁 Usando diretório de dados: {data_dir}")
@@ -308,31 +319,49 @@ class ChatbotService:
 
         #self.embedder = GeminiEmbedder(dimensions=768)
 
-        # Create the vector database
-        print("3. Configurando banco de dados vetorial...")
-        vector_db = LanceDb(
-            table_name="recipes",
-            uri=self.db_url,
-            embedder=self.embedder,
-            search_type=SearchType.hybrid,
-        )
-
-        self.vector_db = vector_db
-
-        print("4. Configurando base de conhecimento...")
-        # Otimização: reduzir de 15 para 10 resultados para melhor velocidade
-        knowledge = Knowledge(vector_db=vector_db, max_results=20)
-
-        self.knowledge = knowledge
-
         # Verificar se precisa reindexar documentos usando sistema de hash
         cache_dir = Path(self.db_url).parent
         should_reindex = self._should_reindex_documents(self.document_files, cache_dir)
-        
-        vector_db_path = f"{self.db_url}/recipes.lance"
+
+        vector_db_path = Path(self.db_url) / "recipes.lance"
         has_existing_data = False
 
-        if os.path.exists(vector_db_path) and not should_reindex:
+        def _cleanup_vector_table_files() -> None:
+            """Remove artefatos físicos da tabela recipes para evitar handles corrompidos."""
+            if not vector_db_path.exists():
+                return
+            try:
+                if vector_db_path.is_dir():
+                    shutil.rmtree(vector_db_path)
+                else:
+                    vector_db_path.unlink()
+                print("🗑️ Tabela vetorial recipes removida para reindexação limpa.")
+            except Exception as cleanup_err:
+                logger.warning(f"⚠️  Falha ao limpar arquivos da tabela vetorial: {cleanup_err}")
+
+        if should_reindex:
+            _cleanup_vector_table_files()
+
+        def _build_vector_components() -> tuple[LanceDb, Knowledge]:
+            """Cria componentes vetoriais com handles novos."""
+            vector_db_local = LanceDb(
+                table_name="recipes",
+                uri=self.db_url,
+                embedder=self.embedder,
+                search_type=SearchType.hybrid,
+            )
+            knowledge_local = Knowledge(vector_db=vector_db_local, max_results=20)
+            return vector_db_local, knowledge_local
+
+        # Create the vector database
+        print("3. Configurando banco de dados vetorial...")
+        vector_db, knowledge = _build_vector_components()
+        self.vector_db = vector_db
+
+        print("4. Configurando base de conhecimento...")
+        self.knowledge = knowledge
+
+        if vector_db_path.exists() and not should_reindex:
             print("📚 Verificando se a base de conhecimento possui dados...")
             try:
                 # Verificar se há documentos na tabela
@@ -350,7 +379,11 @@ class ChatbotService:
                     
             except Exception as e:
                 print(f"⚠️  Erro ao verificar dados existentes: {e}")
-                print("🔄 Recarregando conteúdo...")
+                print("🔄 Detectada possível corrupção da tabela vetorial. Recriando tabela...")
+                _cleanup_vector_table_files()
+                vector_db, knowledge = _build_vector_components()
+                self.vector_db = vector_db
+                self.knowledge = knowledge
                 has_existing_data = False
         elif should_reindex:
             print("🔄 Documentos modificados ou novos detectados. Reindexação necessária.")
@@ -372,7 +405,7 @@ class ChatbotService:
                 
                 # Adicionando todos os documentos encontrados
                 for doc_file in existing_files:
-                    knowledge.add_content(
+                    self.knowledge.add_content(
                         name=f"{doc_file.stem} Document",
                         path=str(doc_file)
                     )
@@ -438,12 +471,41 @@ class ChatbotService:
             else:
                 self._cache_table = self._cache_db.open_table(SEMANTIC_CACHE_TABLE_NAME)
                 cache_count = self._cache_table.count_rows()
+                required_columns = {
+                    "question",
+                    "answer",
+                    "vector",
+                    "question_key",
+                    "documents_hash",
+                    "status",
+                    "avg_rating",
+                    "rating_count",
+                    "confidence_score",
+                    "cached_at",
+                    "last_feedback_at",
+                    "expires_at",
+                }
                 
-                # Verificar compatibilidade dos embeddings (norma deve ser ~1.0 para vetores normalizados)
+                # Verificar schema mínimo esperado para a nova política de cache.
+                try:
+                    df = self._cache_table.to_pandas()
+                    if not required_columns.issubset(set(df.columns)):
+                        logger.warning("⚠️ Cache semântico com schema antigo detectado. Recriando tabela...")
+                        self._cache_db.drop_table(SEMANTIC_CACHE_TABLE_NAME)
+                        self._cache_table = None
+                        logger.info("🗑️ Cache semântico antigo removido para migração de schema.")
+                        return
+                except Exception as schema_err:
+                    logger.warning(f"⚠️ Erro ao validar schema do cache: {schema_err}. Recriando...")
+                    self._cache_db.drop_table(SEMANTIC_CACHE_TABLE_NAME)
+                    self._cache_table = None
+                    return
+
                 if cache_count > 0:
                     try:
                         df = self._cache_table.to_pandas()
-                        sample_vector = np.array(df.iloc[0]['vector'])
+                        # Verificar compatibilidade dos embeddings (norma deve ser ~1.0 para vetores normalizados)
+                        sample_vector = np.array(df.iloc[0]["vector"])
                         norm = np.linalg.norm(sample_vector)
                         
                         # Se a norma não for aproximadamente 1.0, os embeddings são incompatíveis
@@ -500,6 +562,181 @@ class ChatbotService:
             logger.warning(f"Erro ao gerar embedding: {e}")
             return None
 
+    def _get_current_documents_hash(self) -> str:
+        """Retorna hash dos documentos atualmente ativos no serviço."""
+        if not hasattr(self, "document_files"):
+            return ""
+        existing_files = [f for f in self.document_files if f.exists()]
+        if not existing_files:
+            return ""
+        return self._compute_documents_hash(existing_files)
+
+    @staticmethod
+    def _normalize_question_for_key(question: str) -> str:
+        """Normaliza pergunta para geração de chave estável."""
+        return " ".join((question or "").strip().split()).lower()
+
+    @staticmethod
+    def _safe_parse_iso_datetime(value: Any) -> Optional[datetime]:
+        """Converte string ISO em datetime UTC com tolerância a formatos inválidos."""
+        if not value or not isinstance(value, str):
+            return None
+        try:
+            normalized = value.replace("Z", "+00:00")
+            parsed = datetime.fromisoformat(normalized)
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=timezone.utc)
+            return parsed.astimezone(timezone.utc)
+        except Exception:
+            return None
+
+    def _compute_cache_confidence(self, avg_rating: float, rating_count: int) -> float:
+        """
+        Calcula score de confiança [0,1] combinando qualidade média e volume de avaliações.
+        """
+        rating_factor = max(0.0, min(1.0, (avg_rating - 1.0) / 4.0))
+        volume_factor = max(0.0, min(1.0, rating_count / SEMANTIC_CACHE_MIN_RATINGS_FOR_PROMOTION))
+        return round(rating_factor * volume_factor, 4)
+
+    def _compute_cache_status(self, avg_rating: float, rating_count: int, last_rating: int) -> str:
+        """
+        Determina status da entrada: candidate ou trusted.
+        """
+        if last_rating <= 2:
+            return "candidate"
+        if (
+            rating_count >= SEMANTIC_CACHE_MIN_RATINGS_FOR_PROMOTION
+            and avg_rating >= SEMANTIC_CACHE_TRUSTED_MIN_AVG_RATING
+        ):
+            return "trusted"
+        return "candidate"
+
+    def _build_cache_entry(
+        self,
+        question: str,
+        answer: str,
+        question_embedding: List[float],
+        rating: int,
+        existing_entry: Optional[Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        """Monta payload canônico da entrada de cache semântico."""
+        now_utc = datetime.now(timezone.utc)
+        documents_hash = self._get_current_documents_hash()
+        question_key = hashlib.sha256(
+            self._normalize_question_for_key(question).encode("utf-8")
+        ).hexdigest()
+
+        previous_count = int(existing_entry.get("rating_count", 0)) if existing_entry else 0
+        previous_avg = float(existing_entry.get("avg_rating", 0.0)) if existing_entry else 0.0
+        new_count = previous_count + 1
+        new_avg = ((previous_avg * previous_count) + float(rating)) / new_count if new_count > 0 else float(rating)
+        status = self._compute_cache_status(new_avg, new_count, rating)
+
+        ttl_days = (
+            SEMANTIC_CACHE_TTL_DAYS_TRUSTED
+            if status == "trusted"
+            else SEMANTIC_CACHE_TTL_DAYS_CANDIDATE
+        )
+        expires_at = (now_utc + timedelta(days=ttl_days)).isoformat()
+
+        return {
+            "question": question,
+            "answer": answer,
+            "vector": question_embedding,
+            "question_key": question_key,
+            "documents_hash": documents_hash,
+            "status": status,
+            "avg_rating": round(new_avg, 4),
+            "rating_count": int(new_count),
+            "confidence_score": self._compute_cache_confidence(new_avg, new_count),
+            "cached_at": existing_entry.get("cached_at") if existing_entry else now_utc.isoformat(),
+            "last_feedback_at": now_utc.isoformat(),
+            "expires_at": expires_at,
+        }
+
+    def _find_cache_entry_by_question_key(
+        self, question_key: str, documents_hash: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Busca entrada exata por chave de pergunta e versão dos documentos.
+        """
+        try:
+            if self._cache_table is None:
+                return None
+
+            df = self._cache_table.to_pandas()
+            if df.empty:
+                return None
+            if "question_key" not in df.columns or "documents_hash" not in df.columns:
+                return None
+
+            filtered = df[(df["question_key"] == question_key) & (df["documents_hash"] == documents_hash)]
+            if filtered.empty:
+                return None
+
+            if "last_feedback_at" in filtered.columns:
+                filtered = filtered.sort_values(by="last_feedback_at", ascending=False, na_position="last")
+
+            return filtered.iloc[0].to_dict()
+        except Exception as e:
+            logger.warning(f"Erro ao buscar entrada por question_key: {e}")
+            return None
+
+    def _upsert_cache_entry(self, cache_entry: Dict[str, Any]) -> bool:
+        """
+        Insere ou atualiza uma entrada de cache usando question_key + documents_hash.
+        """
+        try:
+            if self._cache_db is None:
+                return False
+
+            if self._cache_table is None:
+                import lancedb
+
+                self._cache_table = self._cache_db.create_table(
+                    SEMANTIC_CACHE_TABLE_NAME,
+                    data=[cache_entry],
+                    mode="overwrite",
+                )
+                logger.info("📦 Tabela de cache semântico criada.")
+                return True
+
+            question_key = str(cache_entry.get("question_key", ""))
+            documents_hash = str(cache_entry.get("documents_hash", ""))
+            if question_key and documents_hash:
+                self._cache_table.delete(
+                    f"question_key = '{question_key}' AND documents_hash = '{documents_hash}'"
+                )
+            self._cache_table.add([cache_entry])
+            return True
+        except Exception as e:
+            logger.warning(f"Erro no upsert do cache: {e}")
+            return False
+
+    def _is_cache_entry_serving_eligible(
+        self, entry: Dict[str, Any], similarity: float, current_documents_hash: str
+    ) -> bool:
+        """
+        Verifica se a entrada pode ser usada para responder diretamente do cache.
+        """
+        if similarity < SEMANTIC_CACHE_SIMILARITY_THRESHOLD:
+            return False
+
+        if entry.get("status") != "trusted":
+            return False
+
+        entry_documents_hash = entry.get("documents_hash", "")
+        if not entry_documents_hash or entry_documents_hash != current_documents_hash:
+            return False
+
+        expires_at = self._safe_parse_iso_datetime(entry.get("expires_at"))
+        if expires_at is None:
+            return False
+        if expires_at < datetime.now(timezone.utc):
+            return False
+
+        return True
+
     def _search_cache(self, question: str) -> Optional[Dict[str, Any]]:
         """
         Busca no cache por uma pergunta semanticamente similar.
@@ -521,45 +758,62 @@ class ChatbotService:
             
             # Buscar no cache usando similaridade de cosseno
             # metric="cosine" retorna distância de cosseno: distance = 1 - cosine_similarity
-            results = self._cache_table.search(question_embedding).metric("cosine").limit(1).to_list()
+            results = self._cache_table.search(question_embedding).metric("cosine").limit(20).to_list()
             
             if not results:
                 return None
-            
-            best_match = results[0]
-            cosine_distance = best_match.get('_distance', 1)
-            
-            # Converter distância de cosseno para similaridade: similarity = 1 - distance
-            similarity = 1 - cosine_distance
-            
-            # Clamp para garantir que está entre 0 e 1 (por segurança numérica)
-            similarity = max(0.0, min(1.0, similarity))
-            
-            logger.info(f"🔍 Cache search: distância={cosine_distance:.4f}, similaridade={similarity:.2%}")
-            
-            if similarity >= SEMANTIC_CACHE_SIMILARITY_THRESHOLD:
-                logger.info(f"🎯 Cache HIT! Similaridade: {similarity:.2%} para pergunta: '{question[:50]}...'")
+
+            current_documents_hash = self._get_current_documents_hash()
+            for candidate in results:
+                cosine_distance = candidate.get("_distance", 1.0)
+                similarity = max(0.0, min(1.0, 1 - cosine_distance))
+                logger.info(
+                    "🔍 Cache candidate: distância=%.4f, similaridade=%.2f%%, status=%s",
+                    cosine_distance,
+                    similarity * 100,
+                    candidate.get("status", "unknown"),
+                )
+
+                if not self._is_cache_entry_serving_eligible(
+                    candidate,
+                    similarity,
+                    current_documents_hash=current_documents_hash,
+                ):
+                    continue
+
+                logger.info(
+                    "🎯 Cache HIT (trusted)! Similaridade: %.2f%% para pergunta: '%s...'",
+                    similarity * 100,
+                    question[:50],
+                )
                 return {
-                    "answer": best_match.get('answer', ''),
-                    "original_question": best_match.get('question', ''),
+                    "answer": candidate.get("answer", ""),
+                    "original_question": candidate.get("question", ""),
                     "similarity": similarity,
-                    "cached_at": best_match.get('cached_at', ''),
+                    "cached_at": candidate.get("cached_at", ""),
+                    "status": candidate.get("status", "candidate"),
+                    "avg_rating": float(candidate.get("avg_rating", 0.0) or 0.0),
+                    "rating_count": int(candidate.get("rating_count", 0) or 0),
                 }
-            else:
-                logger.info(f"❌ Cache MISS. Similaridade: {similarity:.2%} (threshold: {SEMANTIC_CACHE_SIMILARITY_THRESHOLD:.0%})")
-                return None
+
+            logger.info(
+                "❌ Cache MISS. Nenhuma entrada trusted elegível (threshold: %.0f%%).",
+                SEMANTIC_CACHE_SIMILARITY_THRESHOLD * 100,
+            )
+            return None
                 
         except Exception as e:
             logger.warning(f"Erro ao buscar no cache: {e}")
             return None
 
-    def _save_to_cache(self, question: str, answer: str) -> bool:
+    def _save_to_cache(self, question: str, answer: str, rating: int) -> bool:
         """
-        Salva uma pergunta/resposta no cache semântico.
+        Registra feedback no cache semântico com política candidate/trusted.
         
         Args:
             question: Pergunta original
             answer: Resposta gerada pelo modelo
+            rating: Avaliação de 1 a 5
             
         Returns:
             True se salvou com sucesso, False caso contrário
@@ -567,47 +821,53 @@ class ChatbotService:
         try:
             if self._cache_db is None:
                 return False
+
+            if rating < 1 or rating > 5:
+                logger.warning(f"Avaliação inválida para cache semântico: {rating}")
+                return False
             
             # Gerar embedding da pergunta
             question_embedding = self._get_question_embedding(question)
             if question_embedding is None:
                 return False
-            
-            # Dados para inserir
-            cache_entry = {
-                "question": question,
-                "answer": answer,
-                "vector": question_embedding,
-                "cached_at": datetime.utcnow().isoformat(),
-            }
-            
-            # Criar tabela se não existir, ou adicionar à existente
-            if self._cache_table is None:
-                import lancedb
-                self._cache_table = self._cache_db.create_table(
-                    SEMANTIC_CACHE_TABLE_NAME,
-                    data=[cache_entry],
-                    mode="overwrite"
+
+            question_key = hashlib.sha256(
+                self._normalize_question_for_key(question).encode("utf-8")
+            ).hexdigest()
+            documents_hash = self._get_current_documents_hash()
+            existing_entry = self._find_cache_entry_by_question_key(question_key, documents_hash)
+
+            cache_entry = self._build_cache_entry(
+                question=question,
+                answer=answer,
+                question_embedding=question_embedding,
+                rating=rating,
+                existing_entry=existing_entry,
+            )
+
+            saved = self._upsert_cache_entry(cache_entry)
+            if saved:
+                logger.info(
+                    "💾 Cache atualizado: status=%s, avg=%.2f, count=%d, pergunta='%s...'",
+                    cache_entry["status"],
+                    cache_entry["avg_rating"],
+                    cache_entry["rating_count"],
+                    question[:50],
                 )
-                logger.info("📦 Tabela de cache semântico criada.")
-            else:
-                self._cache_table.add([cache_entry])
-            
-            logger.info(f"💾 Pergunta salva no cache: '{question[:50]}...'")
-            return True
+            return saved
             
         except Exception as e:
             logger.warning(f"Erro ao salvar no cache: {e}")
             return False
 
-    def save_to_semantic_cache(self, question: str, answer: str) -> bool:
+    def save_to_semantic_cache(self, question: str, answer: str, rating: Optional[int] = None) -> bool:
         """
-        Método público para salvar uma pergunta/resposta no cache semântico.
-        Deve ser chamado apenas quando o feedback do usuário for positivo (5).
+        Método público para registrar feedback no cache semântico.
         
         Args:
             question: Pergunta original
             answer: Resposta gerada pelo modelo
+            rating: Avaliação do usuário (1-5). Se omitido, assume 5 para compatibilidade.
             
         Returns:
             True se salvou com sucesso, False caso contrário
@@ -624,13 +884,27 @@ class ChatbotService:
         if not normalized_question:
             logger.warning("⚠️ Pergunta vazia após normalização")
             return False
+
+        normalized_answer = (answer or "").strip()
+        if not normalized_answer:
+            logger.warning("⚠️ Resposta vazia após normalização")
+            return False
+
+        try:
+            normalized_rating = int(rating) if rating is not None else 5
+        except (TypeError, ValueError):
+            logger.warning("⚠️ Avaliação inválida recebida para cache: %s", rating)
+            return False
+        if normalized_rating < 1 or normalized_rating > 5:
+            logger.warning("⚠️ Avaliação fora do intervalo permitido (1-5): %s", normalized_rating)
+            return False
             
-        result = self._save_to_cache(normalized_question, answer)
+        result = self._save_to_cache(normalized_question, normalized_answer, normalized_rating)
         
         if result:
-            logger.info(f"✅ Pergunta salva no cache semântico com sucesso!")
+            logger.info("✅ Feedback registrado no cache semântico com sucesso!")
         else:
-            logger.warning(f"❌ Falha ao salvar no cache semântico")
+            logger.warning("❌ Falha ao registrar feedback no cache semântico")
         
         return result
 
@@ -707,9 +981,9 @@ class ChatbotService:
         Executa uma pergunta e retorna um payload estruturado para a interface.
         
         Fluxo:
-        1. Verifica no cache semântico se há pergunta similar (>= 90%)
+        1. Verifica no cache semântico se há entrada trusted similar e válida
         2. Se encontrar, retorna resposta do cache
-        3. Se não encontrar, chama o modelo e salva no cache
+        3. Se não encontrar, chama o modelo
         
         Args:
             question: Pergunta do usuário
@@ -751,6 +1025,9 @@ class ChatbotService:
                         "original_question": cached_result["original_question"],
                         "similarity": cached_result["similarity"],
                         "cached_at": cached_result["cached_at"],
+                        "status": cached_result.get("status"),
+                        "avg_rating": cached_result.get("avg_rating"),
+                        "rating_count": cached_result.get("rating_count"),
                     }
                 }
             
@@ -792,8 +1069,8 @@ class ChatbotService:
 
             logger.info("Resposta gerada em %.2fs (processamento incluído)", latency)
             
-            # NOTA: O cache semântico é alimentado apenas quando o usuário 
-            # der feedback positivo (5 estrelas/melhor face) via save_to_semantic_cache()
+            # NOTA: O cache semântico é alimentado pelo feedback do usuário
+            # via save_to_semantic_cache(question, answer, rating).
             
             result = {
                 "success": True,
@@ -919,18 +1196,31 @@ class ChatbotService:
         try:
             if self._cache_table is not None:
                 count = self._cache_table.count_rows()
+                trusted_entries = 0
+                candidate_entries = 0
+                try:
+                    df = self._cache_table.to_pandas()
+                    if "status" in df.columns:
+                        trusted_entries = int((df["status"] == "trusted").sum())
+                        candidate_entries = int((df["status"] == "candidate").sum())
+                except Exception:
+                    pass
                 return {
                     "enabled": True,
                     "entries": count,
+                    "trusted_entries": trusted_entries,
+                    "candidate_entries": candidate_entries,
                     "similarity_threshold": SEMANTIC_CACHE_SIMILARITY_THRESHOLD,
                 }
             return {
                 "enabled": self._cache_db is not None,
                 "entries": 0,
+                "trusted_entries": 0,
+                "candidate_entries": 0,
                 "similarity_threshold": SEMANTIC_CACHE_SIMILARITY_THRESHOLD,
             }
         except Exception:
-            return {"enabled": False, "entries": 0}
+            return {"enabled": False, "entries": 0, "trusted_entries": 0, "candidate_entries": 0}
 
     def get_status(self) -> Dict[str, Any]:
         """
@@ -974,4 +1264,3 @@ def get_service(persist_history: bool = True) -> ChatbotService:
 
 # Alias para compatibilidade com código legado
 PPCChatbotService = ChatbotService
-
