@@ -1,0 +1,66 @@
+@startuml
+!theme plain
+
+actor Usuario
+participant "Streamlit UI\n(PageDiretorVirtual)" as UI
+participant "ChatbotService\n(rag_ppc.py)" as RAG
+participant "OllamaEmbedder" as EMB
+database "LanceDB\nsemantic_cache" as SC
+database "LanceDB\nrecipes" as VDB
+participant "LLM\nMaritaca/Gemini/HF" as LLM
+database "SQLite\nppc_chat.db" as HIST
+
+== Consulta ==
+Usuario -> UI : Envia pergunta
+UI -> RAG : ask_question(pergunta, session_id)
+
+RAG -> EMB : embedding(pergunta)
+EMB --> RAG : vetor_pergunta
+RAG -> SC : search(cosine, top=20)
+SC --> RAG : candidatos
+
+RAG -> RAG : valida politica de leitura\n(status, similaridade, ttl, documents_hash)
+
+alt Cache HIT (trusted e valido)
+  RAG --> UI : resposta (method=cache)
+  UI --> Usuario : Exibe resposta
+else Cache MISS
+  RAG -> VDB : busca semantica no knowledge
+  VDB --> RAG : trechos relevantes
+  RAG -> LLM : run(pergunta + contexto)
+  LLM --> RAG : resposta
+  RAG -> HIST : salva historico de sessao
+  HIST --> RAG : ok
+  RAG --> UI : resposta (method=agent)
+  UI --> Usuario : Exibe resposta
+end
+
+== Feedback e Politica de Cache ==
+Usuario -> UI : Avalia resposta (1..5)
+UI -> RAG : save_to_semantic_cache(pergunta, resposta, rating)
+
+RAG -> EMB : embedding(pergunta normalizada)
+EMB --> RAG : vetor_pergunta
+RAG -> SC : busca entrada por\nquestion_key + documents_hash
+SC --> RAG : entrada atual (ou vazio)
+RAG -> RAG : recalcula avg_rating, rating_count,\nconfidence_score, status, expires_at
+
+alt Promocao
+  note over RAG
+  trusted quando:
+  rating_count >= 2 e avg_rating >= 4.4
+  end note
+  RAG -> SC : upsert(status=trusted)
+else Rebaixamento/Manutencao
+  note over RAG
+  rating <= 2 -> candidate
+  TTL trusted=30d, candidate=14d
+  end note
+  RAG -> SC : upsert(status=candidate)
+end
+
+SC --> RAG : ok
+RAG --> UI : feedback registrado
+UI --> Usuario : confirma registro
+
+@enduml

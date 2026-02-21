@@ -1,0 +1,80 @@
+@startuml
+!theme plain
+top to bottom direction
+
+skinparam packageStyle rectangle
+skinparam componentStyle rectangle
+skinparam shadowing false
+
+actor Usuario
+component StreamlitUI as "PageDiretorVirtual.py\n(Streamlit UI)"
+
+package "Servico RAG" {
+    component ChatbotService as "ChatbotService\n(src/services/rag_ppc.py)"
+    component PromptBuilder as "Prompt + Agent Session"
+    component SemanticCachePolicy as "Politica de Cache\ncandidate/trusted"
+    component Embedder as "OllamaEmbedder\nnomic-embed-text"
+    component LLM as "LLM\nMaritaca / Gemini / HF"
+}
+
+package "Conhecimento" {
+    folder Resources as "src/resources/*.md\nPPC_Docling.md\nFAQ_Docling.md\nRegimento_Interno_Docling.md"
+    component HashDocs as "documents_hash\n(detecao de mudanca)"
+    database VectorDB as "LanceDB\nrecipes (RAG)"
+    database SemanticCacheTable as "LanceDB\nsemantic_cache"
+    database HistoryDB as "SQLite\nppc_chat.db"
+}
+
+package "Feedback e Observabilidade" {
+    component FeedbackUI as "Faces 1..5\n(streamlit_feedback)"
+    component CacheStats as "get_cache_stats()\nentries/trusted/candidate"
+}
+
+' Fluxo principal de pergunta
+Usuario --> StreamlitUI : pergunta
+StreamlitUI --> ChatbotService : ask_question(question, session_id)
+
+ChatbotService --> Embedder : embedding(pergunta)
+ChatbotService --> SemanticCacheTable : busca por similaridade (cosine)
+ChatbotService --> SemanticCachePolicy : valida elegibilidade de leitura
+SemanticCachePolicy --> HashDocs : hash atual dos .md
+
+SemanticCachePolicy --> ChatbotService : HIT se:\nstatus=trusted\nsimilaridade>=0.90\ndocuments_hash igual\nnao expirado (TTL)
+
+ChatbotService --> VectorDB : busca semantica (se cache miss)
+ChatbotService --> PromptBuilder : monta contexto + instrucoes
+PromptBuilder --> LLM : gera resposta contextual
+LLM --> ChatbotService : resposta
+ChatbotService --> HistoryDB : persiste historico por sessao
+ChatbotService --> StreamlitUI : resposta final
+StreamlitUI --> Usuario : resposta
+
+' Indexacao / reindexacao de documentos
+Resources --> HashDocs : calcula hash(nome+tamanho+mtime)
+HashDocs --> ChatbotService : should_reindex?
+ChatbotService --> VectorDB : limpa recipes.lance quando hash muda
+ChatbotService --> VectorDB : add_content(docs .md)
+
+' Fluxo de feedback e promocao/rebaixamento
+Usuario --> FeedbackUI : avalia resposta (1..5)
+FeedbackUI --> StreamlitUI : score
+StreamlitUI --> ChatbotService : save_to_semantic_cache(question, answer, rating)
+
+ChatbotService --> Embedder : embedding(pergunta normalizada)
+ChatbotService --> SemanticCachePolicy : calcula status e score
+SemanticCachePolicy --> SemanticCacheTable : upsert por\nquestion_key + documents_hash
+
+note right of SemanticCachePolicy
+Politica implementada:
+- Entrada inicia como candidate
+- trusted quando:
+  rating_count >= 2 e avg_rating >= 4.4
+- rating <= 2 rebaixa para candidate
+- TTL trusted: 30 dias
+- TTL candidate: 14 dias
+- Invalidacao por documents_hash
+end note
+
+ChatbotService --> CacheStats : exposicao de metricas
+
+@enduml
