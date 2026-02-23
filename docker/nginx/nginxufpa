@@ -5,7 +5,7 @@ events {
 http {
     server {
         listen 80;
-        server_name localhost;
+        server_name fasitech.cameta.ufpa.br 200.239.109.52 172.16.28.198 localhost;
 
         location / {
             proxy_pass http://streamlit:8501;
