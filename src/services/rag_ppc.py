@@ -241,7 +241,7 @@ class ChatbotService:
             try:
                 print("   Tentando carregar modelo Maritaca...")
                 model = OpenAILike(
-                        id="sabia-4",
+                        id="sabiazinho-4",
                         name="Maritaca Sabia 4",
                         api_key=maritaca_api_key,
                         base_url="https://chat.maritaca.ai/api",
@@ -350,7 +350,7 @@ class ChatbotService:
                 embedder=self.embedder,
                 search_type=SearchType.hybrid,
             )
-            knowledge_local = Knowledge(vector_db=vector_db_local, max_results=20)
+            knowledge_local = Knowledge(vector_db=vector_db_local, max_results=15)
             return vector_db_local, knowledge_local
 
         # Create the vector database
