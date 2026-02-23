@@ -825,7 +825,8 @@ def _render_documents_portal() -> None:
                 <h3>🎓 Trabalho de Conclusão de Curso (TCC)</h3>
                 <ul class="docs-list">
                     <li><a class="docs-link" href="https://docs.google.com/document/d/125WbjVhAaAqGporWUcXmWZKXLV-QVN9B/edit?usp=sharing&ouid=104533156519023564459&rtpof=true&sd=true" target="_blank">📄 Diretrizes TCC FASI 2024</a></li>
-                    <li><a class="docs-link" href="https://drive.google.com/file/d/10ncOkDrPkRJSqY9IzLD850qUwllXwHv7/view?usp=sharing" target="_blank">📄 Modelo Pré-Projeto TCC 1 (Anexo 2)</a></li>
+                    <li><a class="docs-link" href="https://docs.google.com/document/d/1yuz3oDEvQ66jGcao6FtfClB0uoDhbLWt/edit?usp=sharing&ouid=104533156519023564459&rtpof=true&sd=true" target="_blank">📄 Form de Indicação TCC 1 (Anexo I)</a></li>
+                    <li><a class="docs-link" href="https://drive.google.com/file/d/10ncOkDrPkRJSqY9IzLD850qUwllXwHv7/view?usp=sharing" target="_blank">📄 Modelo Pré-Projeto TCC 1 (Anexo II)</a></li>
                     <li><a class="docs-link" href="https://www.overleaf.com/latex/templates/modelo-de-monografia-do-curso-de-latex-ufpa/tmttydywvynb" target="_blank">📄 Template TCC FASI (Overleaf)</a></li>
                 </ul>
             </div>
