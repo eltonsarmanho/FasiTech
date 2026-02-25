@@ -40,6 +40,40 @@ SEMANTIC_CACHE_MIN_RATINGS_FOR_PROMOTION = 2
 SEMANTIC_CACHE_TTL_DAYS_TRUSTED = 30
 SEMANTIC_CACHE_TTL_DAYS_CANDIDATE = 14
 
+# Similaridade mínima (cosseno) para considerar a pergunta dentro do domínio dos documentos.
+# Aplicada quando a pergunta já contém pelo menos uma palavra-chave acadêmica.
+MIN_DOMAIN_RELEVANCE_THRESHOLD = 0.50
+# Limiar mais estrito aplicado quando a pergunta NÃO contém nenhuma palavra-chave do domínio.
+# Evita que perguntas genéricas em português (ex: "Qual a capital do Brasil?") passem pela
+# semelhança superficial de idioma.
+MIN_DOMAIN_RELEVANCE_NO_KEYWORD_THRESHOLD = 0.72
+
+# Palavras-chave que sinalizam que a pergunta pertence ao domínio acadêmico.
+# Basta UMA palavra-chave para aplicar o limiar padrão (mais permissivo).
+_DOMAIN_KEYWORDS: frozenset = frozenset({
+    "disciplina", "matéria", "componente", "ementa", "ementário",
+    "curso", "grade", "currículo", "ppc", "projeto pedagógico",
+    "tcc", "trabalho de conclusão", "monografia",
+    "acc", "acg", "atividade complementar",
+    "matrícula", "inscrição", "trancamento", "cancelamento",
+    "professor", "docente", "orientador", "coordenador",
+    "carga horária", "crédito", "horas", "semestre", "período",
+    "formatura", "colação", "diploma", "certificado",
+    "estágio", "supervisão",
+    "regulamento", "regimento", "resolução", "norma",
+    "aprovação", "reprovação", "nota", "média", "frequência", "presença",
+    "fasi", "ufpa", "universidade", "faculdade",
+    "sistemas de informação", "computação", "informática",
+    "extensão", "pesquisa", "ensino",
+    "coordenação", "colegiado", "câmara",
+    "obrigatória", "optativa", "eletiva",
+    "pré-requisito", "prerequisito",
+    "avaliação", "prova", "trabalho",
+    "bolsa", "auxílio", "monitoria",
+    "coleta", "histórico", "boletim",
+    "faq", "dúvida", "pergunta frequente",
+})
+
 
 class ChatbotService:
     """Serviço de chatbot para consultas sobre o PPC do curso."""
@@ -919,8 +953,10 @@ class ChatbotService:
         prompt_instructions = [
             "Você é um assistente virtual especializado em fornecer informações precisas sobre o Projeto Pedagógico do Curso (PPC) de Sistemas de Informação.",
             "As respostas devem ser baseadas nas informações fornecidas pelo PPC oficial e outros documentos oficiais.",
-            "Se nao encontrar informacao especifica, diga claramente que nao encontrou. Não invente informações (Ex: Atvidades Complementares de Graduação (ACG)).",
-            "Seja preciso e cite detalhes relevantes do PPC quando possivel."
+            "Se nao encontrar informacao especifica, diga claramente que nao encontrou. Não invente informações (Ex: Atividades Complementares de Graduação (ACG)).",
+            "Seja preciso e cite detalhes relevantes do PPC quando possivel.",
+            "IMPORTANTE: Responda APENAS perguntas relacionadas ao curso de Sistemas de Informação, PPC, TCC, ACC/ACG, estágio, regulamentos, regimento interno, grade curricular e demais documentos acadêmicos oficiais disponíveis. "
+            "Se a pergunta for claramente fora desse escopo (ex: curiosidades gerais, geografia, ciências, cultura popular, entretenimento), recuse educadamente dizendo que só pode responder sobre os documentos acadêmicos do curso.",
         ]
         return Agent(
             session_id=session_id, 
@@ -976,6 +1012,124 @@ class ChatbotService:
         
         return unique_sources
     
+    @staticmethod
+    def _question_has_domain_keyword(question: str) -> bool:
+        """Retorna True se a pergunta contiver ao menos uma palavra-chave do domínio acadêmico."""
+        q_lower = question.lower()
+        return any(kw in q_lower for kw in _DOMAIN_KEYWORDS)
+
+    def _is_question_in_domain(self, question: str) -> tuple[bool, float]:
+        """
+        Verifica se a pergunta é relevante para o domínio dos documentos carregados.
+
+        Estratégia em duas camadas:
+        1. Detecção de palavras-chave acadêmicas → ajusta limiar (permissivo ou estrito).
+        2. Busca vetorial na tabela recipes → calcula score combinado (melhor + média dos top-3).
+
+        O score combinado precisa superar o limiar correspondente ao tipo de pergunta.
+        Em caso de falha técnica, loga o erro explicitamente e permite a passagem.
+        """
+        try:
+            if not self._knowledge_loaded or self.vector_db is None or self.embedder is None:
+                logger.warning(
+                    "⚠️ Verificação de domínio ignorada: serviço não está totalmente inicializado."
+                )
+                return True, 1.0
+
+            # --- Camada 1: palavras-chave -----------------------------------------
+            has_keyword = self._question_has_domain_keyword(question)
+            effective_threshold = (
+                MIN_DOMAIN_RELEVANCE_THRESHOLD
+                if has_keyword
+                else MIN_DOMAIN_RELEVANCE_NO_KEYWORD_THRESHOLD
+            )
+            logger.info(
+                "🔑 Palavras-chave do domínio: %s → limiar efetivo=%.0f%%",
+                "SIM" if has_keyword else "NÃO",
+                effective_threshold * 100,
+            )
+
+            # --- Camada 2: busca vetorial -----------------------------------------
+            question_embedding = self._get_question_embedding(question)
+            if question_embedding is None:
+                logger.warning("⚠️ Embedding não gerado. Verificação de domínio ignorada.")
+                return True, 1.0
+
+            import lancedb
+
+            try:
+                db = lancedb.connect(self.db_url)
+            except Exception as e:
+                logger.error("❌ Falha ao conectar no LanceDB para verificação de domínio: %s", e)
+                return True, 1.0
+
+            try:
+                table = db.open_table("recipes")
+            except Exception as e:
+                logger.error("❌ Tabela 'recipes' não encontrada para verificação de domínio: %s", e)
+                return True, 1.0
+
+            # Tenta cosine primeiro; tabelas hybrid podem não suportar override de métrica
+            results = None
+            for attempt, kwargs in enumerate([
+                {"metric": "cosine"},
+                {},  # fallback: métrica padrão da tabela
+            ]):
+                try:
+                    search = table.search(question_embedding)
+                    if "metric" in kwargs:
+                        search = search.metric(kwargs["metric"])
+                    results = search.limit(5).to_list()
+                    logger.debug(
+                        "Busca vetorial (tentativa %d, metric=%s) retornou %d resultados.",
+                        attempt + 1,
+                        kwargs.get("metric", "default"),
+                        len(results),
+                    )
+                    break
+                except Exception as e:
+                    logger.warning(
+                        "⚠️ Busca vetorial (tentativa %d, metric=%s) falhou: %s",
+                        attempt + 1,
+                        kwargs.get("metric", "default"),
+                        e,
+                    )
+
+            if results is None:
+                logger.error("❌ Todas as tentativas de busca vetorial falharam. Pergunta permitida por padrão.")
+                return True, 1.0
+
+            if not results:
+                logger.info("❌ Nenhum chunk retornado. Pergunta considerada fora do domínio.")
+                return False, 0.0
+
+            distances = [float(r.get("_distance", 1.0)) for r in results]
+            best_distance = min(distances)
+            avg_distance = sum(distances[:3]) / min(3, len(distances))
+
+            best_similarity = max(0.0, min(1.0, 1.0 - best_distance))
+            avg_similarity = max(0.0, min(1.0, 1.0 - avg_distance))
+
+            # Score combinado: 40% melhor + 60% média (penaliza quando só 1 chunk é bom)
+            combined_score = best_similarity * 0.4 + avg_similarity * 0.6
+            is_in_domain = combined_score >= effective_threshold
+
+            logger.info(
+                "🎯 Domínio: best=%.1f%% avg=%.1f%% combined=%.1f%% threshold=%.0f%% → %s | '%s...'",
+                best_similarity * 100,
+                avg_similarity * 100,
+                combined_score * 100,
+                effective_threshold * 100,
+                "✅ IN_DOMAIN" if is_in_domain else "🚫 OUT_OF_DOMAIN",
+                question[:60],
+            )
+
+            return is_in_domain, combined_score
+
+        except Exception as e:
+            logger.error("❌ Erro inesperado em _is_question_in_domain: %s", e, exc_info=True)
+            return True, 1.0  # Fail-open: não bloquear o serviço por bug interno
+
     def ask_question(self, question: str, session_id: str = None, stream: bool = False) -> Dict[str, Any]:
         """
         Executa uma pergunta e retorna um payload estruturado para a interface.
@@ -1031,7 +1185,28 @@ class ChatbotService:
                     }
                 }
             
-            # 2. Cache MISS - Obter agente para a sessão e chamar modelo
+            # 2. Cache MISS - Verificar se a pergunta pertence ao domínio dos documentos
+            is_in_domain, domain_similarity = self._is_question_in_domain(normalized_question)
+            if not is_in_domain:
+                logger.info(
+                    "🚫 Pergunta fora do domínio (similaridade=%.2f%%). Recusada: '%s...'",
+                    domain_similarity * 100,
+                    normalized_question[:60],
+                )
+                return {
+                    "success": False,
+                    "error": "out_of_domain",
+                    "message": (
+                        "Desculpe, só consigo responder perguntas relacionadas aos documentos "
+                        "acadêmicos disponíveis, como o PPC, regulamentos, TCC, ACG e FAQ do "
+                        "curso de Sistemas de Informação. "
+                        "Sua pergunta não parece estar relacionada a esse conteúdo."
+                    ),
+                    "domain_similarity": domain_similarity,
+                    "question": normalized_question,
+                }
+
+            # 3. Dentro do domínio - Obter agente para a sessão e chamar modelo
             agent = self._get_agent(session_id)
             
             # Executar pergunta no agente
