@@ -368,6 +368,8 @@ def render_form() -> None:
                     st.error("**❌ Erros encontrados:**\n\n" + "\n".join(f"• {error}" for error in errors))
                     st.session_state.estagio_processing = False  # Resetar
                 else:
+                    status_placeholder = st.empty()
+                    status_placeholder.info("⏳ Processando dados da submissão. Aguarde...")
                     with st.spinner("Processando envio de documentos de estágio..."):
                         try:
                             # Preparar dados do formulário
@@ -392,9 +394,10 @@ def render_form() -> None:
                                 f"- Turma: {turma}\n"
                                 f"- Componente: {componente}\n"
                                 f"- Arquivo(s): {len(uploaded_files)} documento(s)\n\n"
-                                f"Você receberá um e-mail de confirmação em breve.\n\n"
-                                f"Redirecionando para a tela principal..."
+                                f"Você receberá um e-mail de confirmação em breve."
                             )
+                            status_placeholder.success("✅ Processamento concluído com sucesso.")
+                            st.info("🏠 Processo finalizado. Retornando ao menu principal...")
                             
                             # Resetar flag
                             st.session_state.estagio_processing = False
@@ -404,6 +407,7 @@ def render_form() -> None:
                             st.switch_page("main.py")
                             
                         except Exception as e:
+                            status_placeholder.empty()
                             st.error(f"❌ **Erro ao processar envio:**\n\n{str(e)}")
                             st.info("Por favor, tente novamente ou entre em contato com o suporte.")
                             # Resetar flag

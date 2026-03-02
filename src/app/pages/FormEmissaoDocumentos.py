@@ -263,6 +263,8 @@ def render_form() -> None:
         st.session_state.docs_processing = False
         return
 
+    status_placeholder = st.empty()
+    status_placeholder.info("⏳ Processando dados da submissão. Aguarde...")
     with st.spinner("📤 Validando histórico e gerando comprovante..."):
         try:
             result = process_document_emission_submission(
@@ -276,6 +278,7 @@ def render_form() -> None:
                 notification_recipients=config["notification_recipients"],
             )
         except Exception as exc:
+            status_placeholder.empty()
             st.error("Não foi possível concluir a emissão. Tente novamente em instantes.")
             st.exception(exc)
             st.session_state.docs_processing = False
@@ -284,11 +287,14 @@ def render_form() -> None:
     st.session_state.docs_processing = False
 
     if not result.get("success"):
+        status_placeholder.empty()
         st.error(result.get("message", "Solicitação negada após validação do histórico."))
         return
 
     st.success("✅ Documento emitido com sucesso.")
+    status_placeholder.success("✅ Processamento concluído com sucesso.")
     st.info(result.get("message", "Comprovante enviado por e-mail."))
+    st.info("🏠 Processo finalizado. Retornando ao menu principal...")
 
     wait_seconds = 3
     try:

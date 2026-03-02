@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -560,6 +561,8 @@ def render_form() -> None:
                     st.error("**Erros encontrados:**\n\n" + "\n".join(f"• {error}" for error in errors))
                     st.session_state.req_tcc_processing = False  # Resetar flag
                 else:
+                    status_placeholder = st.empty()
+                    status_placeholder.info("⏳ Processando dados da submissão. Aguarde...")
                     with st.spinner("Processando requerimento de TCC..."):
                         try:
                             # Carregar configurações
@@ -604,11 +607,16 @@ def render_form() -> None:
                                 f"- Orientador: {orientador_final}\n\n"
                                 f"Você receberá um e-mail de confirmação em breve."
                             )
+                            status_placeholder.success("✅ Processamento concluído com sucesso.")
+                            st.info("🏠 Processo finalizado. Retornando ao menu principal...")
                             
                             # Resetar flag após sucesso
                             st.session_state.req_tcc_processing = False
+                            time.sleep(st.secrets["sistema"]["timer"])
+                            st.switch_page("main.py")
                             
                         except Exception as e:
+                            status_placeholder.empty()
                             st.error(f"❌ **Erro ao processar requerimento:**\n\n{str(e)}")
                             st.info("Por favor, tente novamente ou entre em contato com o suporte.")
                             # Resetar flag em caso de erro

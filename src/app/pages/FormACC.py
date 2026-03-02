@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+import time
 from pathlib import Path
 from typing import Any, Dict
 import re
@@ -321,6 +322,8 @@ def render_form() -> None:
 				st.session_state.acc_processing = False  # Resetar em caso de erro
 				return
 
+			status_placeholder = st.empty()
+			status_placeholder.info("⏳ Processando dados da submissão. Aguarde...")
 			# Processar submissão RÁPIDA (sem IA)
 			with st.spinner("📤 Enviando dados..."):
 				try:
@@ -338,10 +341,12 @@ def render_form() -> None:
 						notification_recipients=config["notification_recipients"],
 					)
 				except ValueError as validation_error:
+					status_placeholder.empty()
 					st.error(str(validation_error))
 					st.session_state.acc_processing = False  # Resetar em caso de erro
 					return
 				except Exception as unexpected:
+					status_placeholder.empty()
 					st.error("Não foi possível concluir o envio. Tente novamente em instantes.")
 					st.exception(unexpected)
 					st.session_state.acc_processing = False  # Resetar em caso de erro
@@ -349,17 +354,18 @@ def render_form() -> None:
 
 			# Mensagem de sucesso IMEDIATA
 			st.success("✅ **Formulário ACC enviado com sucesso!**")
+			status_placeholder.success("✅ Processamento concluído com sucesso.")
 			st.info(
 				"🤖 **Processamento com IA iniciado em background!**\n\n"
 				"Seus certificados estão sendo processados por Inteligência Artificial. "
 				"Você receberá um e-mail com a análise detalhada das cargas horárias assim que o processamento for concluído."
 			)
+			st.info("🏠 Processo finalizado. Retornando ao menu principal...")
 
 			# Resetar flag de processamento
 			st.session_state.acc_processing = False
 			
 			# Aguardar antes de redirecionar
-			import time
 			time.sleep(st.secrets["sistema"]["timer"])
 			st.switch_page("main.py")
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -457,6 +458,8 @@ def render_form() -> None:
 					st.error("**Erros encontrados:**\n\n" + "\n".join(f"• {error}" for error in errors))
 					st.session_state.tcc_processing = False  # Resetar flag em caso de erro
 				else:
+					status_placeholder = st.empty()
+					status_placeholder.info("⏳ Processando dados da submissão. Aguarde...")
 					with st.spinner("Processando submissão do TCC..."):
 						try:
 							# Carregar configurações do secrets
@@ -494,11 +497,16 @@ def render_form() -> None:
 								f"- Arquivos: {result['total_files']} documento(s)\n\n"
 								f"Você receberá um e-mail de confirmação em breve."
 							)
+							status_placeholder.success("✅ Processamento concluído com sucesso.")
+							st.info("🏠 Processo finalizado. Retornando ao menu principal...")
 							
 							# Resetar flag de processamento após sucesso
 							st.session_state.tcc_processing = False
+							time.sleep(2)
+							st.switch_page("main.py")
 							
 						except Exception as e:
+							status_placeholder.empty()
 							st.error(f"❌ **Erro ao processar submissão:**\n\n{str(e)}")
 							st.info("Por favor, tente novamente ou entre em contato com o suporte.")
 							# Resetar flag de processamento em caso de erro

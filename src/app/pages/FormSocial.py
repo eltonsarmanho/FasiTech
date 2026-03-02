@@ -4,6 +4,7 @@ from __future__ import annotations
 import streamlit as st
 import datetime
 import sys
+import time
 from pathlib import Path
 from typing import Any, Dict
 
@@ -408,7 +409,8 @@ def render_form():
                 st.session_state.social_processing = False
                 st.session_state.social_processing = False
             else:
-                import time
+                status_placeholder = st.empty()
+                status_placeholder.info("⏳ Processando dados da submissão. Aguarde...")
                 # Processamento (spinner)
                 with st.spinner("Aguarde, processando envio..."):
                     # Dados para salvar no banco
@@ -437,6 +439,7 @@ def render_form():
                     try:
                         submission_id = save_social_submission(db_data)
                     except Exception as e:
+                        status_placeholder.empty()
                         st.error(f"Erro ao salvar no banco de dados: {e}")
                         st.session_state.social_processing = False
                         return
@@ -467,7 +470,9 @@ ID Submissão: {submission_id}"""
                     except Exception as e:
                         st.warning(f"Formulário salvo, mas falha ao enviar e-mail: {e}")
                 # Mensagem de sucesso e timer fora do spinner
-                st.success("Formulário enviado com sucesso!")
+                st.success("✅ Formulário enviado com sucesso!")
+                status_placeholder.success("✅ Processamento concluído com sucesso.")
+                st.info("🏠 Processo finalizado. Retornando ao menu principal...")
                 st.session_state.social_processing = False
                 time.sleep(st.secrets["sistema"]["timer"])
                 st.switch_page("main.py")

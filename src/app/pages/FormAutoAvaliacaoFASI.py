@@ -5,12 +5,13 @@ Coleta feedback anônimo sobre transparência, comunicação, planejamento e sup
 """
 from __future__ import annotations
 
-import streamlit as st
 import datetime
 import sys
+import time
 from pathlib import Path
 from typing import Any, Dict
 
+import streamlit as st
 # --- INÍCIO PADRÃO VISUAL INSTITUCIONAL ---
 ROOT_DIR = Path(__file__).resolve().parents[3]
 if str(ROOT_DIR) not in sys.path:
@@ -359,7 +360,8 @@ def render_form():
                 st.error(f"Por favor, responda todas as perguntas obrigatórias. Faltam: {', '.join(campos_vazios)}")
                 st.session_state.avaliacao_processing = False
             else:
-                import time
+                status_placeholder = st.empty()
+                status_placeholder.info("⏳ Processando dados da submissão. Aguarde...")
                 with st.spinner("Aguarde, processando envio..."):
                     # Mapear respostas para valores numéricos (1-5)
                     def mapear_valor(resposta, escala):
@@ -395,12 +397,15 @@ def render_form():
                     try:
                         save_avaliacao_gestao_submission(row_data)
                     except Exception as e:
+                        status_placeholder.empty()
                         st.error(f"Erro ao salvar no banco de dados: {e}")
                         st.session_state.avaliacao_processing = False
                         return
                 
                 # Mensagem de sucesso
                 st.success("✅ Avaliação enviada com sucesso! Obrigado pelo seu feedback.")
+                status_placeholder.success("✅ Processamento concluído com sucesso.")
+                st.info("🏠 Processo finalizado. Retornando ao menu principal...")
                 #st.balloons()
                 st.session_state.avaliacao_processing = False
                 time.sleep(st.secrets["sistema"]["timer"])
