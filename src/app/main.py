@@ -540,6 +540,8 @@ def _render_form_card(
     )
     
     # Botão Streamlit nativo com classe específica para cores correspondentes
+    if button_text in ["Consulta Requerimento TCC"]:        
+        button_text = "Consulta"
     if st.button(
         f"📋 Acessar {button_text}",
         key=key,
@@ -734,6 +736,19 @@ def _render_available_forms() -> None:
         ):
             st.markdown(f'<meta http-equiv="refresh" content="0; url={download_url}">', unsafe_allow_html=True)
             st.success("🔄 Redirecionando para download...")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    col16, col17, col18 = st.columns(3, gap="large")
+    with col16:
+        _render_form_card(
+            title="Consulta Requerimento TCC",
+            description="Consulta dos dados submetidos no Requerimento TCC, com métricas, tabela e download completo.",
+            icon="📋",
+            page_name="PageDataRequerimentoTCC.py",
+            key="btn_consulta_requerimento_tcc",
+            gradient_colors="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+        )
     #     _render_form_card(
     #         title="Ofertas de Disciplinas",  
     #         description="Consulta das ofertas de disciplinas do semestre e grades curriculares. Visualização por período e turma.",

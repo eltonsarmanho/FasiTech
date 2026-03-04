@@ -223,6 +223,8 @@ def save_requerimento_tcc_submission(data: Dict[str, Any]) -> int:
         orientador=data["orientador"],
         coorientador=data.get("coorientador"),
         titulo_trabalho=data["titulo_trabalho"],
+        resumo=data.get("resumo"),
+        palavra_chave=data.get("palavra_chave"),
         modalidade=data["modalidade"],
         membro_banca1=data.get("membro_banca1"),
         membro_banca2=data.get("membro_banca2"),

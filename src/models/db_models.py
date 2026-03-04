@@ -241,6 +241,8 @@ class RequerimentoTccSubmission(SubmissionBase, table=True):
     
     # Trabalho
     titulo_trabalho: str = Field(max_length=500)
+    resumo: Optional[str] = Field(default=None)
+    palavra_chave: Optional[str] = Field(default=None, max_length=255)
     modalidade: str = Field(max_length=255)
     
     # Banca

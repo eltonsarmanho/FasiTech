@@ -355,6 +355,8 @@ def _save_to_database(form_data: dict[str, Any]) -> int:
         "orientador": form_data["orientador"],
         "coorientador": form_data.get("coorientador"),
         "titulo_trabalho": form_data["titulo"],
+        "resumo": form_data["resumo"],
+        "palavra_chave": form_data["palavras_chave"],
         "modalidade": form_data["modalidade"],
         "membro_banca1": form_data["membro1"],
         "membro_banca2": form_data["membro2"],
