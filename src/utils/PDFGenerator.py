@@ -241,6 +241,11 @@ def gerar_pdf_declaracao_projeto(resposta):
     c.drawCentredString(largura / 2, y_pos, "Trav. Padre Antônio Franco, 2617-Matinha")
     y_pos -= 12
     c.drawCentredString(largura / 2, y_pos, "Cametá-Pará- CEP:68400-000-Fone:3781-1182/1258")
+    y_pos -= 18
+    c.setFillColorRGB(1, 0, 0)
+    c.setFont(fonte_bold, 10)
+    c.drawCentredString(largura / 2, y_pos, "Assinar via SIPAC")
+    c.setFillColorRGB(0, 0, 0)
 
     c.save()
     return caminho_pdf

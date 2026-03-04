@@ -12,7 +12,8 @@ from typing import Any, Dict
 def format_brl_num(valor):
     """Formata número para R$ brasileiro."""
     # Formatação simples e direta para evitar problemas com babel
-    return f"R$ {valor:.0f},00"
+    # Escapa "$" para evitar interpretação de Markdown/LaTeX no Streamlit
+    return f"R\\$ {valor:.0f},00"
 def display_option(interval):
     """Retorna a string que será mostrada no widget."""
     vmin, vmax = interval
