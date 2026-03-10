@@ -3,6 +3,12 @@
 
 ### ⏳ Pendentes & Em Progresso
 
+* [ ] **Funcionalidade Geradora de ATA** `[Média]`
+*Para gerar ATAS conforme as requisições de TCC cadastradas-> Usuario entra com dados e baixa PDF.*
+
+* [ ] **Despertador de Tarefas** `[Alta]`
+*Dado intervalo de datas, criar Gatilho para disparar Emails de alertas para os docentes. Aplicar senha de acesso para essa funcionalidade*
+
 * [ ] **Criar Repositório para VM UFPA** `[Baixa]`
 *Para separar as configurações.*
 
