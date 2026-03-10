@@ -221,6 +221,11 @@ def ensure_scheduler_running() -> None:
 
     Seguro para ser chamado múltiplas vezes (re-renders do Streamlit) — o
     scheduler só é iniciado uma vez por processo graças ao lock e à flag global.
+
+    Usa trigger ``cron`` (minuto=*) em vez de ``interval`` para garantir que o
+    job dispare exatamente no segundo :00 de cada minuto, sem acúmulo de deriva.
+    Também executa uma verificação imediata ao iniciar, para não perder alertas
+    cujo horário cai dentro do minuto de inicialização do processo.
     """
     global _scheduler
     with _scheduler_lock:
@@ -229,22 +234,28 @@ def ensure_scheduler_running() -> None:
 
         try:
             from apscheduler.schedulers.background import BackgroundScheduler  # noqa: PLC0415
+            from apscheduler.triggers.cron import CronTrigger  # noqa: PLC0415
 
             _scheduler = BackgroundScheduler(timezone="America/Belem")
             _scheduler.add_job(
                 _check_and_fire_alerts,
-                trigger="interval",
-                minutes=1,
+                trigger=CronTrigger(minute="*", timezone="America/Belem"),
                 id="check_academic_alerts",
                 replace_existing=True,
                 max_instances=1,
+                # Tolera até 30s de atraso antes de descartar a execução
+                misfire_grace_time=30,
             )
             _scheduler.start()
 
             # Encerrar graciosamente ao sair
             atexit.register(_shutdown_scheduler)
 
-            print("✅ Scheduler de Alertas Acadêmicos iniciado (intervalo: 1 min).")
+            print("✅ Scheduler de Alertas Acadêmicos iniciado (cron: todo minuto).")
+
+            # Verificação imediata: captura alertas cujo horário coincide com
+            # o minuto em que o processo acabou de subir.
+            _check_and_fire_alerts()
 
         except Exception as exc:
             print(f"❌ Falha ao iniciar scheduler de alertas: {exc}")
