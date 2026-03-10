@@ -2,13 +2,15 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Dict
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from src.database.engine import get_db_session
 from src.models.db_models import (
     AccSubmission,
+    AlertaAcademico,
     EstagioSubmission,
     PlanoEnsinoSubmission,
     ProjetosSubmission,
@@ -278,3 +280,92 @@ def save_avaliacao_gestao_submission(data: Dict[str, Any]) -> int:
         session.commit()
         session.refresh(submission)
         return submission.id
+
+
+# ---------------------------------------------------------------------------
+# AlertaAcademico CRUD
+# ---------------------------------------------------------------------------
+
+def create_alerta(data: Dict[str, Any]) -> int:
+    """
+    Cria um novo gatilho de alerta acadêmico no banco de dados.
+
+    Args:
+        data: Dicionário com titulo, descricao, data_inicio, data_fim, horario_disparo.
+
+    Returns:
+        ID do alerta criado.
+    """
+    alerta = AlertaAcademico(
+        titulo=data["titulo"],
+        descricao=data["descricao"],
+        data_inicio=data["data_inicio"],
+        data_fim=data["data_fim"],
+        horario_disparo=data["horario_disparo"],
+        ativo=data.get("ativo", True),
+    )
+
+    with get_db_session() as session:
+        session.add(alerta)
+        session.commit()
+        session.refresh(alerta)
+        return alerta.id
+
+
+def get_all_alertas() -> List[AlertaAcademico]:
+    """Retorna todos os gatilhos de alerta acadêmico."""
+    with get_db_session() as session:
+        alertas = session.exec(
+            select(AlertaAcademico).order_by(AlertaAcademico.criado_em.desc())
+        ).all()
+        # Detach objects from session to avoid lazy-load issues
+        return [AlertaAcademico(**a.model_dump()) for a in alertas]
+
+
+def get_alerta_by_id(alerta_id: int) -> Optional[AlertaAcademico]:
+    """Retorna um alerta pelo ID."""
+    with get_db_session() as session:
+        alerta = session.get(AlertaAcademico, alerta_id)
+        if alerta is None:
+            return None
+        return AlertaAcademico(**alerta.model_dump())
+
+
+def update_alerta(alerta_id: int, data: Dict[str, Any]) -> bool:
+    """
+    Atualiza um gatilho de alerta acadêmico.
+
+    Args:
+        alerta_id: ID do alerta.
+        data: Campos a atualizar.
+
+    Returns:
+        True se atualizado com sucesso, False caso não encontrado.
+    """
+    with get_db_session() as session:
+        alerta = session.get(AlertaAcademico, alerta_id)
+        if alerta is None:
+            return False
+        for field, value in data.items():
+            if hasattr(alerta, field) and value is not None:
+                setattr(alerta, field, value)
+        alerta.atualizado_em = datetime.utcnow()
+        session.add(alerta)
+        session.commit()
+        return True
+
+
+def delete_alerta(alerta_id: int) -> bool:
+    """
+    Remove um gatilho de alerta acadêmico.
+
+    Returns:
+        True se removido, False caso não encontrado.
+    """
+    with get_db_session() as session:
+        alerta = session.get(AlertaAcademico, alerta_id)
+        if alerta is None:
+            return False
+        session.delete(alerta)
+        session.commit()
+        return True

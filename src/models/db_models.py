@@ -1,7 +1,7 @@
 """Database models for FasiTech forms."""
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Optional
 
 from sqlmodel import Field, SQLModel
@@ -314,5 +314,36 @@ class AvaliacaoGestaoSubmission(SubmissionBase, table=True):
                 "q1_valor": 4,
                 "q2_comunicacao": "Concordo",
                 "q2_valor": 4,
+            }
+        }
+
+class AlertaAcademico(SQLModel, table=True):
+    """Model for academic alert triggers (email scheduler)."""
+
+    __tablename__ = "alertas_academicos"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    titulo: str = Field(max_length=255)
+    descricao: str = Field()
+    data_inicio: str = Field(max_length=20)      # "YYYY-MM-DD"
+    data_fim: str = Field(max_length=20)          # "YYYY-MM-DD"
+    horario_disparo: str = Field(max_length=10)   # "HH:MM"
+    ativo: bool = Field(default=True)
+    criado_em: datetime = Field(
+        default_factory=datetime.utcnow, nullable=False, index=True
+    )
+    atualizado_em: Optional[datetime] = Field(default=None)
+    ultimo_disparo: Optional[str] = Field(
+        default=None, max_length=50
+    )  # "YYYY-MM-DD" of last fire
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "titulo": "Prazo de Entrega TCC",
+                "descricao": "Lembrete: prazo final para entrega dos TCCs do semestre.",
+                "data_inicio": "2026-03-01",
+                "data_fim": "2026-06-30",
+                "horario_disparo": "08:00",
             }
         }

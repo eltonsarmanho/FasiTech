@@ -27,6 +27,13 @@ except Exception as e:
     print(f"⚠️ Aviso: Não foi possível inicializar o banco de dados: {e}")
     # Continuar mesmo se houver erro no banco (fallback para modo sem BD)
 
+# Iniciar scheduler de alertas acadêmicos (executa apenas uma vez por processo)
+try:
+    from src.services.alert_service import ensure_scheduler_running
+    ensure_scheduler_running()
+except Exception as e:
+    print(f"⚠️ Aviso: Não foi possível iniciar o scheduler de alertas: {e}")
+
 LOGO_PATH = Path(__file__).resolve().parent.parent / "resources" / "fasiOficial.png"
 
 
@@ -508,7 +515,8 @@ def _render_form_card(
         "Formulário Social": "Formulário",
         "FAQ - Perguntas Frequentes": "FAQ",
         "Plano de Ensino": "Planos",
-        "Projetos": "Projetos"
+        "Projetos": "Projetos",
+        "Gestor de Alertas": "Gestor",
     }
     button_text = button_text_map.get(title, title)
     
@@ -669,6 +677,20 @@ def _render_available_forms() -> None:
             page_name="PageDataDocentesProjetos.py",
             key="btn_consulta_projetos",
             gradient_colors="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"  # Cor Padrão
+        )
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # Linha extra Docentes: Gestor de Alertas
+    col_da1, col_da2, col_da3 = st.columns(3, gap="large")
+    with col_da1:
+        _render_form_card(
+            title="Gestor de Alertas",
+            description="Painel restrito para criação de gatilhos de e-mail automáticos aos docentes. Configure intervalos de datas e horário de disparo.",
+            icon="🔔",
+            page_name="PageGestorAlertas.py",
+            key="btn_gestor_alertas",
+            gradient_colors="linear-gradient(135deg, #f59e0b 0%, #d97706 100%)"
         )
 
     st.markdown("<br><br>", unsafe_allow_html=True)
