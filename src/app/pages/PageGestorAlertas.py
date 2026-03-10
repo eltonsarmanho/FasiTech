@@ -195,6 +195,11 @@ def _render_auth_wall() -> bool:
             else:
                 st.error("❌ Token inválido. Verifique o FASI_TOKEN configurado no .env.")
 
+        st.markdown("<div style='margin-top:8px;'></div>", unsafe_allow_html=True)
+
+        if st.button("← Voltar ao Portal", key="btn_voltar_auth_gestor", use_container_width=True):
+            st.switch_page("main.py")
+
     return False
 
 

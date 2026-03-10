@@ -658,7 +658,7 @@ def _render_available_forms() -> None:
             icon="📖",
             page_name="FormPlanoEnsino.py",
             key="btn_plano",
-            gradient_colors="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"  # Cor Padrão
+            gradient_colors="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
         )
     with col8:
         _render_form_card(
@@ -667,30 +667,7 @@ def _render_available_forms() -> None:
             icon="🔬",
             page_name="FormProjetos.py",
             key="btn_projetos",
-            gradient_colors="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"  # Cor Padrão
-        )
-    with col9:
-        _render_form_card(
-            title="Consulta Projetos",
-            description="Visualização e análise de projetos submetidos pelos docentes. Acompanhe status, estatísticas e detalhes dos projetos.",
-            icon="📊",
-            page_name="PageDataDocentesProjetos.py",
-            key="btn_consulta_projetos",
-            gradient_colors="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"  # Cor Padrão
-        )
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # Linha extra Docentes: Gestor de Alertas
-    col_da1, col_da2, col_da3 = st.columns(3, gap="large")
-    with col_da1:
-        _render_form_card(
-            title="Gestor de Alertas",
-            description="Painel restrito para criação de gatilhos de e-mail automáticos aos docentes. Configure intervalos de datas e horário de disparo.",
-            icon="🔔",
-            page_name="PageGestorAlertas.py",
-            key="btn_gestor_alertas",
-            gradient_colors="linear-gradient(135deg, #f59e0b 0%, #d97706 100%)"
+            gradient_colors="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
         )
 
     st.markdown("<br><br>", unsafe_allow_html=True)
@@ -771,14 +748,24 @@ def _render_available_forms() -> None:
             key="btn_consulta_requerimento_tcc",
             gradient_colors="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
         )
-    #     _render_form_card(
-    #         title="Ofertas de Disciplinas",  
-    #         description="Consulta das ofertas de disciplinas do semestre e grades curriculares. Visualização por período e turma.",
-    #         icon="📅",
-    #         page_name="OfertasDisciplinas.py",
-    #         key="btn_ofertas",
-    #         gradient_colors="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"  # Cor Padrão
-    #     )
+    with col17:
+        _render_form_card(
+            title="Consulta Projetos",
+            description="Visualização e análise de projetos submetidos pelos docentes. Acompanhe status, estatísticas e detalhes dos projetos.",
+            icon="📊",
+            page_name="PageDataDocentesProjetos.py",
+            key="btn_consulta_projetos",
+            gradient_colors="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+        )
+    with col18:
+        _render_form_card(
+            title="Gestor de Alertas",
+            description="Painel restrito para criação de gatilhos de e-mail automáticos aos docentes. Configure intervalos de datas e horário de disparo.",
+            icon="🔔",
+            page_name="PageGestorAlertas.py",
+            key="btn_gestor_alertas",
+            gradient_colors="linear-gradient(135deg, #f59e0b 0%, #d97706 100%)"
+        )
 
     st.markdown("<br>", unsafe_allow_html=True)
 
