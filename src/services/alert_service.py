@@ -12,12 +12,19 @@ import os
 import threading
 from datetime import datetime
 from typing import List, Optional
+from zoneinfo import ZoneInfo
 
 # ---------------------------------------------------------------------------
 # Module-level scheduler singleton
 # ---------------------------------------------------------------------------
 _scheduler = None
 _scheduler_lock = threading.Lock()
+_TZ = ZoneInfo(os.getenv("APP_TIMEZONE", "America/Belem"))
+
+
+def _now_local() -> datetime:
+    """Retorna datetime no fuso configurado para os gatilhos."""
+    return datetime.now(_TZ)
 
 
 # ---------------------------------------------------------------------------
@@ -74,7 +81,7 @@ def _get_docente_emails() -> List[str]:
 def _build_email_body(titulo: str, descricao: str, data_inicio: str,
                       data_fim: str, horario_disparo: str) -> str:
     """Monta o corpo HTML do e-mail de alerta."""
-    now_str = datetime.now().strftime("%d/%m/%Y %H:%M")
+    now_str = _now_local().strftime("%d/%m/%Y %H:%M")
     return (
         f"Olá,\n\n"
         f"Você está recebendo este alerta acadêmico automático da FASI.\n\n"
@@ -128,7 +135,7 @@ def fire_alert(alerta_id: int) -> tuple[bool, str]:
             send_notification(subject, body, emails)
 
             # Atualiza registro de último disparo
-            alerta.ultimo_disparo = datetime.now().strftime("%Y-%m-%d")
+            alerta.ultimo_disparo = _now_local().strftime("%Y-%m-%d")
             alerta.atualizado_em = datetime.utcnow()
             session.add(alerta)
             session.commit()
@@ -156,7 +163,7 @@ def _check_and_fire_alerts() -> None:
         from src.services.email_service import send_notification  # noqa: PLC0415
         from sqlmodel import select  # noqa: PLC0415
 
-        now = datetime.now()
+        now = _now_local()
         today_str = now.strftime("%Y-%m-%d")
         current_time = now.strftime("%H:%M")
 
@@ -236,10 +243,10 @@ def ensure_scheduler_running() -> None:
             from apscheduler.schedulers.background import BackgroundScheduler  # noqa: PLC0415
             from apscheduler.triggers.cron import CronTrigger  # noqa: PLC0415
 
-            _scheduler = BackgroundScheduler(timezone="America/Belem")
+            _scheduler = BackgroundScheduler(timezone=_TZ)
             _scheduler.add_job(
                 _check_and_fire_alerts,
-                trigger=CronTrigger(minute="*", timezone="America/Belem"),
+                trigger=CronTrigger(minute="*", timezone=_TZ),
                 id="check_academic_alerts",
                 replace_existing=True,
                 max_instances=1,
