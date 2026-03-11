@@ -120,6 +120,23 @@ Preciso ter uma declaração de conclusão de curso. Siga esses passos:
 3. Anexe o Histórico Acadêmico.
 4. Aperte no botao "Emitir e Enviar Documento".
 
+## 15. Relatório de Extensão, de Ensino e Pibic como Estágio 
+
+Projetos de Ensino, Extensão e PIBIC podem ser debitados como Estágio. Siga Passos:
+
+1. Escreva Relatório Final de Estágio. Use conforme "Modelo de Relatório Final de Estágio" no Portal Acadêmico da FASI (Fasitech)
+2. Preencha o relatório
+3. Envie via Formulário (https://www.fasitech.com.br/FormEstagio)
+
+## 16. RECEBI A MENSAGEM "O DISCENTE EXCEDEU O LIMITE MÁXIMO DE CRÉDITO POR SEMESTRE PERMITIDO PELO SEU CURRÍCULO". O QUE DEVO FAZER?
+
+Essa mensagem de erro em vermelho aparece no SIGAA quando você tenta adicionar turmas que somam uma carga horária superior ao limite máximo estabelecido pelo seu curso para um único semestre.
+
+Para resolver essa situação, você tem duas opções:
+
+1. **Reduzir a carga horária (Recomendado):** Retorne à tela de seleção de turmas e remova uma ou mais disciplinas até que o total de créditos da sua matrícula se enquadre no limite máximo permitido pelo seu currículo.
+2. **Solicitar aumento de limite:** Caso seja estritamente necessário cursar essa quantidade excedente de créditos (por exemplo, para não atrasar a conclusão do curso), você precisará de uma autorização especial. Entre em contato diretamente com Diretor ou Secretário por e-mail ou mensagem.
+
 ## Cronograma Acadêmico UFPA - Ano 2026
 
 Abaixo, as ações do cronograma acadêmico estão listadas por período letivo, seguidas dos responsáveis e seus respectivos prazos.
