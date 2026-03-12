@@ -49,6 +49,13 @@ def _coerce_recipients(recipients: Iterable[str] | str | None) -> list[str]:
     return [email.strip() for email in recipients if email.strip()]
 
 
+def _is_blank(value: Any) -> bool:
+    """Retorna True para valores ausentes/vazios usados em validação."""
+    if value is None:
+        return True
+    return not str(value).strip()
+
+
 def process_acc_submission(
     form_data: Dict[str, Any],
     uploaded_file: Any,
@@ -73,8 +80,8 @@ def process_acc_submission(
     if uploaded_file is None:
         raise ValueError("Arquivo obrigatório não informado.")
 
-    required_fields = ["name", "registration", "email", "class_group"]
-    missing = [field for field in required_fields if not str(form_data.get(field, "")).strip()]
+    required_fields = ["name", "registration", "email", "class_group", "polo", "periodo"]
+    missing = [field for field in required_fields if _is_blank(form_data.get(field, ""))]
     if missing:
         raise ValueError(f"Campos obrigatórios ausentes: {', '.join(missing)}")
 
@@ -162,6 +169,8 @@ Sua submissão de Atividades Curriculares Complementares (ACC) foi processada co
 🔢 Matrícula: {sanitized['registration']}
 📧 E-mail: {sanitized['email']}
 📌 Turma: {sanitized['class_group']}
+🏫 Polo: {sanitized.get('polo', form_data.get('polo', ''))}
+🗓️ Período: {sanitized.get('periodo', form_data.get('periodo', ''))}
 
 📎 Anexos enviados:
 {anexos_formatados}
@@ -203,6 +212,8 @@ Sua submissão de Atividades Curriculares Complementares (ACC) foi recebida com 
 🔢 Matrícula: {sanitized['registration']}
 📧 E-mail: {sanitized['email']}
 📌 Turma: {sanitized['class_group']}
+🏫 Polo: {sanitized.get('polo', form_data.get('polo', ''))}
+🗓️ Período: {sanitized.get('periodo', form_data.get('periodo', ''))}
 
 📎 Anexos enviados:
 {anexos_formatados}
@@ -223,6 +234,8 @@ A coordenação fará a análise manual dos seus certificados.
         "registration": sanitized["registration"],
         "email": sanitized["email"],
         "class_group": sanitized["class_group"],
+        "polo": sanitized.get("polo", form_data.get("polo", "")),
+        "periodo": sanitized.get("periodo", form_data.get("periodo", "")),
         "semester": sanitized.get("semester", ""),
         "file_link": ", ".join(file_links) if file_links else None,
         "drive_file_id": file_ids[0] if file_ids else None,
@@ -289,8 +302,8 @@ def process_tcc_submission(
     if not uploaded_files or len(uploaded_files) == 0:
         raise ValueError("Pelo menos um arquivo é obrigatório.")
 
-    required_fields = ["name", "registration", "email", "class_group", "orientador", "titulo", "componente"]
-    missing = [field for field in required_fields if not str(form_data.get(field, "")).strip()]
+    required_fields = ["name", "registration", "email", "class_group", "polo", "periodo", "orientador", "titulo", "componente"]
+    missing = [field for field in required_fields if _is_blank(form_data.get(field, ""))]
     if missing:
         raise ValueError(f"Campos obrigatórios ausentes: {', '.join(missing)}")
 
@@ -336,6 +349,8 @@ def process_tcc_submission(
         "registration": sanitized["registration"],
         "email": sanitized["email"],
         "class_group": sanitized["class_group"],
+        "polo": sanitized.get("polo", form_data.get("polo", "")),
+        "periodo": sanitized.get("periodo", form_data.get("periodo", "")),
         "orientador": sanitized.get("orientador", form_data.get("orientador", "")),
         "titulo": sanitized.get("titulo", form_data.get("titulo", "")),
         "componente": componente,
@@ -381,6 +396,8 @@ Uma nova resposta foi registrada no formulário de Trabalho de Conclusão de Cur
 🔢 Matrícula: {sanitized['registration']}
 📧 E-mail: {sanitized['email']}
 📌 Turma: {sanitized['class_group']}
+🏫 Polo: {sanitized.get('polo', form_data.get('polo', ''))}
+🗓️ Período: {sanitized.get('periodo', form_data.get('periodo', ''))}
 👨‍🏫 Orientador(a): {form_data.get('orientador', '')}
 📄 Título: {form_data.get('titulo', '')}
 
@@ -400,6 +417,8 @@ Uma nova resposta foi registrada no formulário de Trabalho de Conclusão de Cur
         "registration": sanitized["registration"],
         "email": sanitized["email"],
         "class_group": sanitized["class_group"],
+        "polo": sanitized.get("polo", form_data.get("polo", "")),
+        "periodo": sanitized.get("periodo", form_data.get("periodo", "")),
         "componente": componente,
         "orientador": form_data.get("orientador", ""),
         "titulo": form_data.get("titulo", ""),
@@ -435,8 +454,8 @@ def process_estagio_submission(
     if not uploaded_files or len(uploaded_files) == 0:
         raise ValueError("Pelo menos um arquivo é obrigatório.")
 
-    required_fields = ["nome", "email", "turma", "matricula", "orientador", "titulo", "componente"]
-    missing = [field for field in required_fields if not str(form_data.get(field, "")).strip()]
+    required_fields = ["nome", "email", "turma", "polo", "periodo", "matricula", "orientador", "titulo", "componente"]
+    missing = [field for field in required_fields if _is_blank(form_data.get(field, ""))]
     if missing:
         raise ValueError(f"Campos obrigatórios ausentes: {', '.join(missing)}")
 
@@ -475,6 +494,8 @@ def process_estagio_submission(
         "Nome do Aluno": form_data["nome"],
         "Email": form_data["email"],
         "Turma": form_data["turma"],
+        "Polo": form_data["polo"],
+        "Período": form_data["periodo"],
         "Matrícula": form_data["matricula"],
         "Orientador ou Supervisor": form_data["orientador"],
         "Título": form_data["titulo"],
@@ -492,6 +513,8 @@ def process_estagio_submission(
         "matricula": form_data["matricula"],
         "email": form_data["email"],
         "turma": form_data["turma"],
+        "polo": form_data["polo"],
+        "periodo": form_data["periodo"],
         "orientador": form_data["orientador"],
         "titulo": form_data["titulo"],
         "componente": form_data["componente"],
@@ -534,6 +557,8 @@ Uma nova resposta foi registrada no formulário de Estágio.
 🔢 Matrícula: {form_data['matricula']}
 📧 E-mail: {form_data['email']}
 📌 Turma: {form_data['turma']}
+🏫 Polo: {form_data['polo']}
+🗓️ Período: {form_data['periodo']}
 👨‍🏫 Orientador/Supervisor: {form_data['orientador']}
 📄 Título: {form_data['titulo']}
 
@@ -552,6 +577,8 @@ Uma nova resposta foi registrada no formulário de Estágio.
         "nome": form_data["nome"],
         "email": form_data["email"],
         "turma": form_data["turma"],
+        "polo": form_data["polo"],
+        "periodo": form_data["periodo"],
         "matricula": form_data["matricula"],
         "componente": form_data["componente"],
         "orientador": form_data["orientador"],
@@ -584,7 +611,7 @@ def process_plano_submission(
         raise ValueError("Pelo menos um arquivo é obrigatório.")
 
     required_fields = ["docente", "semestre"]
-    missing = [field for field in required_fields if not str(form_data.get(field, "")).strip()]
+    missing = [field for field in required_fields if _is_blank(form_data.get(field, ""))]
     if missing:
         raise ValueError(f"Campos obrigatórios ausentes: {', '.join(missing)}")
 
@@ -952,4 +979,3 @@ Os documentos gerados foram anexados a este e-mail e também salvos no Google Dr
         "pdf_parecer": os.path.basename(pdf_parecer_path),
         "pdf_declaracao": os.path.basename(pdf_declaracao_path) if pdf_declaracao_path else None,
     }
-

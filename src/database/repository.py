@@ -24,6 +24,49 @@ from src.models.db_models import (
 
 _alerta_schema_lock = threading.Lock()
 _alerta_schema_ready = False
+_forms_schema_lock = threading.Lock()
+_forms_schema_ready = False
+
+
+def _ensure_forms_schema_columns() -> None:
+    """Garante colunas de polo/período nas tabelas ACC, TCC e Estágio."""
+    global _forms_schema_ready
+    with _forms_schema_lock:
+        if _forms_schema_ready:
+            return
+
+        inspector = inspect(engine)
+        table_to_columns = {
+            "tcc_submissions": {"polo", "periodo"},
+            "acc_submissions": {"polo", "periodo"},
+            "estagio_submissions": {"polo", "periodo"},
+        }
+        existing_tables = set(inspector.get_table_names())
+
+        with engine.begin() as conn:
+            for table_name, expected_columns in table_to_columns.items():
+                if table_name not in existing_tables:
+                    continue
+
+                current_columns = {
+                    col["name"] for col in inspector.get_columns(table_name)
+                }
+                if "polo" not in current_columns:
+                    conn.execute(
+                        text(
+                            f"ALTER TABLE {table_name} "
+                            "ADD COLUMN polo VARCHAR(100) DEFAULT ''"
+                        )
+                    )
+                if "periodo" not in current_columns:
+                    conn.execute(
+                        text(
+                            f"ALTER TABLE {table_name} "
+                            "ADD COLUMN periodo VARCHAR(20) DEFAULT ''"
+                        )
+                    )
+
+        _forms_schema_ready = True
 
 
 def save_tcc_submission(data: Dict[str, Any]) -> int:
@@ -36,11 +79,15 @@ def save_tcc_submission(data: Dict[str, Any]) -> int:
     Returns:
         ID da submissão criada
     """
+    _ensure_forms_schema_columns()
+
     submission = TccSubmission(
         nome=data["name"],
         matricula=data["registration"],
         email=data["email"],
         turma=data["class_group"],
+        polo=data.get("polo", ""),
+        periodo=data.get("periodo", ""),
         orientador=data["orientador"],
         titulo=data["titulo"],
         componente=data["componente"],
@@ -65,11 +112,15 @@ def save_acc_submission(data: Dict[str, Any]) -> int:
     Returns:
         ID da submissão criada
     """
+    _ensure_forms_schema_columns()
+
     submission = AccSubmission(
         nome=data["name"],
         matricula=data["registration"],
         email=data["email"],
         turma=data["class_group"],
+        polo=data.get("polo", ""),
+        periodo=data.get("periodo", ""),
         semestre=data["semester"],
         arquivo_pdf_link=data.get("file_link"),
         drive_file_id=data.get("drive_file_id"),
@@ -152,11 +203,15 @@ def save_estagio_submission(data: Dict[str, Any]) -> int:
     Returns:
         ID da submissão criada
     """
+    _ensure_forms_schema_columns()
+
     submission = EstagioSubmission(
         nome=data["nome"],
         matricula=data["matricula"],
         email=data["email"],
         turma=data["turma"],
+        polo=data.get("polo", ""),
+        periodo=data.get("periodo", ""),
         orientador=data["orientador"],
         titulo=data["titulo"],
         componente=data["componente"],

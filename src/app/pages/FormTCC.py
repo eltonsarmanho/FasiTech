@@ -241,10 +241,18 @@ def _validate_email(email: str) -> bool:
 	return re.match(pattern, email) is not None
 
 
+def _validate_periodo(periodo: str) -> bool:
+	"""Valida período no formato ANO.Numero (ex.: 2026.1)."""
+	import re
+	return bool(re.fullmatch(r"\d{4}\.[12]", periodo.strip()))
+
+
 def _validate_submission(
 	name: str,
 	email: str,
 	turma: str,
+	polo: str,
+	periodo: str,
 	matricula: str,
 	orientador: str,
 	titulo: str,
@@ -271,6 +279,14 @@ def _validate_submission(
 		errors.append("Turma deve ser um ano no formato numérico (ex: 2027, 2026).")
 	elif len(turma.strip()) != 4:
 		errors.append("Turma deve ter 4 dígitos (ex: 2027, 2026).")
+
+	if not polo.strip():
+		errors.append("Polo é obrigatório.")
+
+	if not periodo.strip():
+		errors.append("Período é obrigatório.")
+	elif not _validate_periodo(periodo):
+		errors.append("Período deve seguir o formato ANO.Numero (ex: 2026.1).")
 	
 	# Matrícula obrigatória
 	if not matricula.strip():
@@ -382,6 +398,18 @@ def render_form() -> None:
 		email = col2.text_input("E-mail *", placeholder="seuemail@ufpa.br")
 		turma = col1.text_input("Turma (Ano de Ingresso) *", placeholder="2027", max_chars=4)
 		matricula = col2.text_input("Matrícula *", placeholder="202312345", max_chars=12)
+		polo = col1.selectbox(
+			"Polo *",
+			options=["Selecione...", "CAMETÁ", "LIMOEIRO DO AJURU", "OEIRAS DO PARÁ"],
+		)
+		periodo = col2.text_input(
+			"Período *",
+			placeholder="2026.1",
+			help="Informe o período em que você está matriculado no formato ANO.Numero (ex.: 2026.1).",
+		)
+		if periodo and not _validate_periodo(periodo):
+			st.warning("Período inválido. Use o formato ANO.Numero (ex.: 2026.1).")
+		st.caption("Informe o período em que você está matriculado. Exemplo: 2026.1")
 		orientador = col1.text_input("Orientador(a) *", placeholder="Prof. Dr. Nome do Orientador")
 		titulo = st.text_input("Título do TCC *", placeholder="Digite o título completo do seu TCC")
 		
@@ -451,7 +479,7 @@ def render_form() -> None:
 				st.session_state.tcc_processing = True
 				
 				errors = _validate_submission(
-					name, email, turma, matricula, orientador, titulo, componente, uploaded_files or []
+					name, email, turma, "" if polo == "Selecione..." else polo, periodo, matricula, orientador, titulo, componente, uploaded_files or []
 				)
 				
 				if errors:
@@ -471,6 +499,8 @@ def render_form() -> None:
 								"registration": matricula,
 								"email": email,
 								"class_group": turma,
+								"polo": "" if polo == "Selecione..." else polo,
+								"periodo": periodo.strip(),
 								"orientador": orientador,
 								"titulo": titulo,
 								"componente": componente,

@@ -209,6 +209,11 @@ def _validate_turma(turma: str) -> bool:
     """Valida se a turma tem exatamente 4 dígitos numéricos."""
     return bool(re.match(r'^\d{4}$', turma))
 
+
+def _validate_periodo(periodo: str) -> bool:
+    """Valida período no formato ANO.Numero (ex.: 2026.1)."""
+    return bool(re.fullmatch(r"\d{4}\.[12]", periodo.strip()))
+
 def _validate_email(email: str) -> bool:
 	"""Valida formato de email usando regex."""
 	import re
@@ -220,7 +225,15 @@ def _validate_matricula(matricula: str) -> bool:
     import re
     return bool(re.fullmatch(r"\d{12}", matricula))
 
-def _validate_submission(name: str, registration: str, email: str, class_group: str, uploaded_file: Any) -> list[str]:
+def _validate_submission(
+	name: str,
+	registration: str,
+	email: str,
+	class_group: str,
+	polo: str,
+	periodo: str,
+	uploaded_file: Any,
+) -> list[str]:
 	"""Executa validações básicas antes de enviar ao backend."""
 	errors: list[str] = []
 	
@@ -245,6 +258,16 @@ def _validate_submission(name: str, registration: str, email: str, class_group: 
 		errors.append("Turma deve ser um ano no formato numérico (ex: 2027, 2026).")
 	elif len(class_group.strip()) != 4:
 		errors.append("Turma deve ter 4 dígitos (ex: 2027, 2026).")
+
+	# Polo obrigatório
+	if not polo.strip():
+		errors.append("Polo é obrigatório.")
+
+	# Período obrigatório no formato ANO.Numero
+	if not periodo.strip():
+		errors.append("Período é obrigatório.")
+	elif not _validate_periodo(periodo):
+		errors.append("Período deve seguir o formato ANO.Numero (ex: 2026.1).")
 	
 	# Upload obrigatório
 	if uploaded_file is None:
@@ -271,7 +294,7 @@ def render_form() -> None:
 
 	# Inicializar variáveis para evitar UnboundLocalError
 	submitted = False
-	name = registration = email = class_group = ""
+	name = registration = email = class_group = polo = periodo = ""
 	uploaded_file = None
 
 	# Verificar se configurações foram carregadas
@@ -291,6 +314,20 @@ def render_form() -> None:
 		class_group = col2.text_input("Turma (Ano de Ingresso) *", placeholder="2027", max_chars=4)
 		if class_group and not _validate_turma(class_group):
 			st.warning("A turma deve conter exatamente 4 dígitos numéricos.")
+
+		col3, col4 = st.columns(2)
+		polo = col3.selectbox(
+			"Polo *",
+			options=["Selecione...", "CAMETÁ", "LIMOEIRO DO AJURU", "OEIRAS DO PARÁ"],
+		)
+		periodo = col4.text_input(
+			"Período *",
+			placeholder="2026.1",
+			help="Informe o período em que você está matriculado no formato ANO.Numero (ex.: 2026.1).",
+		)
+		if periodo and not _validate_periodo(periodo):
+			st.warning("Período inválido. Use o formato ANO.Numero (ex.: 2026.1).")
+		st.caption("Informe o período em que você está matriculado. Exemplo: 2026.1")
 
 		uploaded_file = st.file_uploader(
 			"Anexo PDF *",
@@ -316,7 +353,15 @@ def render_form() -> None:
 			# Marcar como processando apenas se não estiver processando
 			st.session_state.acc_processing = True
 
-			errors = _validate_submission(name, registration, email, class_group, uploaded_file)
+			errors = _validate_submission(
+				name,
+				registration,
+				email,
+				class_group,
+				"" if polo == "Selecione..." else polo,
+				periodo,
+				uploaded_file,
+			)
 			if errors:
 				st.error("\n".join(f"• {error}" for error in errors))
 				st.session_state.acc_processing = False  # Resetar em caso de erro
@@ -334,6 +379,8 @@ def render_form() -> None:
 							"registration": registration,
 							"email": email,
 							"class_group": class_group,
+							"polo": "" if polo == "Selecione..." else polo,
+							"periodo": periodo.strip(),
 						},
 						uploaded_file,
 						drive_folder_id=config["drive_folder_id"],

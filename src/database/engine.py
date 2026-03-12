@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 from typing import Generator
 
+from sqlalchemy import inspect, text
 from sqlmodel import SQLModel, Session, create_engine
 
 # Configuração do banco de dados
@@ -52,7 +53,48 @@ def init_db() -> None:
     
     print("🔧 Inicializando banco de dados...")
     SQLModel.metadata.create_all(engine)
+    _ensure_additional_columns()
     print("✅ Banco de dados inicializado com sucesso!")
+
+
+def _ensure_additional_columns() -> None:
+    """Aplica ajustes leves de schema em bancos já existentes."""
+    inspector = inspect(engine)
+    table_columns_map = {
+        "tcc_submissions": {
+            "polo": "VARCHAR(100) DEFAULT ''",
+            "periodo": "VARCHAR(20) DEFAULT ''",
+        },
+        "acc_submissions": {
+            "polo": "VARCHAR(100) DEFAULT ''",
+            "periodo": "VARCHAR(20) DEFAULT ''",
+        },
+        "estagio_submissions": {
+            "polo": "VARCHAR(100) DEFAULT ''",
+            "periodo": "VARCHAR(20) DEFAULT ''",
+        },
+        "alertas_academicos": {
+            "destination_type": "VARCHAR(20) DEFAULT 'docentes'",
+            "destination_emails": "TEXT",
+        },
+    }
+    existing_tables = set(inspector.get_table_names())
+
+    with engine.begin() as conn:
+        for table_name, columns in table_columns_map.items():
+            if table_name not in existing_tables:
+                continue
+            existing_cols = {
+                col["name"] for col in inspector.get_columns(table_name)
+            }
+            for col_name, ddl in columns.items():
+                if col_name not in existing_cols:
+                    conn.execute(
+                        text(
+                            f"ALTER TABLE {table_name} "
+                            f"ADD COLUMN {col_name} {ddl}"
+                        )
+                    )
 
 
 def get_session() -> Generator[Session, None, None]:

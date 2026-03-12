@@ -178,10 +178,17 @@ def _validate_turma(turma: str) -> bool:
     return bool(re.match(r'^\d{4}$', turma))
 
 
+def _validate_periodo(periodo: str) -> bool:
+    """Valida período no formato ANO.Numero (ex.: 2026.1)."""
+    return bool(re.fullmatch(r"\d{4}\.[12]", periodo.strip()))
+
+
 def _validate_submission(
     nome: str,
     email: str,
     turma: str,
+    polo: str,
+    periodo: str,
     matricula: str,
     orientador: str,
     titulo: str,
@@ -211,6 +218,14 @@ def _validate_submission(
         errors.append("Turma é obrigatória.")
     elif not _validate_turma(turma):
         errors.append("Turma deve ter exatamente 4 dígitos numéricos (ex: 2027).")
+
+    if not polo.strip():
+        errors.append("Polo é obrigatório.")
+
+    if not periodo.strip():
+        errors.append("Período é obrigatório.")
+    elif not _validate_periodo(periodo):
+        errors.append("Período deve seguir o formato ANO.Numero (ex: 2026.1).")
     
     # Matrícula obrigatória
     if not matricula.strip():
@@ -289,6 +304,19 @@ def render_form() -> None:
                                     help="Sua matrícula no SIGAA",
                                     max_chars=12,
                                     placeholder="202312345678")
+        col5, col6 = st.columns(2)
+        polo = col5.selectbox(
+            "Polo *",
+            options=["Selecione...", "CAMETÁ", "LIMOEIRO DO AJURU", "OEIRAS DO PARÁ"],
+        )
+        periodo = col6.text_input(
+            "Período *",
+            placeholder="2026.1",
+            help="Informe o período em que você está matriculado no formato ANO.Numero (ex.: 2026.1).",
+        )
+        if periodo and not _validate_periodo(periodo):
+            st.warning("Período inválido. Use o formato ANO.Numero (ex.: 2026.1).")
+        st.caption("Informe o período em que você está matriculado. Exemplo: 2026.1")
         
         
         st.markdown("<br>", unsafe_allow_html=True)
@@ -361,7 +389,7 @@ def render_form() -> None:
                 st.session_state.estagio_processing = True
                 
                 errors = _validate_submission(
-                    nome, email, turma, matricula, orientador, titulo, componente, uploaded_files or []
+                    nome, email, turma, "" if polo == "Selecione..." else polo, periodo, matricula, orientador, titulo, componente, uploaded_files or []
                 )
                 
                 if errors:
@@ -377,6 +405,8 @@ def render_form() -> None:
                                 "nome": nome.strip(),
                                 "email": email.strip().lower(),
                                 "turma": turma.strip(),
+                                "polo": "" if polo == "Selecione..." else polo.strip(),
+                                "periodo": periodo.strip(),
                                 "matricula": matricula.strip(),
                                 "orientador": orientador.strip(),
                                 "titulo": titulo.strip(),

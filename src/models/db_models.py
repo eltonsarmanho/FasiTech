@@ -29,6 +29,8 @@ class TccSubmission(SubmissionBase, table=True):
     matricula: str = Field(max_length=50, index=True)
     email: str = Field(max_length=255, index=True)
     turma: str = Field(max_length=50)  # Ano de ingresso
+    polo: str = Field(max_length=100, default="")
+    periodo: str = Field(max_length=20, default="")
     orientador: str = Field(max_length=255)
     titulo: str = Field(max_length=500)
     componente: str = Field(max_length=50)  # TCC 1 ou TCC 2
@@ -44,6 +46,8 @@ class TccSubmission(SubmissionBase, table=True):
                 "matricula": "202312345",
                 "email": "joao@ufpa.br",
                 "turma": "2027",
+                "polo": "CAMETÁ",
+                "periodo": "2026.1",
                 "orientador": "Prof. Dr. Maria Santos",
                 "titulo": "Análise de Sistemas de Informação",
                 "componente": "TCC 2",
@@ -61,6 +65,8 @@ class AccSubmission(SubmissionBase, table=True):
     matricula: str = Field(max_length=50, index=True)
     email: str = Field(max_length=255, index=True)
     turma: str = Field(max_length=50)
+    polo: str = Field(max_length=100, default="")
+    periodo: str = Field(max_length=20, default="")
     semestre: str = Field(max_length=50)
     
     # Informações do arquivo PDF
@@ -74,6 +80,8 @@ class AccSubmission(SubmissionBase, table=True):
                 "matricula": "202298765",
                 "email": "maria@ufpa.br",
                 "turma": "2026",
+                "polo": "OEIRAS DO PARÁ",
+                "periodo": "2026.1",
                 "semestre": "2025.1",
             }
         }
@@ -155,6 +163,8 @@ class EstagioSubmission(SubmissionBase, table=True):
     matricula: str = Field(max_length=50, index=True)
     email: str = Field(max_length=255, index=True)
     turma: str = Field(max_length=50)
+    polo: str = Field(max_length=100, default="")
+    periodo: str = Field(max_length=20, default="")
     orientador: str = Field(max_length=255)
     titulo: str = Field(max_length=500)
     componente: str = Field(max_length=100)  # Plano de Estágio ou Relatório Final
@@ -170,6 +180,8 @@ class EstagioSubmission(SubmissionBase, table=True):
                 "matricula": "202187654",
                 "email": "lucas@ufpa.br",
                 "turma": "2025",
+                "polo": "LIMOEIRO DO AJURU",
+                "periodo": "2026.2",
                 "orientador": "Prof. Dra. Fernanda Costa",
                 "titulo": "Desenvolvimento de Aplicações Web",
                 "componente": "Relatório Final",
