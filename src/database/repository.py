@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import threading
+import unicodedata
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -340,6 +341,130 @@ def save_avaliacao_gestao_submission(data: Dict[str, Any]) -> int:
         session.commit()
         session.refresh(submission)
         return submission.id
+
+
+# ---------------------------------------------------------------------------
+# Consulta de Lançamento de Conceitos
+# ---------------------------------------------------------------------------
+
+def _normalize_text(value: Any) -> str:
+    """Normaliza texto para comparações simples."""
+    if value is None:
+        return ""
+    return str(value).strip()
+
+
+def _normalize_for_compare(value: Any) -> str:
+    """Normaliza texto para comparação case/acento-insensitive."""
+    normalized = unicodedata.normalize("NFKD", _normalize_text(value))
+    return "".join(ch for ch in normalized if not unicodedata.combining(ch)).lower()
+
+
+def _matches_filter(value: Any, selected: Optional[str]) -> bool:
+    """Valida se um valor atende ao filtro selecionado."""
+    selected_text = _normalize_text(selected)
+    if not selected_text or selected_text.lower() == "todos":
+        return True
+    return _normalize_for_compare(value) == _normalize_for_compare(selected_text)
+
+
+def _is_tcc1_submission(component_value: Any) -> bool:
+    """Retorna True se o componente corresponde ao TCC 1."""
+    component_text = _normalize_for_compare(component_value)
+    return component_text in {"tcc 1", "tcc1"}
+
+
+def _normalize_estagio_component(component_value: Any) -> str:
+    """Padroniza componente de estágio para labels exibidos na UI."""
+    component_text = _normalize_text(component_value)
+    lowered = _normalize_for_compare(component_text)
+
+    if lowered.startswith("plano de estagio"):
+        return "Plano de Estágio (Estágio I)"
+    if lowered.startswith("relatorio final"):
+        return "Relatório Final (Estágio II)"
+    return component_text
+
+
+def get_lancamento_conceitos(
+    tipo_formulario: str,
+    turma: Optional[str] = None,
+    polo: Optional[str] = None,
+    periodo: Optional[str] = None,
+    componente_estagio: Optional[str] = None,
+) -> List[Dict[str, str]]:
+    """
+    Retorna dados para Lançamento de Conceitos com filtros aplicados.
+
+    Regras:
+    - TCC: retorna apenas submissões de componente TCC 1.
+    - Estágio: pode filtrar por componente (Plano de Estágio ou Relatório Final).
+    """
+    tipo = _normalize_text(tipo_formulario).upper()
+    if not tipo:
+        return []
+
+    with get_db_session() as session:
+        if tipo == "ACC":
+            registros = session.exec(select(AccSubmission)).all()
+            rows = [
+                {
+                    "matricula": _normalize_text(item.matricula),
+                    "turma": _normalize_text(item.turma),
+                    "polo": _normalize_text(item.polo),
+                    "periodo": _normalize_text(item.periodo),
+                    "componente": "ACC",
+                }
+                for item in registros
+            ]
+        elif tipo == "TCC":
+            registros = session.exec(select(TccSubmission)).all()
+            rows = [
+                {
+                    "matricula": _normalize_text(item.matricula),
+                    "turma": _normalize_text(item.turma),
+                    "polo": _normalize_text(item.polo),
+                    "periodo": _normalize_text(item.periodo),
+                    "componente": _normalize_text(item.componente),
+                }
+                for item in registros
+                if _is_tcc1_submission(item.componente)
+            ]
+        elif tipo in {"ESTAGIO", "ESTÁGIO"}:
+            registros = session.exec(select(EstagioSubmission)).all()
+            rows = []
+            for item in registros:
+                componente_label = _normalize_estagio_component(item.componente)
+                if not _matches_filter(componente_label, componente_estagio):
+                    continue
+                rows.append(
+                    {
+                        "matricula": _normalize_text(item.matricula),
+                        "turma": _normalize_text(item.turma),
+                        "polo": _normalize_text(item.polo),
+                        "periodo": _normalize_text(item.periodo),
+                        "componente": componente_label,
+                    }
+                )
+        else:
+            return []
+
+    filtered_rows = [
+        row
+        for row in rows
+        if _matches_filter(row.get("turma"), turma)
+        and _matches_filter(row.get("polo"), polo)
+        and _matches_filter(row.get("periodo"), periodo)
+    ]
+
+    return sorted(
+        filtered_rows,
+        key=lambda row: (
+            row.get("periodo", ""),
+            row.get("polo", ""),
+            row.get("matricula", ""),
+        ),
+    )
 
 
 # ---------------------------------------------------------------------------

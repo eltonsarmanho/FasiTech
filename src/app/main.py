@@ -517,6 +517,7 @@ def _render_form_card(
         "Plano de Ensino": "Planos",
         "Projetos": "Projetos",
         "Gestor de Alertas": "Gestor",
+        "Lançamento Conceitos": "Lançamento",
     }
     button_text = button_text_map.get(title, title)
     
@@ -764,6 +765,19 @@ def _render_available_forms() -> None:
             icon="🔔",
             page_name="PageGestorAlertas.py",
             key="btn_gestor_alertas",
+            gradient_colors="linear-gradient(135deg, #f59e0b 0%, #d97706 100%)"
+        )
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    col19, col20, col21 = st.columns(3, gap="large")
+    with col19:
+        _render_form_card(
+            title="Lançamento Conceitos",
+            description="Painel restrito para listar alunos por ACC, TCC e Estágio com filtros por turma, polo e período.",
+            icon="📝",
+            page_name="PageLancamento.py",
+            key="btn_lancamento_conceitos",
             gradient_colors="linear-gradient(135deg, #f59e0b 0%, #d97706 100%)"
         )
 
