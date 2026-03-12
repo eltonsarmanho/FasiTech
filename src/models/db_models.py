@@ -328,6 +328,8 @@ class AlertaAcademico(SQLModel, table=True):
     data_inicio: str = Field(max_length=20)      # "YYYY-MM-DD"
     data_fim: str = Field(max_length=20)          # "YYYY-MM-DD"
     horario_disparo: str = Field(max_length=10)   # "HH:MM"
+    destination_type: str = Field(default="docentes", max_length=20)
+    destination_emails: Optional[str] = Field(default=None)
     ativo: bool = Field(default=True)
     criado_em: datetime = Field(
         default_factory=datetime.utcnow, nullable=False, index=True
@@ -345,5 +347,7 @@ class AlertaAcademico(SQLModel, table=True):
                 "data_inicio": "2026-03-01",
                 "data_fim": "2026-06-30",
                 "horario_disparo": "08:00",
+                "destination_type": "docentes",
+                "destination_emails": None,
             }
         }

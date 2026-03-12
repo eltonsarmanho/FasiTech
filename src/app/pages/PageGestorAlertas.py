@@ -3,7 +3,7 @@
 Gestor de Alertas Acadêmicos — FasiTech
 ========================================
 Painel protegido por FASI_TOKEN que permite cadastrar, atualizar, excluir e
-disparar manualmente gatilhos de e-mail para docentes.
+disparar manualmente gatilhos de e-mail para docentes ou pessoas externas.
 
 Acesso: apenas quem possuir o FASI_TOKEN configurado no .env.
 """
@@ -222,6 +222,21 @@ def _alert_status_badge(alerta) -> str:
     return '<span class="badge-ativo">🟢 Ativo</span>'
 
 
+def _parse_email_list(raw_emails: str) -> list[str]:
+    """Converte e-mails separados por ';' ou ',' em lista limpa e única."""
+    if not raw_emails or not raw_emails.strip():
+        return []
+    normalized = raw_emails.replace(",", ";")
+    emails = [email.strip() for email in normalized.split(";") if email.strip()]
+    seen: set[str] = set()
+    unique: list[str] = []
+    for email in emails:
+        if email not in seen:
+            seen.add(email)
+            unique.append(email)
+    return unique
+
+
 # ---------------------------------------------------------------------------
 # Painel — Lista de alertas
 # ---------------------------------------------------------------------------
@@ -267,6 +282,14 @@ def _render_alert_list(alertas: list) -> None:
             if st.button("🗑️ Excluir", key=f"del_{alerta.id}", use_container_width=True):
                 st.session_state[f"confirm_del_{alerta.id}"] = True
                 st.rerun()
+
+        with col4:
+            dest_type = (getattr(alerta, "destination_type", None) or "docentes").lower()
+            if dest_type == "externos":
+                st.caption("👥 Destino: Pessoas Externas")
+            else:
+                st.caption("👨‍🏫 Destino: Docentes")
+
         with col3:
             if st.button("📨 Disparar", key=f"fire_{alerta.id}", use_container_width=True):
                 with st.spinner("Enviando e-mails..."):
@@ -301,18 +324,39 @@ def _render_alert_list(alertas: list) -> None:
 
 def _render_create_form() -> None:
     st.markdown('<h2 class="section-title">➕ Novo Gatilho de Alerta</h2>', unsafe_allow_html=True)
-    st.markdown('<div class="form-card">', unsafe_allow_html=True)
 
-    with st.form("form_criar_alerta", clear_on_submit=True):
+    success_msg = st.session_state.pop("create_alerta_success_msg", None)
+    if success_msg:
+        st.success(success_msg)
+
+    form_nonce = st.session_state.get("create_form_nonce", 0)
+
+    destination_label = st.radio(
+        "📨 Destinatários do Gatilho *",
+        options=["Docentes", "Pessoas Externas"],
+        horizontal=True,
+        key=f"create_destination_type_{form_nonce}",
+    )
+    destination_emails = ""
+    if destination_label == "Pessoas Externas":
+        destination_emails = st.text_input(
+            "E-mails externos (separados por ;)",
+            placeholder="ex1@email.com; ex2@email.com",
+            key=f"create_destination_emails_{form_nonce}",
+        )
+
+    with st.form("form_criar_alerta", clear_on_submit=False):
         titulo = st.text_input(
             "📌 Título do Gatilho *",
             placeholder="Ex: Prazo de entrega dos Planos de Ensino",
             max_chars=255,
+            key=f"create_titulo_{form_nonce}",
         )
         descricao = st.text_area(
             "📝 Descrição *",
             placeholder="Descreva o alerta em detalhes. Este texto será enviado no corpo do e-mail.",
             height=160,
+            key=f"create_descricao_{form_nonce}",
         )
 
         col1, col2 = st.columns(2)
@@ -320,22 +364,27 @@ def _render_create_form() -> None:
             data_inicio = st.date_input(
                 "📅 Data de Início *",
                 value=date.today(),
+                format="DD/MM/YYYY",
                 min_value=date(2024, 1, 1),
+                key=f"create_data_inicio_{form_nonce}",
             )
         with col2:
             data_fim = st.date_input(
                 "📅 Data de Encerramento *",
                 value=date.today(),
+                format="DD/MM/YYYY",
                 min_value=date(2024, 1, 1),
+                key=f"create_data_fim_{form_nonce}",
             )
 
         horario_disparo = st.time_input(
             "🕐 Horário do Disparo Diário *",
             value=time(8, 0),
             step=60,
+            key=f"create_horario_disparo_{form_nonce}",
         )
 
-        ativo = st.checkbox("✅ Ativar gatilho imediatamente", value=True)
+        ativo = st.checkbox("✅ Ativar gatilho imediatamente", value=True, key=f"create_ativo_{form_nonce}")
 
         submitted = st.form_submit_button("💾 Salvar Gatilho", use_container_width=True)
 
@@ -349,6 +398,8 @@ def _render_create_form() -> None:
             errors.append("Descrição é obrigatória.")
         if data_fim < data_inicio:
             errors.append("Data de encerramento deve ser >= data de início.")
+        if destination_label == "Pessoas Externas" and not _parse_email_list(destination_emails):
+            errors.append("Informe ao menos um e-mail externo válido separado por ';'.")
 
         if errors:
             for e in errors:
@@ -362,15 +413,18 @@ def _render_create_form() -> None:
                 "data_inicio": data_inicio.isoformat(),
                 "data_fim": data_fim.isoformat(),
                 "horario_disparo": horario_disparo.strftime("%H:%M"),
+                "destination_type": "externos" if destination_label == "Pessoas Externas" else "docentes",
+                "destination_emails": destination_emails.strip() if destination_label == "Pessoas Externas" else None,
                 "ativo": ativo,
             })
-            st.success(
+            st.session_state["create_alerta_success_msg"] = (
                 f"✅ Gatilho **{titulo}** criado com sucesso! "
                 f"(ID: {alerta_id}) — "
                 f"Disparos diários às {horario_disparo.strftime('%H:%M')} "
                 f"de {_format_date(data_inicio.isoformat())} "
                 f"a {_format_date(data_fim.isoformat())}."
             )
+            st.session_state["create_form_nonce"] = form_nonce + 1
             st.rerun()
         except Exception as exc:
             st.error(f"❌ Erro ao salvar gatilho: {exc}")
@@ -392,6 +446,27 @@ def _render_edit_form(alerta_id: int) -> None:
         unsafe_allow_html=True,
     )
     st.markdown('<div class="form-card">', unsafe_allow_html=True)
+
+    current_destination = (
+        "Pessoas Externas"
+        if (getattr(alerta, "destination_type", None) or "docentes").lower() == "externos"
+        else "Docentes"
+    )
+    destination_label = st.radio(
+        "📨 Destinatários do Gatilho *",
+        options=["Docentes", "Pessoas Externas"],
+        index=1 if current_destination == "Pessoas Externas" else 0,
+        horizontal=True,
+        key=f"edit_destination_type_{alerta_id}",
+    )
+    destination_emails = ""
+    if destination_label == "Pessoas Externas":
+        destination_emails = st.text_input(
+            "E-mails externos (separados por ;)",
+            value=getattr(alerta, "destination_emails", "") or "",
+            placeholder="ex1@email.com; ex2@email.com",
+            key=f"edit_destination_emails_{alerta_id}",
+        )
 
     with st.form("form_editar_alerta"):
         titulo = st.text_input(
@@ -453,6 +528,8 @@ def _render_edit_form(alerta_id: int) -> None:
             errors.append("Descrição é obrigatória.")
         if data_fim_field < data_inicio:
             errors.append("Data de encerramento deve ser >= data de início.")
+        if destination_label == "Pessoas Externas" and not _parse_email_list(destination_emails):
+            errors.append("Informe ao menos um e-mail externo válido separado por ';'.")
 
         if errors:
             for e in errors:
@@ -466,6 +543,8 @@ def _render_edit_form(alerta_id: int) -> None:
                 "data_inicio": data_inicio.isoformat(),
                 "data_fim": data_fim_field.isoformat(),
                 "horario_disparo": horario_disparo.strftime("%H:%M"),
+                "destination_type": "externos" if destination_label == "Pessoas Externas" else "docentes",
+                "destination_emails": destination_emails.strip() if destination_label == "Pessoas Externas" else None,
                 "ativo": ativo,
             })
             st.session_state.pop("editing_alerta_id", None)
@@ -501,7 +580,7 @@ def main() -> None:
         """
         <div class="alert-hero">
             <h1>🔔 Gestor de Alertas Acadêmicos</h1>
-            <p>Crie e gerencie gatilhos de e-mail automáticos para docentes da FASI.</p>
+            <p>Crie e gerencie gatilhos de e-mail automáticos para docentes da FASI ou pessoas externas.</p>
             <p>Os alertas são disparados diariamente no horário configurado, durante o intervalo de datas definido.</p>
         </div>
         """,

@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 import json
+import threading
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from sqlalchemy import inspect, text
 from sqlmodel import Session, select
 
-from src.database.engine import get_db_session
+from src.database.engine import engine, get_db_session
 from src.models.db_models import (
     AccSubmission,
     AlertaAcademico,
@@ -19,6 +21,9 @@ from src.models.db_models import (
     RequerimentoTccSubmission,
     AvaliacaoGestaoSubmission,
 )
+
+_alerta_schema_lock = threading.Lock()
+_alerta_schema_ready = False
 
 
 def save_tcc_submission(data: Dict[str, Any]) -> int:
@@ -286,6 +291,49 @@ def save_avaliacao_gestao_submission(data: Dict[str, Any]) -> int:
 # AlertaAcademico CRUD
 # ---------------------------------------------------------------------------
 
+def _ensure_alerta_schema_columns() -> None:
+    """Garante colunas novas de destino de e-mail na tabela de alertas."""
+    global _alerta_schema_ready
+    with _alerta_schema_lock:
+        if _alerta_schema_ready:
+            return
+
+        inspector = inspect(engine)
+        if "alertas_academicos" not in inspector.get_table_names():
+            return
+
+        columns = {col["name"] for col in inspector.get_columns("alertas_academicos")}
+
+        with engine.begin() as conn:
+            if "destination_type" not in columns:
+                conn.execute(
+                    text(
+                        "ALTER TABLE alertas_academicos "
+                        "ADD COLUMN destination_type VARCHAR(20) DEFAULT 'docentes'"
+                    )
+                )
+            if "destination_emails" not in columns:
+                conn.execute(
+                    text(
+                        "ALTER TABLE alertas_academicos "
+                        "ADD COLUMN destination_emails TEXT"
+                    )
+                )
+            conn.execute(
+                text(
+                    "UPDATE alertas_academicos "
+                    "SET destination_type = 'docentes' "
+                    "WHERE destination_type IS NULL OR destination_type = ''"
+                )
+            )
+
+        _alerta_schema_ready = True
+
+
+def ensure_alerta_schema_columns() -> None:
+    """API pública para garantir schema de alertas atualizado."""
+    _ensure_alerta_schema_columns()
+
 def create_alerta(data: Dict[str, Any]) -> int:
     """
     Cria um novo gatilho de alerta acadêmico no banco de dados.
@@ -296,12 +344,16 @@ def create_alerta(data: Dict[str, Any]) -> int:
     Returns:
         ID do alerta criado.
     """
+    _ensure_alerta_schema_columns()
+
     alerta = AlertaAcademico(
         titulo=data["titulo"],
         descricao=data["descricao"],
         data_inicio=data["data_inicio"],
         data_fim=data["data_fim"],
         horario_disparo=data["horario_disparo"],
+        destination_type=data.get("destination_type", "docentes"),
+        destination_emails=data.get("destination_emails"),
         ativo=data.get("ativo", True),
     )
 
@@ -314,6 +366,7 @@ def create_alerta(data: Dict[str, Any]) -> int:
 
 def get_all_alertas() -> List[AlertaAcademico]:
     """Retorna todos os gatilhos de alerta acadêmico."""
+    _ensure_alerta_schema_columns()
     with get_db_session() as session:
         alertas = session.exec(
             select(AlertaAcademico).order_by(AlertaAcademico.criado_em.desc())
@@ -324,6 +377,7 @@ def get_all_alertas() -> List[AlertaAcademico]:
 
 def get_alerta_by_id(alerta_id: int) -> Optional[AlertaAcademico]:
     """Retorna um alerta pelo ID."""
+    _ensure_alerta_schema_columns()
     with get_db_session() as session:
         alerta = session.get(AlertaAcademico, alerta_id)
         if alerta is None:
@@ -342,6 +396,7 @@ def update_alerta(alerta_id: int, data: Dict[str, Any]) -> bool:
     Returns:
         True se atualizado com sucesso, False caso não encontrado.
     """
+    _ensure_alerta_schema_columns()
     with get_db_session() as session:
         alerta = session.get(AlertaAcademico, alerta_id)
         if alerta is None:
@@ -362,6 +417,7 @@ def delete_alerta(alerta_id: int) -> bool:
     Returns:
         True se removido, False caso não encontrado.
     """
+    _ensure_alerta_schema_columns()
     with get_db_session() as session:
         alerta = session.get(AlertaAcademico, alerta_id)
         if alerta is None:

@@ -2,8 +2,8 @@
 Alert scheduler service for FasiTech academic alerts.
 
 Manages a background APScheduler that polls the database every minute and
-fires alert emails to docentes whenever a trigger's scheduled time is reached
-within its active date window.
+fires alert emails whenever a trigger's scheduled time is reached within its
+active date window.
 """
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ import atexit
 import os
 import threading
 from datetime import datetime
-from typing import List, Optional
+from typing import List
 from zoneinfo import ZoneInfo
 
 # ---------------------------------------------------------------------------
@@ -74,6 +74,25 @@ def _get_docente_emails() -> List[str]:
     return unique
 
 
+def _parse_external_emails(raw_emails: str) -> List[str]:
+    """
+    Converte string de e-mails (separados por ';' ou ',') em lista única.
+    """
+    if not raw_emails or not raw_emails.strip():
+        return []
+
+    normalized = raw_emails.replace(",", ";")
+    emails = [email.strip() for email in normalized.split(";") if email.strip()]
+
+    seen: set = set()
+    unique: List[str] = []
+    for email in emails:
+        if email not in seen:
+            seen.add(email)
+            unique.append(email)
+    return unique
+
+
 # ---------------------------------------------------------------------------
 # Alert dispatch
 # ---------------------------------------------------------------------------
@@ -108,21 +127,35 @@ def fire_alert(alerta_id: int) -> tuple[bool, str]:
         (sucesso, mensagem)
     """
     try:
+        from src.database.repository import ensure_alerta_schema_columns  # noqa: PLC0415
         from src.database.engine import get_db_session  # noqa: PLC0415
         from src.models.db_models import AlertaAcademico  # noqa: PLC0415
         from src.services.email_service import send_notification  # noqa: PLC0415
+
+        ensure_alerta_schema_columns()
 
         with get_db_session() as session:
             alerta = session.get(AlertaAcademico, alerta_id)
             if alerta is None:
                 return False, "Alerta não encontrado."
 
-            emails = _get_docente_emails()
-            if not emails:
-                return False, (
-                    "Nenhum e-mail de docente encontrado. "
-                    "Verifique [projetos] no secrets.toml."
-                )
+            destination_type = (getattr(alerta, "destination_type", None) or "docentes").lower()
+            if destination_type == "externos":
+                emails = _parse_external_emails(getattr(alerta, "destination_emails", "") or "")
+                if not emails:
+                    return False, (
+                        "Nenhum e-mail externo válido no gatilho. "
+                        "Edite e informe e-mails separados por ';'."
+                    )
+                target_label = "pessoa(s) externa(s)"
+            else:
+                emails = _get_docente_emails()
+                if not emails:
+                    return False, (
+                        "Nenhum e-mail de docente encontrado. "
+                        "Verifique [projetos] no secrets.toml."
+                    )
+                target_label = "docente(s)"
 
             subject = f"🔔 Alerta Acadêmico FASI: {alerta.titulo}"
             body = _build_email_body(
@@ -140,7 +173,7 @@ def fire_alert(alerta_id: int) -> tuple[bool, str]:
             session.add(alerta)
             session.commit()
 
-        return True, f"Alerta disparado para {len(emails)} docente(s)."
+        return True, f"Alerta disparado para {len(emails)} {target_label}."
 
     except Exception as exc:
         return False, f"Erro ao disparar alerta: {exc}"
@@ -158,10 +191,13 @@ def _check_and_fire_alerts() -> None:
     hoje está dentro do intervalo configurado, dispara o e-mail (uma vez por dia).
     """
     try:
+        from src.database.repository import ensure_alerta_schema_columns  # noqa: PLC0415
         from src.database.engine import get_db_session  # noqa: PLC0415
         from src.models.db_models import AlertaAcademico  # noqa: PLC0415
         from src.services.email_service import send_notification  # noqa: PLC0415
         from sqlmodel import select  # noqa: PLC0415
+
+        ensure_alerta_schema_columns()
 
         now = _now_local()
         today_str = now.strftime("%Y-%m-%d")
@@ -185,14 +221,27 @@ def _check_and_fire_alerts() -> None:
                 if alerta.ultimo_disparo == today_str:
                     continue
 
-                # Dispara
-                emails = _get_docente_emails()
-                if not emails:
-                    print(
-                        f"⚠️ Alerta '{alerta.titulo}': "
-                        "nenhum e-mail de docente encontrado."
+                destination_type = (getattr(alerta, "destination_type", None) or "docentes").lower()
+                if destination_type == "externos":
+                    emails = _parse_external_emails(
+                        getattr(alerta, "destination_emails", "") or ""
                     )
-                    continue
+                    if not emails:
+                        print(
+                            f"⚠️ Alerta '{alerta.titulo}': "
+                            "nenhum e-mail externo válido configurado."
+                        )
+                        continue
+                    target_label = "pessoa(s) externa(s)"
+                else:
+                    emails = _get_docente_emails()
+                    if not emails:
+                        print(
+                            f"⚠️ Alerta '{alerta.titulo}': "
+                            "nenhum e-mail de docente encontrado."
+                        )
+                        continue
+                    target_label = "docente(s)"
 
                 subject = f"🔔 Alerta Acadêmico FASI: {alerta.titulo}"
                 body = _build_email_body(
@@ -211,7 +260,7 @@ def _check_and_fire_alerts() -> None:
 
                 print(
                     f"✅ Alerta '{alerta.titulo}' disparado para "
-                    f"{len(emails)} docente(s) às {current_time}."
+                    f"{len(emails)} {target_label} às {current_time}."
                 )
 
     except Exception as exc:
