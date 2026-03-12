@@ -396,6 +396,18 @@ def _lancamento_key(row: Dict[str, Any]) -> tuple[str, str, str, str]:
     )
 
 
+def _deduplicate_lancamento_rows(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Remove duplicados com base em matrícula, período, polo e componente."""
+    unique_map: Dict[tuple[str, str, str, str], Dict[str, Any]] = {}
+    for row in rows:
+        key = _lancamento_key(row)
+        if not all(key):
+            continue
+        if key not in unique_map:
+            unique_map[key] = row
+    return list(unique_map.values())
+
+
 def _sync_lancamento_conceitos(
     session: Session,
     source_rows: List[Dict[str, Any]],
@@ -509,6 +521,7 @@ def get_lancamento_conceitos(
         else:
             return []
 
+        source_rows = _deduplicate_lancamento_rows(source_rows)
         lancamentos_map = _sync_lancamento_conceitos(session, source_rows)
 
     filtered_rows = [
