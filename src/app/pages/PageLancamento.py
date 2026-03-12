@@ -13,7 +13,10 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from src.utils.env_loader import load_environment
-from src.database.repository import get_lancamento_conceitos
+from src.database.repository import (
+    get_lancamento_conceitos,
+    update_lancamento_conceitos_status,
+)
 
 load_environment()
 
@@ -163,7 +166,7 @@ def _render_auth_wall() -> bool:
     return False
 
 
-def _build_filter_options(rows: list[dict[str, str]], field: str, all_label: str = "Todos") -> list[str]:
+def _build_filter_options(rows: list[dict[str, object]], field: str, all_label: str = "Todos") -> list[str]:
     values = sorted({_safe_text(row.get(field, "")) for row in rows if _safe_text(row.get(field, ""))})
     return [all_label] + values
 
@@ -174,26 +177,74 @@ def _safe_text(value: object) -> str:
     return str(value).strip()
 
 
-def _render_table(rows: list[dict[str, str]]) -> None:
+def _render_table(rows: list[dict[str, object]]) -> None:
     if not rows:
         st.info("Nenhum aluno encontrado com os filtros aplicados.")
         return
 
-    df = pd.DataFrame(rows)
+    df = pd.DataFrame(rows).copy()
+    df["matriculado"] = df["matriculado"].fillna(False).astype(bool)
+    df["consolidado"] = df["consolidado"].fillna(False).astype(bool)
+
     show_df = df.rename(
         columns={
+            "id": "ID",
             "matricula": "Matricula",
             "periodo": "Periodo",
             "polo": "Polo",
             "turma": "Turma",
             "componente": "Componente",
+            "matriculado": "Matriculado",
+            "consolidado": "Consolidado",
         }
     )
 
-    ordered_cols = ["Matricula", "Periodo", "Polo", "Turma", "Componente"]
+    ordered_cols = ["ID", "Matricula", "Periodo", "Polo", "Turma", "Componente", "Matriculado", "Consolidado"]
     ordered_cols = [col for col in ordered_cols if col in show_df.columns]
+    editor_df = show_df[ordered_cols]
 
-    st.dataframe(show_df[ordered_cols], use_container_width=True, hide_index=True)
+    edited_df = st.data_editor(
+        editor_df,
+        use_container_width=True,
+        hide_index=True,
+        key="editor_lancamento_conceitos",
+        disabled=["ID", "Matricula", "Periodo", "Polo", "Turma", "Componente"],
+        column_config={
+            "ID": st.column_config.NumberColumn("ID", disabled=True, width="small"),
+            "Matriculado": st.column_config.CheckboxColumn("Matriculado"),
+            "Consolidado": st.column_config.CheckboxColumn("Consolidado"),
+        },
+    )
+
+    if st.button("Salvar Alteracoes", key="btn_salvar_lancamento_conceitos", use_container_width=False):
+        updates: list[dict[str, object]] = []
+        for _, row in edited_df.iterrows():
+            original_row = editor_df[editor_df["ID"] == row["ID"]].iloc[0]
+            if (
+                bool(row["Matriculado"]) != bool(original_row["Matriculado"])
+                or bool(row["Consolidado"]) != bool(original_row["Consolidado"])
+            ):
+                updates.append(
+                    {
+                        "id": int(row["ID"]),
+                        "matriculado": bool(row["Matriculado"]),
+                        "consolidado": bool(row["Consolidado"]),
+                    }
+                )
+
+        if not updates:
+            st.info("Nenhuma alteracao para salvar.")
+            return
+
+        try:
+            updated, ignored = update_lancamento_conceitos_status(updates)
+            if updated:
+                st.success(f"✅ {updated} registro(s) atualizado(s) com sucesso.")
+            if ignored:
+                st.warning(f"⚠️ {ignored} registro(s) nao puderam ser atualizados.")
+            st.rerun()
+        except Exception as exc:
+            st.error(f"❌ Erro ao salvar alteracoes: {exc}")
 
 
 def main() -> None:
@@ -265,6 +316,10 @@ def main() -> None:
         polo_sel = st.selectbox("Polo", options=_build_filter_options(rows_base, "polo", "Todos"))
     with col3:
         periodo_sel = st.selectbox("Periodo", options=_build_filter_options(rows_base, "periodo", "Todos"))
+    somente_pendentes = st.checkbox(
+        "Somente pendentes (Matriculado=False ou Consolidado=False)",
+        value=False,
+    )
 
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -275,6 +330,13 @@ def main() -> None:
         periodo=None if periodo_sel == "Todos" else periodo_sel,
         componente_estagio=None if componente_estagio == "Todos" else componente_estagio,
     )
+
+    if somente_pendentes:
+        rows = [
+            row
+            for row in rows
+            if not bool(row.get("matriculado")) or not bool(row.get("consolidado"))
+        ]
 
     st.metric("Total de alunos encontrados", len(rows))
     st.markdown("### Dados para Lancamento")

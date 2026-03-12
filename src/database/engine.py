@@ -49,6 +49,7 @@ def init_db() -> None:
         RequerimentoTccSubmission,
         AvaliacaoGestaoSubmission,
         AlertaAcademico,
+        LancamentoConceito,
     )
     
     print("🔧 Inicializando banco de dados...")

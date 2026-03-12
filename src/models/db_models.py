@@ -189,6 +189,32 @@ class EstagioSubmission(SubmissionBase, table=True):
         }
 
 
+class LancamentoConceito(SQLModel, table=True):
+    """Model para consolidação de lançamento de conceitos."""
+
+    __tablename__ = "lancamento_conceitos"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    matricula: str = Field(max_length=50, index=True)
+    periodo: str = Field(max_length=20, index=True)
+    polo: str = Field(max_length=100, index=True)
+    componente: str = Field(max_length=100, index=True)
+    matriculado: bool = Field(default=False, nullable=False)
+    consolidado: bool = Field(default=False, nullable=False)
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "matricula": "202312345678",
+                "periodo": "2026.1",
+                "polo": "CAMETÁ",
+                "componente": "TCC 1",
+                "matriculado": False,
+                "consolidado": False,
+            }
+        }
+
+
 class SocialSubmission(SubmissionBase, table=True):
     """Model for Social/Academic/Health form submissions."""
     

@@ -21,6 +21,7 @@ from src.models.db_models import (
     TccSubmission,
     RequerimentoTccSubmission,
     AvaliacaoGestaoSubmission,
+    LancamentoConceito,
 )
 
 _alerta_schema_lock = threading.Lock()
@@ -386,13 +387,72 @@ def _normalize_estagio_component(component_value: Any) -> str:
     return component_text
 
 
+def _lancamento_key(row: Dict[str, Any]) -> tuple[str, str, str, str]:
+    return (
+        _normalize_text(row.get("matricula")),
+        _normalize_text(row.get("periodo")),
+        _normalize_text(row.get("polo")),
+        _normalize_text(row.get("componente")),
+    )
+
+
+def _sync_lancamento_conceitos(
+    session: Session,
+    source_rows: List[Dict[str, Any]],
+) -> Dict[tuple[str, str, str, str], LancamentoConceito]:
+    """Sincroniza dados-base na tabela lancamento_conceitos."""
+    keys = {_lancamento_key(row) for row in source_rows if all(_lancamento_key(row))}
+    if not keys:
+        return {}
+
+    componentes = sorted({key[3] for key in keys})
+    existing_records = session.exec(
+        select(LancamentoConceito).where(LancamentoConceito.componente.in_(componentes))
+    ).all()
+
+    existing_map: Dict[tuple[str, str, str, str], LancamentoConceito] = {
+        (
+            _normalize_text(item.matricula),
+            _normalize_text(item.periodo),
+            _normalize_text(item.polo),
+            _normalize_text(item.componente),
+        ): item
+        for item in existing_records
+    }
+
+    created = False
+    for row in source_rows:
+        key = _lancamento_key(row)
+        if not all(key) or key in existing_map:
+            continue
+
+        new_row = LancamentoConceito(
+            matricula=key[0],
+            periodo=key[1],
+            polo=key[2],
+            componente=key[3],
+            matriculado=False,
+            consolidado=False,
+        )
+        session.add(new_row)
+        existing_map[key] = new_row
+        created = True
+
+    if created:
+        session.commit()
+        for value in existing_map.values():
+            session.refresh(value)
+
+    return existing_map
+
+
 def get_lancamento_conceitos(
     tipo_formulario: str,
     turma: Optional[str] = None,
     polo: Optional[str] = None,
     periodo: Optional[str] = None,
     componente_estagio: Optional[str] = None,
-) -> List[Dict[str, str]]:
+) -> List[Dict[str, Any]]:
     """
     Retorna dados para Lançamento de Conceitos com filtros aplicados.
 
@@ -407,7 +467,7 @@ def get_lancamento_conceitos(
     with get_db_session() as session:
         if tipo == "ACC":
             registros = session.exec(select(AccSubmission)).all()
-            rows = [
+            source_rows = [
                 {
                     "matricula": _normalize_text(item.matricula),
                     "turma": _normalize_text(item.turma),
@@ -419,25 +479,25 @@ def get_lancamento_conceitos(
             ]
         elif tipo == "TCC":
             registros = session.exec(select(TccSubmission)).all()
-            rows = [
+            source_rows = [
                 {
                     "matricula": _normalize_text(item.matricula),
                     "turma": _normalize_text(item.turma),
                     "polo": _normalize_text(item.polo),
                     "periodo": _normalize_text(item.periodo),
-                    "componente": _normalize_text(item.componente),
+                    "componente": "TCC 1",
                 }
                 for item in registros
                 if _is_tcc1_submission(item.componente)
             ]
         elif tipo in {"ESTAGIO", "ESTÁGIO"}:
             registros = session.exec(select(EstagioSubmission)).all()
-            rows = []
+            source_rows = []
             for item in registros:
                 componente_label = _normalize_estagio_component(item.componente)
                 if not _matches_filter(componente_label, componente_estagio):
                     continue
-                rows.append(
+                source_rows.append(
                     {
                         "matricula": _normalize_text(item.matricula),
                         "turma": _normalize_text(item.turma),
@@ -449,22 +509,77 @@ def get_lancamento_conceitos(
         else:
             return []
 
+        lancamentos_map = _sync_lancamento_conceitos(session, source_rows)
+
     filtered_rows = [
         row
-        for row in rows
+        for row in source_rows
         if _matches_filter(row.get("turma"), turma)
         and _matches_filter(row.get("polo"), polo)
         and _matches_filter(row.get("periodo"), periodo)
     ]
 
+    rows_with_status: List[Dict[str, Any]] = []
+    for row in filtered_rows:
+        entry = lancamentos_map.get(_lancamento_key(row))
+        rows_with_status.append(
+            {
+                **row,
+                "id": getattr(entry, "id", None),
+                "matriculado": bool(getattr(entry, "matriculado", False)),
+                "consolidado": bool(getattr(entry, "consolidado", False)),
+            }
+        )
+
     return sorted(
-        filtered_rows,
+        rows_with_status,
         key=lambda row: (
             row.get("periodo", ""),
             row.get("polo", ""),
             row.get("matricula", ""),
         ),
     )
+
+
+def update_lancamento_conceitos_status(
+    updates: List[Dict[str, Any]],
+) -> tuple[int, int]:
+    """
+    Atualiza status de matrícula/consolidação em lancamento_conceitos.
+
+    Args:
+        updates: lista com itens no formato:
+            {"id": int, "matriculado": bool, "consolidado": bool}
+
+    Returns:
+        (atualizados, ignorados)
+    """
+    if not updates:
+        return 0, 0
+
+    updated_count = 0
+    ignored_count = 0
+
+    with get_db_session() as session:
+        for item in updates:
+            item_id = item.get("id")
+            if not item_id:
+                ignored_count += 1
+                continue
+
+            registro = session.get(LancamentoConceito, int(item_id))
+            if registro is None:
+                ignored_count += 1
+                continue
+
+            registro.matriculado = bool(item.get("matriculado", False))
+            registro.consolidado = bool(item.get("consolidado", False))
+            session.add(registro)
+            updated_count += 1
+
+        session.commit()
+
+    return updated_count, ignored_count
 
 
 # ---------------------------------------------------------------------------
