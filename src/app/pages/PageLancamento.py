@@ -325,180 +325,217 @@ def _build_lancamento_service(selected: dict[str, object], componente_sigaa: str
         return None
 
 
+def _update_selected_status_db(selected: dict[str, object], matriculado: bool, consolidado: bool) -> None:
+    update_lancamento_conceitos_status(
+        [
+            {
+                "id": int(selected["id"]),
+                "matriculado": matriculado,
+                "consolidado": consolidado,
+            }
+        ]
+    )
+
+
+def _processar_matricula(selected: dict[str, object], componentes_sigaa: list[str]) -> tuple[bool, bool]:
+    if bool(selected.get("matriculado")):
+        st.info(
+            f"Matrícula de {_safe_text(selected.get('matricula'))} já está marcada como concluída. "
+            "Operação não executada."
+        )
+        return True, True
+
+    for comp_sigaa in componentes_sigaa:
+        svc = _build_lancamento_service(selected, comp_sigaa)
+        if svc is None:
+            return False, False
+        with st.spinner(
+            f"Executando matrícula no SIGAA para {_safe_text(selected.get('matricula'))} ({comp_sigaa})..."
+        ):
+            try:
+                resultado = _run_async(svc.matricular())
+            except Exception as exc:
+                st.error(
+                    f"❌ Erro ao iniciar serviço de matrícula para "
+                    f"{_safe_text(selected.get('matricula'))} ({comp_sigaa}): {exc}"
+                )
+                return False, False
+        if not resultado.sucesso:
+            if _is_non_blocking_matricula_error(resultado):
+                st.warning(
+                    f"⚠️ {_safe_text(selected.get('matricula'))} | {comp_sigaa}: "
+                    "já matriculado/anteriormente processado. Continuando para o próximo componente."
+                )
+                continue
+            st.error(f"{_safe_text(selected.get('matricula'))} | {resultado.mensagem}")
+            return False, False
+        st.success(f"{_safe_text(selected.get('matricula'))} | {resultado.mensagem}")
+
+    return True, False
+
+
+def _processar_consolidacao(selected: dict[str, object], componentes_sigaa: list[str]) -> tuple[bool, bool]:
+    if bool(selected.get("consolidado")):
+        st.info(
+            f"Consolidação de {_safe_text(selected.get('matricula'))} já está marcada como concluída. "
+            "Operação não executada."
+        )
+        return True, True
+
+    for comp_sigaa in componentes_sigaa:
+        svc = _build_lancamento_service(selected, comp_sigaa)
+        if svc is None:
+            return False, False
+        with st.spinner(
+            f"Executando consolidação no SIGAA para {_safe_text(selected.get('matricula'))} ({comp_sigaa})..."
+        ):
+            try:
+                resultado = _run_async(svc.consolidar(conceito="E"))
+            except Exception as exc:
+                st.error(
+                    f"❌ Erro ao iniciar serviço de consolidação para "
+                    f"{_safe_text(selected.get('matricula'))} ({comp_sigaa}): {exc}"
+                )
+                return False, False
+        if not resultado.sucesso:
+            if _is_non_blocking_consolidacao_error(resultado):
+                st.warning(
+                    f"⚠️ {_safe_text(selected.get('matricula'))} | {comp_sigaa}: "
+                    "não encontrado para consolidar (provavelmente já consolidado). "
+                    "Continuando para o próximo componente."
+                )
+                continue
+            st.error(f"{_safe_text(selected.get('matricula'))} | {resultado.mensagem}")
+            return False, False
+        st.success(f"{_safe_text(selected.get('matricula'))} | {resultado.mensagem}")
+
+    return True, False
+
+
 def _render_sigaa_actions(selected_rows: list[dict[str, object]]) -> None:
     if not selected_rows:
         return
 
-    selected = selected_rows[0]
-    if len(selected_rows) > 1:
-        st.warning("Mais de uma matrícula selecionada. A ação será aplicada à primeira da lista.")
-
-    componentes_sigaa = _resolve_sigaa_components(selected.get("componente"))
-    if not componentes_sigaa:
-        st.error("❌ Componente não suportado para automação no SIGAA.")
-        return
-
-    st.caption(
-        f"Matrícula selecionada: {_safe_text(selected.get('matricula'))} | "
-        f"Componente: {_safe_text(selected.get('componente'))} | "
-        f"SIGAA: {', '.join(componentes_sigaa)} | "
-        f"Matriculado: {bool(selected.get('matriculado'))} | "
-        f"Consolidado: {bool(selected.get('consolidado'))}"
-    )
+    st.caption(f"{len(selected_rows)} matrícula(s) selecionada(s) para processamento.")
 
     c1, c2, c3 = st.columns(3)
     btn_matricular = c1.button("Matricular", key="btn_sigaa_matricular", use_container_width=True)
     btn_consolidar = c2.button("Consolidar", key="btn_sigaa_consolidar", use_container_width=True)
     btn_ambos = c3.button("Matricular/Consolidar", key="btn_sigaa_ambos", use_container_width=True)
 
-    def _update_status_db(matriculado: bool, consolidado: bool) -> None:
-        update_lancamento_conceitos_status(
-            [
-                {
-                    "id": int(selected["id"]),
-                    "matriculado": matriculado,
-                    "consolidado": consolidado,
-                }
-            ]
-        )
-
     if btn_matricular:
-        if bool(selected.get("matriculado")):
-            st.info("Matrícula já está marcada como concluída. Operação não executada.")
-            return
-
-        houve_falha_bloqueante = False
-        for comp_sigaa in componentes_sigaa:
-            svc = _build_lancamento_service(selected, comp_sigaa)
-            if svc is None:
-                return
-            with st.spinner(f"Executando matrícula no SIGAA ({comp_sigaa})..."):
-                try:
-                    resultado = _run_async(svc.matricular())
-                except Exception as exc:
-                    st.error(f"❌ Erro ao iniciar serviço de matrícula ({comp_sigaa}): {exc}")
-                    return
-            if not resultado.sucesso:
-                if _is_non_blocking_matricula_error(resultado):
-                    st.warning(
-                        f"⚠️ {comp_sigaa}: já matriculado/anteriormente processado. "
-                        "Continuando para o próximo componente."
+        processados = 0
+        falhas = 0
+        for selected in selected_rows:
+            componentes_sigaa = _resolve_sigaa_components(selected.get("componente"))
+            if not componentes_sigaa:
+                st.error(
+                    f"❌ {_safe_text(selected.get('matricula'))}: componente "
+                    f"{_safe_text(selected.get('componente'))} não suportado para automação no SIGAA."
+                )
+                falhas += 1
+                continue
+            sucesso, ja_concluido = _processar_matricula(selected, componentes_sigaa)
+            if sucesso:
+                if not ja_concluido:
+                    _update_selected_status_db(
+                        selected,
+                        matriculado=True,
+                        consolidado=bool(selected.get("consolidado")),
                     )
-                    continue
-                st.error(resultado.mensagem)
-                houve_falha_bloqueante = True
-                break
-            st.success(resultado.mensagem)
-
-        if not houve_falha_bloqueante:
-            _update_status_db(matriculado=True, consolidado=bool(selected.get("consolidado")))
+                processados += 1
+            else:
+                falhas += 1
+        if processados:
+            st.success(f"✅ Matrícula concluída para {processados} aluno(s).")
+        if falhas:
+            st.warning(f"⚠️ {falhas} aluno(s) não puderam ser processados na matrícula.")
+        if processados:
             st.rerun()
 
     if btn_consolidar:
-        if bool(selected.get("consolidado")):
-            st.info("Consolidação já está marcada como concluída. Operação não executada.")
-            return
-
-        houve_falha_bloqueante = False
-        for comp_sigaa in componentes_sigaa:
-            svc = _build_lancamento_service(selected, comp_sigaa)
-            if svc is None:
-                return
-            with st.spinner(f"Executando consolidação no SIGAA ({comp_sigaa})..."):
-                try:
-                    resultado = _run_async(svc.consolidar(conceito="E"))
-                except Exception as exc:
-                    st.error(f"❌ Erro ao iniciar serviço de consolidação ({comp_sigaa}): {exc}")
-                    return
-            if not resultado.sucesso:
-                if _is_non_blocking_consolidacao_error(resultado):
-                    st.warning(
-                        f"⚠️ {comp_sigaa}: não encontrado para consolidar (provavelmente já consolidado). "
-                        "Continuando para o próximo componente."
+        processados = 0
+        falhas = 0
+        for selected in selected_rows:
+            componentes_sigaa = _resolve_sigaa_components(selected.get("componente"))
+            if not componentes_sigaa:
+                st.error(
+                    f"❌ {_safe_text(selected.get('matricula'))}: componente "
+                    f"{_safe_text(selected.get('componente'))} não suportado para automação no SIGAA."
+                )
+                falhas += 1
+                continue
+            sucesso, ja_concluido = _processar_consolidacao(selected, componentes_sigaa)
+            if sucesso:
+                if not ja_concluido:
+                    _update_selected_status_db(
+                        selected,
+                        matriculado=bool(selected.get("matriculado")),
+                        consolidado=True,
                     )
-                    continue
-                st.error(resultado.mensagem)
-                houve_falha_bloqueante = True
-                break
-            st.success(resultado.mensagem)
-
-        if not houve_falha_bloqueante:
-            _update_status_db(matriculado=bool(selected.get("matriculado")), consolidado=True)
+                processados += 1
+            else:
+                falhas += 1
+        if processados:
+            st.success(f"✅ Consolidação concluída para {processados} aluno(s).")
+        if falhas:
+            st.warning(f"⚠️ {falhas} aluno(s) não puderam ser processados na consolidação.")
+        if processados:
             st.rerun()
 
     if btn_ambos:
-        matriculado_atual = bool(selected.get("matriculado"))
-        consolidado_atual = bool(selected.get("consolidado"))
+        processados = 0
+        falhas = 0
+        for selected in selected_rows:
+            componentes_sigaa = _resolve_sigaa_components(selected.get("componente"))
+            if not componentes_sigaa:
+                st.error(
+                    f"❌ {_safe_text(selected.get('matricula'))}: componente "
+                    f"{_safe_text(selected.get('componente'))} não suportado para automação no SIGAA."
+                )
+                falhas += 1
+                continue
 
-        if not matriculado_atual:
-            houve_falha_bloqueante = False
-            for comp_sigaa in componentes_sigaa:
-                svc = _build_lancamento_service(selected, comp_sigaa)
-                if svc is None:
-                    return
-                with st.spinner(f"Executando matrícula no SIGAA ({comp_sigaa})..."):
-                    try:
-                        resultado_mat = _run_async(svc.matricular())
-                    except Exception as exc:
-                        st.error(f"❌ Erro ao iniciar serviço de matrícula ({comp_sigaa}): {exc}")
-                        return
-                if not resultado_mat.sucesso:
-                    if _is_non_blocking_matricula_error(resultado_mat):
-                        st.warning(
-                            f"⚠️ {comp_sigaa}: já matriculado/anteriormente processado. "
-                            "Continuando para o próximo componente."
-                        )
-                        continue
-                    st.error(resultado_mat.mensagem)
-                    houve_falha_bloqueante = True
-                    break
-                st.success(resultado_mat.mensagem)
-            if houve_falha_bloqueante:
-                return
-            matriculado_atual = True
-        else:
-            st.info("Matrícula já estava concluída. Pulando etapa de matrícula.")
+            matriculado_atual = bool(selected.get("matriculado"))
+            consolidado_atual = bool(selected.get("consolidado"))
 
-        if not consolidado_atual:
-            houve_falha_bloqueante = False
-            for comp_sigaa in componentes_sigaa:
-                svc = _build_lancamento_service(selected, comp_sigaa)
-                if svc is None:
-                    _update_status_db(matriculado=matriculado_atual, consolidado=consolidado_atual)
-                    return
-                with st.spinner(f"Executando consolidação no SIGAA ({comp_sigaa})..."):
-                    try:
-                        resultado_con = _run_async(svc.consolidar(conceito="E"))
-                    except Exception as exc:
-                        _update_status_db(matriculado=matriculado_atual, consolidado=consolidado_atual)
-                        st.error(f"❌ Erro ao iniciar serviço de consolidação ({comp_sigaa}): {exc}")
-                        return
-                if not resultado_con.sucesso:
-                    if _is_non_blocking_consolidacao_error(resultado_con):
-                        st.warning(
-                            f"⚠️ {comp_sigaa}: não encontrado para consolidar (provavelmente já consolidado). "
-                            "Continuando para o próximo componente."
-                        )
-                        continue
-                    _update_status_db(matriculado=matriculado_atual, consolidado=consolidado_atual)
-                    st.error(resultado_con.mensagem)
-                    houve_falha_bloqueante = True
-                    break
-                st.success(resultado_con.mensagem)
-            if houve_falha_bloqueante:
-                return
-            consolidado_atual = True
-        else:
-            st.info("Consolidação já estava concluída. Pulando etapa de consolidação.")
+            sucesso_matricula, matricula_ja_concluida = _processar_matricula(selected, componentes_sigaa)
+            if not sucesso_matricula:
+                falhas += 1
+                continue
+            if not matricula_ja_concluida:
+                matriculado_atual = True
 
-        _update_status_db(matriculado=matriculado_atual, consolidado=consolidado_atual)
-        st.success("✅ Status atualizado no banco de dados.")
-        st.rerun()
+            sucesso_consolidacao, consolidacao_ja_concluida = _processar_consolidacao(selected, componentes_sigaa)
+            if not sucesso_consolidacao:
+                _update_selected_status_db(
+                    selected,
+                    matriculado=matriculado_atual,
+                    consolidado=consolidado_atual,
+                )
+                falhas += 1
+                continue
+            if not consolidacao_ja_concluida:
+                consolidado_atual = True
+
+            _update_selected_status_db(
+                selected,
+                matriculado=matriculado_atual,
+                consolidado=consolidado_atual,
+            )
+            processados += 1
+
+        if processados:
+            st.success(f"✅ Matrícula e consolidação concluídas para {processados} aluno(s).")
+        if falhas:
+            st.warning(f"⚠️ {falhas} aluno(s) não puderam ser processados no fluxo completo.")
+        if processados:
+            st.rerun()
 
 
 def main() -> None:
     st.set_page_config(
-        page_title="Lancamento de Conceitos - FasiTech",
+        page_title="Lançamento de Conceitos - FasiTech",
         page_icon="📝",
         layout="wide",
         initial_sidebar_state="collapsed",
@@ -515,7 +552,7 @@ def main() -> None:
     st.markdown(
         """
         <div class="hero">
-            <h1>📝 Lancamento de Conceitos</h1>
+            <h1>📝 Lançamento de Conceitos</h1>
             <p>Selecione ACC, TCC ou Estagio e aplique filtros por Turma, Polo e Periodo.</p>
         </div>
         """,
@@ -590,7 +627,7 @@ def main() -> None:
         ]
 
     st.metric("Total de alunos encontrados", len(rows))
-    st.markdown("### Dados para Lancamento")
+    st.markdown("### Dados para Lançamento")
     selected_rows = _render_table(rows)
     _render_sigaa_actions(selected_rows)
 

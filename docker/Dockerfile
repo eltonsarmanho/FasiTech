@@ -12,6 +12,7 @@ RUN pip wheel --no-cache-dir --wheel-dir /app/wheels -r requirements.txt
 FROM python:3.11-slim-bookworm 
 
 WORKDIR /app
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
 COPY --from=builder /app/wheels /wheels
 RUN pip install --no-cache /wheels/*
@@ -23,6 +24,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     zstd \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
+
+# Instala navegador do Playwright no build (produção)
+RUN python -m playwright install --with-deps chromium
 
 # Instala Ollama versão CPU-only (sem CUDA para economizar espaço)
 # Definir variável para não baixar bibliotecas CUDA
@@ -51,6 +55,7 @@ exec streamlit run --client.showSidebarNavigation=False src/app/main.py --server
 # Ajusta permissões
 RUN chown -R appuser:appuser /home/appuser/.ollama /app/start.sh
 RUN mkdir -p /home/appuser/.cache/fasitech/rag && chown -R appuser:appuser /home/appuser/.cache
+RUN chown -R appuser:appuser /ms-playwright
 
 USER appuser
 
