@@ -11,6 +11,7 @@ from src.services.email_service import send_notification, send_email_with_attach
 from src.services.file_processor import prepare_files, sanitize_submission
 from src.services.google_drive import upload_files
 from src.services.google_sheets import append_rows  # Mantido para compatibilidade temporária
+from src.utils.datetime_utils import format_local_datetime
 from src.database.repository import (
     save_tcc_submission,
     save_acc_submission,
@@ -75,8 +76,6 @@ def process_acc_submission(
     
     O usuário NÃO espera o processamento IA.
     """
-    from datetime import datetime
-    
     if uploaded_file is None:
         raise ValueError("Arquivo obrigatório não informado.")
 
@@ -149,8 +148,7 @@ def process_acc_submission(
             
             # Enviar email ÚNICO com resultado da IA
             if recipients and total_carga_horaria:
-                from datetime import datetime
-                data_formatada = datetime.now().strftime("%d/%m/%Y às %H:%M:%S")
+                data_formatada = format_local_datetime()
                 
                 # Formatar anexos com links
                 anexos_formatados = "\n".join([
@@ -192,8 +190,7 @@ Sua submissão de Atividades Curriculares Complementares (ACC) foi processada co
             print(f"⚠️ [BACKGROUND] Erro no processamento com IA: {str(e)}")
             # Enviar email ÚNICO informando que IA falhou (análise manual necessária)
             if recipients:
-                from datetime import datetime
-                data_formatada = datetime.now().strftime("%d/%m/%Y às %H:%M:%S")
+                data_formatada = format_local_datetime()
                 
                 # Formatar anexos com links
                 anexos_formatados = "\n".join([
@@ -297,8 +294,6 @@ def process_tcc_submission(
     Returns:
         Dicionário com informações do processamento
     """
-    from datetime import datetime
-    
     if not uploaded_files or len(uploaded_files) == 0:
         raise ValueError("Pelo menos um arquivo é obrigatório.")
 
@@ -364,7 +359,7 @@ def process_tcc_submission(
     recipients = _coerce_recipients(notification_recipients)
     if recipients:
         # Formatar data/hora atual
-        data_formatada = datetime.now().strftime("%d/%m/%Y às %H:%M:%S")
+        data_formatada = format_local_datetime()
         
         # Formatar anexos com links
         anexos_formatados = "\n".join([
@@ -448,7 +443,6 @@ def process_estagio_submission(
     Returns:
         Dicionário com informações do processamento
     """
-    from datetime import datetime
     import streamlit as st
     
     if not uploaded_files or len(uploaded_files) == 0:
@@ -529,7 +523,7 @@ def process_estagio_submission(
     recipients = _coerce_recipients(notification_recipients)
     if recipients:
         # Formatar data/hora atual
-        data_formatada = datetime.now().strftime("%d/%m/%Y às %H:%M:%S")
+        data_formatada = format_local_datetime()
         
         # Formatar anexos com links
         anexos_formatados = "\n".join([
@@ -604,7 +598,6 @@ def process_plano_submission(
     Returns:
         Dicionário com informações do processamento
     """
-    from datetime import datetime
     import streamlit as st
     
     if not uploaded_files or len(uploaded_files) == 0:
@@ -669,7 +662,7 @@ def process_plano_submission(
     recipients = _coerce_recipients(notification_recipients)
     if recipients:
         # Formatar data/hora atual
-        data_formatada = datetime.now().strftime("%d/%m/%Y às %H:%M:%S")
+        data_formatada = format_local_datetime()
         
         # Formatar anexos com links
         anexos_formatados = "\n".join([
@@ -755,8 +748,7 @@ def process_projetos_submission(
     # Preparar dados para o gerador de PDF (formato esperado: lista)
     # Os métodos esperam: [timestamp, docente, parecerista1, parecerista2, projeto, 
     #                      carga_horaria, edital, natureza, ano_edital, solicitacao]
-    from datetime import datetime
-    timestamp = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+    timestamp = format_local_datetime("%d/%m/%Y %H:%M:%S")
     
     pdf_data = [
         timestamp,

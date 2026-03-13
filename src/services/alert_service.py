@@ -12,19 +12,20 @@ import os
 import threading
 from datetime import datetime
 from typing import List
-from zoneinfo import ZoneInfo
+
+from src.utils.datetime_utils import APP_TIMEZONE, now_local
 
 # ---------------------------------------------------------------------------
 # Module-level scheduler singleton
 # ---------------------------------------------------------------------------
 _scheduler = None
 _scheduler_lock = threading.Lock()
-_TZ = ZoneInfo(os.getenv("APP_TIMEZONE", "America/Belem"))
+_TZ = APP_TIMEZONE
 
 
-def _now_local() -> datetime:
+def _now_local():
     """Retorna datetime no fuso configurado para os gatilhos."""
-    return datetime.now(_TZ)
+    return now_local()
 
 
 # ---------------------------------------------------------------------------

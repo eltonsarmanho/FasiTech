@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterable
 import re
@@ -9,6 +8,7 @@ from src.services.StatusAlunoExtractor import StatusAlunoExtractor
 from src.services.email_service import send_email_with_attachments
 from src.services.file_processor import sanitize_submission
 from src.services.gerador_certificado import assinar_pdf
+from src.utils.datetime_utils import format_local_datetime, now_local
 from src.utils.PDFGenerator import (
     gerar_pdf_comprovante_conclusao,
     gerar_pdf_comprovante_matricula_ativa,
@@ -28,7 +28,7 @@ def _coerce_recipients(recipients: Iterable[str] | str | None) -> list[str]:
 
 
 def _semestre_atual() -> str:
-    hoje = datetime.now()
+    hoje = now_local()
     semestre = 1 if hoje.month <= 6 else 2
     return f"{hoje.year}.{semestre}"
 
@@ -159,7 +159,7 @@ def process_document_emission_submission(
             f"Seu documento '{document_type}' foi emitido com sucesso.\n\n"
             f"Matrícula: {matricula}\n"
             f"Semestre de referência: {periodo_referencia}\n"
-            f"Data de emissão: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n\n"
+            f"Data de emissão: {format_local_datetime('%d/%m/%Y %H:%M:%S')}\n\n"
             "O comprovante assinado digitalmente segue em anexo.\n\n"
             "Atenciosamente,\n"
             "Sistema de Automação da FASI"
