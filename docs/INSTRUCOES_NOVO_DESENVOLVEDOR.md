@@ -19,6 +19,8 @@ A branch `master` está protegida. Você deve trabalhar exclusivamente na branch
 git checkout feature/novo-desenvolvedor
 ```
 
+
+
 ### 3. Configure o ambiente local
 ```bash
 # Ative o virtual environment
