@@ -229,10 +229,11 @@ def _render_table(rows: list[dict[str, object]]) -> list[dict[str, object]]:
             "periodo": _safe_text(row["Periodo"]),
             "polo": _safe_text(row["Polo"]),
             "componente": _safe_text(row["Componente"]),
+            "orientador": _safe_text(rows[idx].get("orientador")),
             "matriculado": bool(row["Matriculado"]),
             "consolidado": bool(row["Consolidado"]),
         }
-        for _, row in selected_df.iterrows()
+        for idx, row in selected_df.iterrows()
     ]
 
     if selected_rows:
@@ -303,7 +304,7 @@ def _resolve_sigaa_components(componente: object) -> list[str]:
     comp = _safe_text(componente).upper()
     if comp == "ACC":
         return ["ACC I", "ACC II", "ACC III", "ACC IV"]
-    if comp in {"ACC I", "ACC II", "ACC III", "ACC IV", "TCC I", "TCC II"}:
+    if comp in {"ACC I", "ACC II", "ACC III", "ACC IV", "TCC", "TCC I", "TCC II"}:
         return [comp]
     if comp in {"TCC 1", "TCC1"}:
         return ["TCC I"]
@@ -319,6 +320,7 @@ def _build_lancamento_service(selected: dict[str, object], componente_sigaa: str
             polo=_safe_text(selected.get("polo")),
             periodo=_safe_text(selected.get("periodo")),
             componente=componente_sigaa,
+            orientador=_safe_text(selected.get("orientador")),
         )
     except Exception as exc:
         st.error(f"❌ Dados inválidos para iniciar serviço de lançamento: {exc}")

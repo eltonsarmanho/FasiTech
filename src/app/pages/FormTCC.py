@@ -17,6 +17,20 @@ LOGO_PATH = Path(__file__).resolve().parents[2] / "resources" / "fasiOficial.png
 MAX_FILE_SIZE_MB = 50
 
 
+def _normalize_professores(raw_value: Any) -> list[str]:
+	"""Normaliza a lista de professores vinda do secrets.toml."""
+	if raw_value is None:
+		return []
+
+	if isinstance(raw_value, (list, tuple)):
+		return [str(item).strip() for item in raw_value if str(item).strip()]
+
+	if isinstance(raw_value, str):
+		return [item.strip() for item in raw_value.split(",") if item.strip()]
+
+	return [str(raw_value).strip()] if str(raw_value).strip() else []
+
+
 def _load_tcc_settings() -> dict[str, Any]:
 	"""Carrega configurações TCC do secrets.toml."""
 	try:
@@ -24,6 +38,7 @@ def _load_tcc_settings() -> dict[str, Any]:
 			"drive_folder_id": st.secrets["tcc"]["drive_folder_id"],
 			"sheet_id": st.secrets["tcc"]["sheet_id"],
 			"notification_recipients": st.secrets["tcc"].get("notification_recipients", []),
+			"professores": _normalize_professores(st.secrets["tcc"].get("professores", [])),
 		}
 	except (KeyError, FileNotFoundError) as e:
 		st.error(
@@ -31,7 +46,8 @@ def _load_tcc_settings() -> dict[str, Any]:
 			f"Por favor, configure a seção [tcc] com:\n"
 			f"- drive_folder_id\n"
 			f"- sheet_id\n"
-			f"- notification_recipients"
+			f"- notification_recipients\n"
+			f"- professores"
 		)
 		raise ValueError("Configurações TCC ausentes") from e
 
@@ -331,6 +347,8 @@ def _validate_submission(
 
 def render_form() -> None:
 	_render_intro()
+	tcc_settings = _load_tcc_settings()
+	opcoes_orientadores = ["Selecione..."] + tcc_settings["professores"]
 	
 	
 	# Componente curricular FORA do form para atualização dinâmica
@@ -410,7 +428,11 @@ def render_form() -> None:
 		if periodo and not _validate_periodo(periodo):
 			st.warning("Período inválido. Use o formato ANO.Numero (ex.: 2026.1).")
 		st.caption("Informe o período em que você está matriculado. Exemplo: 2026.1")
-		orientador = col1.text_input("Orientador(a) *", placeholder="Prof. Dr. Nome do Orientador")
+		orientador = col1.selectbox(
+			"Orientador(a) *",
+			options=opcoes_orientadores,
+			help="Selecione o professor orientador listado nas configurações do TCC.",
+		)
 		titulo = st.text_input("Título do TCC *", placeholder="Digite o título completo do seu TCC")
 		
 		st.markdown("<br>", unsafe_allow_html=True)
@@ -479,7 +501,7 @@ def render_form() -> None:
 				st.session_state.tcc_processing = True
 				
 				errors = _validate_submission(
-					name, email, turma, "" if polo == "Selecione..." else polo, periodo, matricula, orientador, titulo, componente, uploaded_files or []
+					name, email, turma, "" if polo == "Selecione..." else polo, periodo, matricula, "" if orientador == "Selecione..." else orientador, titulo, componente, uploaded_files or []
 				)
 				
 				if errors:
@@ -490,9 +512,6 @@ def render_form() -> None:
 					status_placeholder.info("⏳ Processando dados da submissão. Aguarde...")
 					with st.spinner("Processando submissão do TCC..."):
 						try:
-							# Carregar configurações do secrets
-							tcc_settings = _load_tcc_settings()
-							
 							# Preparar dados do formulário
 							form_data = {
 								"name": name,
@@ -501,7 +520,7 @@ def render_form() -> None:
 								"class_group": turma,
 								"polo": "" if polo == "Selecione..." else polo,
 								"periodo": periodo.strip(),
-								"orientador": orientador,
+								"orientador": "" if orientador == "Selecione..." else orientador,
 								"titulo": titulo,
 								"componente": componente,
 							}
@@ -523,7 +542,7 @@ def render_form() -> None:
 								f"- Nome: {name}\n"
 								f"- Matrícula: {matricula}\n"
 								f"- Componente: {componente}\n"
-								f"- Orientador: {orientador}\n"
+								f"- Orientador: {form_data['orientador']}\n"
 								f"- Arquivos: {result['total_files']} documento(s)\n\n"
 								f"Você receberá um e-mail de confirmação em breve."
 							)

@@ -497,6 +497,7 @@ def get_lancamento_conceitos(
                     "turma": _normalize_text(item.turma),
                     "polo": _normalize_text(item.polo),
                     "periodo": _normalize_text(item.periodo),
+                    "orientador": _normalize_text(item.orientador),
                     "componente": "TCC 1",
                 }
                 for item in registros

@@ -3,23 +3,36 @@ lancamento_service.py — Serviço de backend para matrícula e consolidação n
 
 Usado pelo frontend Streamlit. Executa sempre sem janela de navegador (headless=True).
 
-Exemplo de uso (dentro de contexto async — Streamlit usa asyncio):
+Exemplos de uso (dentro de contexto async — Streamlit usa asyncio):
+
+1. Para atividades complementares (ACC):
     from lancamento_service import LancamentoService
 
-    svc = LancamentoService(
+    svc_acc = LancamentoService(
         matricula="202285940020",
         polo="OEIRAS DO PARÁ",
         periodo="2026.1",
         componente="ACC I",
     )
 
-    resultado = await svc.matricular()
+    resultado = await svc_acc.matricular()
     if resultado.sucesso:
-        st.success(resultado.mensagem)
-    else:
-        st.error(resultado.mensagem)
+        # st.success(resultado.mensagem)
+        pass
 
-    resultado = await svc.consolidar(conceito="E")
+    resultado = await svc_acc.consolidar(conceito="E")
+
+2. Para Trabalho de Conclusão de Curso (TCC):
+    svc_tcc = LancamentoService(
+        matricula="202416040009",
+        polo="CAMETÁ",
+        periodo="2026.2",
+        componente="TCC",
+        orientador="ELTON SARMANHO SIQUEIRA", # OBRIGATORIO PARA TCC
+    )
+
+    resultado_tcc = await svc_tcc.matricular()
+    resultado_cons_tcc = await svc_tcc.consolidar(conceito="E")
 """
 
 import asyncio
@@ -54,7 +67,7 @@ class LancamentoService:
     matricula  : str  — Matrícula do aluno (ex: "202285940020")
     polo       : str  — Nome do polo (ex: "OEIRAS DO PARA")
     periodo    : str  — Período acadêmico (ex: "2026.1")
-    componente : str  — Sigla do componente: ACC I, ACC II, ACC III, ACC IV, TCC I, TCC II
+    componente : str  — Sigla do componente: ACC I, ACC II, ACC III, ACC IV, TCC, TCC I, TCC II
     executar   : bool — Se False, faz dry-run (navega, preenche, mas NÃO confirma).
                         Padrão True (executa de fato).
 
@@ -63,7 +76,7 @@ class LancamentoService:
     ValueError — se o componente informado não for válido.
     """
 
-    COMPONENTES_VALIDOS = {"ACC I", "ACC II", "ACC III", "ACC IV", "TCC I", "TCC II"}
+    COMPONENTES_VALIDOS = {"ACC I", "ACC II", "ACC III", "ACC IV", "TCC", "TCC I", "TCC II"}
 
     def __init__(
         self,
@@ -71,6 +84,7 @@ class LancamentoService:
         polo: str,
         periodo: str,
         componente: str,
+        orientador: str | None = None,
         executar: bool = True,
     ) -> None:
         componente_upper = componente.strip().upper()
@@ -85,13 +99,20 @@ class LancamentoService:
         self.polo = polo.strip()
         self.periodo = periodo.strip()
         self.componente = componente_upper
+        self.orientador = (orientador or "").strip()
         self.executar = executar
+
+        if self._is_tcc() and not self.orientador:
+            raise ValueError("Orientador é obrigatório para lançamentos de TCC.")
 
     # ── Helpers internos ──────────────────────────────────────────────────────
 
+    def _is_tcc(self) -> bool:
+        return self.componente.startswith("TCC")
+
     def _args_matricular(self) -> SimpleNamespace:
         """Constrói o namespace de argumentos esperado por executar_fluxo_direto."""
-        return SimpleNamespace(
+        args = SimpleNamespace(
             matricula=self.matricula,
             polo=self.polo,
             periodo=self.periodo,
@@ -102,6 +123,9 @@ class LancamentoService:
             headless=True,        # sem janela de navegador — obrigatório para backend
             manter_aberto=False,
         )
+        if self._is_tcc():
+            args.orientador = self.orientador
+        return args
 
     def _args_consolidar(self, conceito: str) -> SimpleNamespace:
         """Constrói o namespace de argumentos esperado por executar_consolidacao."""
@@ -135,11 +159,18 @@ class LancamentoService:
             sucesso=False → falha, com mensagem e detalhes do erro
         """
         try:
-            # Execução padrão dentro do projeto
-            from src.services.sigaa_Matricular import executar_fluxo_direto
-        except ModuleNotFoundError:
-            # Fallback para execução direta no diretório services
-            from sigaa_Matricular import executar_fluxo_direto
+            if self._is_tcc():
+                try:
+                    from src.services.sigaa_Matricular_TCC import executar_fluxo_direto
+                except ModuleNotFoundError:
+                    from sigaa_Matricular_TCC import executar_fluxo_direto
+            else:
+                try:
+                    from src.services.sigaa_Matricular import executar_fluxo_direto
+                except ModuleNotFoundError:
+                    from sigaa_Matricular import executar_fluxo_direto
+        except ModuleNotFoundError as exc:
+            raise RuntimeError("Não foi possível importar o serviço de matrícula do SIGAA.") from exc
 
         args = self._args_matricular()
         try:
@@ -180,11 +211,18 @@ class LancamentoService:
             sucesso=False → falha, com mensagem e detalhes do erro
         """
         try:
-            # Execução padrão dentro do projeto
-            from src.services.sigaa_Consolidar import executar_consolidacao
-        except ModuleNotFoundError:
-            # Fallback para execução direta no diretório services
-            from sigaa_Consolidar import executar_consolidacao
+            if self._is_tcc():
+                try:
+                    from src.services.sigga_Consolidar_TCC import executar_consolidacao
+                except ModuleNotFoundError:
+                    from sigga_Consolidar_TCC import executar_consolidacao
+            else:
+                try:
+                    from src.services.sigaa_Consolidar import executar_consolidacao
+                except ModuleNotFoundError:
+                    from sigaa_Consolidar import executar_consolidacao
+        except ModuleNotFoundError as exc:
+            raise RuntimeError("Não foi possível importar o serviço de consolidação do SIGAA.") from exc
 
         args = self._args_consolidar(conceito)
         try:
