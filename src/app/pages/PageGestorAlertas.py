@@ -35,6 +35,7 @@ from src.database.repository import (
     update_alerta,
 )
 from src.services.alert_service import fire_alert
+from src.utils.datetime_utils import now_local
 
 LOGO_PATH = Path(__file__).resolve().parents[2] / "resources" / "fasiOficial.png"
 
@@ -211,13 +212,51 @@ def _format_date(date_str: str) -> str:
         return date_str
 
 
-def _alert_status_badge(alerta) -> str:
-    today = date.today().isoformat()
+def _parse_alert_datetime(date_str: str, time_str: str) -> datetime | None:
+    """Combina data e horário do alerta em um datetime local."""
+    try:
+        scheduled = datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M")
+    except ValueError:
+        return None
+    return scheduled.replace(tzinfo=now_local().tzinfo)
+
+
+def _get_alert_status(alerta) -> str:
+    """
+    Retorna o status efetivo do alerta para a UI.
+
+    Estados:
+    - inactive: desativado manualmente
+    - expired: janela encerrada, inclusive no último dia após o horário
+    - waiting: ainda não iniciou
+    - active: apto a disparar dentro da janela
+    """
     if not alerta.ativo:
+        return "inactive"
+
+    now = now_local()
+    today_str = now.strftime("%Y-%m-%d")
+
+    if alerta.data_fim < today_str:
+        return "expired"
+
+    last_run_at = _parse_alert_datetime(alerta.data_fim, alerta.horario_disparo)
+    if alerta.data_fim == today_str and last_run_at and now > last_run_at:
+        return "expired"
+
+    if alerta.data_inicio > today_str:
+        return "waiting"
+
+    return "active"
+
+
+def _alert_status_badge(alerta) -> str:
+    status = _get_alert_status(alerta)
+    if status == "inactive":
         return '<span class="badge-inativo">⏸ Inativo</span>'
-    if alerta.data_fim < today:
+    if status == "expired":
         return '<span class="badge-inativo">✅ Expirado</span>'
-    if alerta.data_inicio > today:
+    if status == "waiting":
         return '<span class="badge-ativo">⏳ Aguardando início</span>'
     return '<span class="badge-ativo">🟢 Ativo</span>'
 
@@ -616,7 +655,7 @@ def main() -> None:
         try:
             alertas = get_all_alertas()
             total = len(alertas)
-            ativos = sum(1 for a in alertas if a.ativo)
+            ativos = sum(1 for a in alertas if _get_alert_status(a) == "active")
             col_m1, col_m2, col_m3 = st.columns(3)
             col_m1.metric("Total de Gatilhos", total)
             col_m2.metric("Ativos", ativos)
