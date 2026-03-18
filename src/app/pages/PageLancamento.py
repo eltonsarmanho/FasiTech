@@ -15,7 +15,7 @@ if str(ROOT_DIR) not in sys.path:
 
 from src.utils.env_loader import load_environment
 from src.database.repository import (
-    delete_lancamento_conceitos,
+    delete_lancamento_conceitos_with_source,
     get_lancamento_conceitos,
     update_lancamento_conceitos_status,
 )
@@ -226,6 +226,7 @@ def _render_table(rows: list[dict[str, object]]) -> list[dict[str, object]]:
     selected_rows = [
         {
             "id": int(row["ID"]),
+            "tipo_formulario": _safe_text(rows[idx].get("tipo_formulario")),
             "matricula": _safe_text(row["Matricula"]),
             "periodo": _safe_text(row["Periodo"]),
             "polo": _safe_text(row["Polo"]),
@@ -246,23 +247,35 @@ def _render_table(rows: list[dict[str, object]]) -> list[dict[str, object]]:
             "Componentes selecionados: "
             + ", ".join(sorted({item["componente"] for item in selected_rows}))
         )
+    col_save, col_delete, _ = st.columns([1, 1, 4])
+    with col_save:
+        save_clicked = st.button(
+            "Salvar Alterações",
+            key="btn_salvar_lancamento_conceitos",
+            use_container_width=True,
+        )
+    with col_delete:
+        delete_clicked = st.button(
+            "Excluir Registro",
+            key="btn_excluir_lancamento_conceitos",
+            use_container_width=True,
+            disabled=not selected_rows,
+        )
 
-        col_save, col_delete, _ = st.columns([1, 1, 4])
-        with col_delete:
-            if st.button("Excluir Registro", key="btn_excluir_lancamento_conceitos", use_container_width=True):
-                ids_to_delete = [int(item["id"]) for item in selected_rows]
-                try:
-                    deleted, ignored = delete_lancamento_conceitos(ids_to_delete)
-                    if deleted:
-                        st.success(f"✅ {deleted} registro(s) excluído(s) com sucesso.")
-                    if ignored:
-                        st.warning(f"⚠️ {ignored} registro(s) não puderam ser excluídos.")
-                    if deleted:
-                        st.rerun()
-                except Exception as exc:
-                    st.error(f"❌ Erro ao excluir registros: {exc}")
+    if delete_clicked:
+        try:
+            deleted, ignored = delete_lancamento_conceitos_with_source(selected_rows)
+            if deleted:
+                st.session_state.pop("editor_lancamento_conceitos", None)
+                st.success(f"✅ {deleted} registro(s) excluído(s) com sucesso.")
+            if ignored:
+                st.warning(f"⚠️ {ignored} registro(s) não puderam ser excluídos.")
+            if deleted:
+                st.rerun()
+        except Exception as exc:
+            st.error(f"❌ Erro ao excluir registros: {exc}")
 
-    if st.button("Salvar Alteracoes", key="btn_salvar_lancamento_conceitos", use_container_width=False):
+    if save_clicked:
         updates: list[dict[str, object]] = []
         for _, row in edited_df.iterrows():
             original_row = editor_df[editor_df["ID"] == row["ID"]].iloc[0]

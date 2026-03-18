@@ -481,6 +481,7 @@ def get_lancamento_conceitos(
             registros = session.exec(select(AccSubmission)).all()
             source_rows = [
                 {
+                    "tipo_formulario": "ACC",
                     "matricula": _normalize_text(item.matricula),
                     "turma": _normalize_text(item.turma),
                     "polo": _normalize_text(item.polo),
@@ -493,6 +494,7 @@ def get_lancamento_conceitos(
             registros = session.exec(select(TccSubmission)).all()
             source_rows = [
                 {
+                    "tipo_formulario": "TCC",
                     "matricula": _normalize_text(item.matricula),
                     "turma": _normalize_text(item.turma),
                     "polo": _normalize_text(item.polo),
@@ -512,6 +514,7 @@ def get_lancamento_conceitos(
                     continue
                 source_rows.append(
                     {
+                        "tipo_formulario": "ESTAGIO",
                         "matricula": _normalize_text(item.matricula),
                         "turma": _normalize_text(item.turma),
                         "polo": _normalize_text(item.polo),
@@ -617,6 +620,80 @@ def delete_lancamento_conceitos(ids: List[int]) -> tuple[int, int]:
                 continue
             session.delete(registro)
             deleted_count += 1
+
+        session.commit()
+
+    return deleted_count, ignored_count
+
+
+def delete_lancamento_conceitos_with_source(records: List[Dict[str, Any]]) -> tuple[int, int]:
+    """
+    Remove o registro do lançamento e a submissão-fonte correspondente.
+
+    Cada item deve conter:
+        id, tipo_formulario, matricula, periodo, polo, componente
+    """
+    if not records:
+        return 0, 0
+
+    deleted_count = 0
+    ignored_count = 0
+
+    with get_db_session() as session:
+        for item in records:
+            item_id = item.get("id")
+            tipo_formulario = _normalize_text(item.get("tipo_formulario")).upper()
+            matricula = _normalize_text(item.get("matricula"))
+            periodo = _normalize_text(item.get("periodo"))
+            polo = _normalize_text(item.get("polo"))
+            componente = _normalize_text(item.get("componente"))
+
+            registro = session.get(LancamentoConceito, int(item_id)) if item_id else None
+            source_deleted = False
+
+            if tipo_formulario == "ACC":
+                source_rows = session.exec(
+                    select(AccSubmission).where(
+                        AccSubmission.matricula == matricula,
+                        AccSubmission.periodo == periodo,
+                        AccSubmission.polo == polo,
+                    )
+                ).all()
+                for source in source_rows:
+                    session.delete(source)
+                    source_deleted = True
+            elif tipo_formulario == "TCC":
+                source_rows = session.exec(
+                    select(TccSubmission).where(
+                        TccSubmission.matricula == matricula,
+                        TccSubmission.periodo == periodo,
+                        TccSubmission.polo == polo,
+                    )
+                ).all()
+                for source in source_rows:
+                    if componente == "TCC 1" and _is_tcc1_submission(source.componente):
+                        session.delete(source)
+                        source_deleted = True
+            elif tipo_formulario == "ESTAGIO":
+                source_rows = session.exec(
+                    select(EstagioSubmission).where(
+                        EstagioSubmission.matricula == matricula,
+                        EstagioSubmission.periodo == periodo,
+                        EstagioSubmission.polo == polo,
+                    )
+                ).all()
+                for source in source_rows:
+                    if _normalize_estagio_component(source.componente) == componente:
+                        session.delete(source)
+                        source_deleted = True
+
+            if registro is not None:
+                session.delete(registro)
+                deleted_count += 1
+            elif source_deleted:
+                deleted_count += 1
+            else:
+                ignored_count += 1
 
         session.commit()
 
