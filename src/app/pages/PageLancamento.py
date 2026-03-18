@@ -15,6 +15,7 @@ if str(ROOT_DIR) not in sys.path:
 
 from src.utils.env_loader import load_environment
 from src.database.repository import (
+    delete_lancamento_conceitos,
     get_lancamento_conceitos,
     update_lancamento_conceitos_status,
 )
@@ -245,6 +246,21 @@ def _render_table(rows: list[dict[str, object]]) -> list[dict[str, object]]:
             "Componentes selecionados: "
             + ", ".join(sorted({item["componente"] for item in selected_rows}))
         )
+
+        col_save, col_delete, _ = st.columns([1, 1, 4])
+        with col_delete:
+            if st.button("Excluir Registro", key="btn_excluir_lancamento_conceitos", use_container_width=True):
+                ids_to_delete = [int(item["id"]) for item in selected_rows]
+                try:
+                    deleted, ignored = delete_lancamento_conceitos(ids_to_delete)
+                    if deleted:
+                        st.success(f"✅ {deleted} registro(s) excluído(s) com sucesso.")
+                    if ignored:
+                        st.warning(f"⚠️ {ignored} registro(s) não puderam ser excluídos.")
+                    if deleted:
+                        st.rerun()
+                except Exception as exc:
+                    st.error(f"❌ Erro ao excluir registros: {exc}")
 
     if st.button("Salvar Alteracoes", key="btn_salvar_lancamento_conceitos", use_container_width=False):
         updates: list[dict[str, object]] = []

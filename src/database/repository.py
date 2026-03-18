@@ -596,6 +596,33 @@ def update_lancamento_conceitos_status(
     return updated_count, ignored_count
 
 
+def delete_lancamento_conceitos(ids: List[int]) -> tuple[int, int]:
+    """
+    Remove registros de lancamento_conceitos pelos IDs.
+
+    Returns:
+        (removidos, ignorados)
+    """
+    if not ids:
+        return 0, 0
+
+    deleted_count = 0
+    ignored_count = 0
+
+    with get_db_session() as session:
+        for item_id in ids:
+            registro = session.get(LancamentoConceito, int(item_id))
+            if registro is None:
+                ignored_count += 1
+                continue
+            session.delete(registro)
+            deleted_count += 1
+
+        session.commit()
+
+    return deleted_count, ignored_count
+
+
 # ---------------------------------------------------------------------------
 # AlertaAcademico CRUD
 # ---------------------------------------------------------------------------
