@@ -324,6 +324,8 @@ def _validate_submission(
 	if not uploaded_files or len(uploaded_files) == 0:
 		errors.append("Pelo menos um arquivo PDF deve ser anexado.")
 	else:
+		from src.services.form_service import validate_tcc2_uploaded_files
+
 		# Validar cada arquivo
 		for idx, file in enumerate(uploaded_files, 1):
 			if file.type not in {"application/pdf"}:
@@ -334,13 +336,9 @@ def _validate_submission(
 		
 		# Validação específica para TCC 2
 		if componente == "TCC 2":
-			if len(uploaded_files) < 3:
-				errors.append(
-					"TCC 2 requer no mínimo 3 arquivos: "
-					"1) Declaração de Autoria, "
-					"2) Termo de Autorização, "
-					"3) TCC Final."
-				)
+			tcc2_error = validate_tcc2_uploaded_files(uploaded_files)
+			if tcc2_error:
+				errors.append(tcc2_error)
 	
 	return errors
 
@@ -373,10 +371,12 @@ def render_form() -> None:
 	else:  # TCC 2
 		st.warning(
 			"**📗 TCC 2 - Documentos Obrigatórios:**\n\n"
-			"⚠️ **ATENÇÃO:** Para TCC 2, você deve anexar **2 arquivos separados**:\n\n"
-			"1. 📄 **Termo de Autorização** - [Baixar modelo](https://drive.google.com/file/d/1Gsev2C_Rhc-IuA_TP-MdHiWXE4m9kwtx/view?usp=sharing)\n"
-			"2. 📄 **Versão Final do TCC**\n\n"
-			"**Mínimo:** 2 arquivos PDF obrigatórios\n\n"
+			"⚠️ **ATENÇÃO:** Para TCC 2, anexe:\n\n"
+			"1. 📄 **Versão Final do TCC**\n"
+			"2. 📄 **Um PDF de Declaração de Autoria ou Termo de Autorização**\n\n"
+			"Se você tiver os dois documentos separados ou juntos, também pode enviar sem problema.\n\n"
+			"**Modelo do Termo/Declaração:** [Baixar modelo](https://drive.google.com/file/d/1Gsev2C_Rhc-IuA_TP-MdHiWXE4m9kwtx/view?usp=sharing)\n\n"
+			"**Mínimo:** 2 arquivos PDF\n\n"
 			"💡 **Importante:** A biblioteca (bibcameta@ufpa.br) receberá uma cópia da sua submissão."
 		)
 		
@@ -443,7 +443,7 @@ def render_form() -> None:
 		# Mensagem de ajuda dinâmica
 		help_text = (
 			"TCC 1: Anexe ANEXO I e ANEXO II (mínimo 2 PDFs). "
-			"TCC 2: Anexe Declaração de Autoria, Termo de Autorização e TCC Final (mínimo 3 PDFs)."
+			"TCC 2: envie o TCC Final e pelo menos um PDF de Declaração de Autoria ou Termo de Autorização."
 		)
 		
 		uploaded_files = st.file_uploader(

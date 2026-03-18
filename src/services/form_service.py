@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any, Dict, Iterable
 import os
 import tempfile
+import unicodedata
 
 import streamlit as st
 
@@ -55,6 +56,57 @@ def _is_blank(value: Any) -> bool:
     if value is None:
         return True
     return not str(value).strip()
+
+
+def _normalize_filename(value: str) -> str:
+    """Normaliza nomes de arquivo para comparação tolerante a acentos e símbolos."""
+    normalized = unicodedata.normalize("NFKD", value)
+    ascii_only = normalized.encode("ascii", "ignore").decode("ascii")
+    return " ".join(ascii_only.lower().replace("_", " ").replace("-", " ").split())
+
+
+def validate_tcc2_uploaded_files(uploaded_files: Iterable[Any]) -> str | None:
+    """Valida os anexos obrigatórios do TCC 2.
+
+    Aceita dois formatos:
+    - 2 PDFs: TCC Final + um PDF de autorização/autoria
+    - 3 PDFs separados também continuam aceitos
+    """
+    files = list(uploaded_files or [])
+    if len(files) < 2:
+        return (
+            "TCC 2 requer no mínimo 2 arquivos: "
+            "1 PDF com Declaração de Autoria + Termo de Autorização "
+            "(ou esses 2 documentos separados) e 1 PDF do TCC Final."
+        )
+
+    normalized_names = [_normalize_filename(getattr(file, "name", "")) for file in files]
+
+    has_tcc_final = any(
+        ("tcc" in name and "final" in name) or "versao final" in name
+        for name in normalized_names
+    )
+    has_declaracao = any("declaracao" in name and "autoria" in name for name in normalized_names)
+    has_termo = any("termo" in name and "autorizacao" in name for name in normalized_names)
+    has_authorization_doc = has_declaracao or has_termo
+    has_combined_doc = any(
+        "declaracao" in name and "autoria" in name and "termo" in name and "autorizacao" in name
+        for name in normalized_names
+    )
+
+    if len(files) >= 3:
+        return None
+
+    if has_combined_doc and has_tcc_final:
+        return None
+
+    if has_authorization_doc and has_tcc_final:
+        return None
+
+    return (
+        "Para TCC 2, envie o PDF do TCC Final e pelo menos um PDF de "
+        "Declaração de Autoria ou Termo de Autorização."
+    )
 
 
 def process_acc_submission(
@@ -304,11 +356,10 @@ def process_tcc_submission(
 
     # Validar quantidade de arquivos para TCC 2
     componente = form_data.get("componente", "").strip()
-    if componente == "TCC 2" and len(uploaded_files) < 3:
-        raise ValueError(
-            "TCC 2 requer no mínimo 3 arquivos: "
-            "Declaração de Autoria, Termo de Autorização e TCC Final."
-        )
+    if componente == "TCC 2":
+        tcc2_error = validate_tcc2_uploaded_files(uploaded_files)
+        if tcc2_error:
+            raise ValueError(tcc2_error)
 
     sanitized = sanitize_submission(form_data)
     prepared_files = list(prepare_files(uploaded_files))
