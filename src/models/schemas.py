@@ -116,10 +116,23 @@ class AcessoInternet(str, Enum):
     PREFIRO_NAO_RESPONDER = "Prefiro não responder"
 
 
+class Genero(str, Enum):
+    FEMININO = "Feminino"
+    MASCULINO = "Masculino"
+
+
+class PoloSocial(str, Enum):
+    CAMETA = "Cametá"
+    LIMOEIRO = "Limoeiro"
+    OEIRAS = "Oeiras"
+
+
 class DadoSocial(BaseModel):
     """Modelo para um registro individual dos dados sociais."""
     matricula: str = Field(..., description="Matrícula do estudante")
     periodo: str = Field(..., description="Período letivo")
+    genero: Optional[Genero] = Field(None, description="Gênero do estudante")
+    polo: Optional[PoloSocial] = Field(None, description="Polo do estudante")
     cor_etnia: Optional[CorEtnia] = Field(None, description="Cor/Etnia do estudante")
     pcd: Optional[SimNao] = Field(None, description="Pessoa com deficiência")
     tipo_deficiencia: Optional[str] = Field(None, description="Tipo de deficiência (se aplicável)")
@@ -170,6 +183,8 @@ class EstatisticasSociais(BaseModel):
 class FiltrosDadosSociais(BaseModel):
     """Filtros disponíveis para consulta de dados sociais."""
     periodo: Optional[str] = None
+    genero: Optional[Genero] = None
+    polo: Optional[PoloSocial] = None
     cor_etnia: Optional[CorEtnia] = None
     pcd: Optional[SimNao] = None
     renda: Optional[TipoRenda] = None

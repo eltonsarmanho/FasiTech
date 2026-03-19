@@ -17,6 +17,8 @@ from src.models.schemas import (
     FiltrosDadosSociais,
     CorEtnia,
     SimNao,
+    Genero,
+    PoloSocial,
     TipoRenda,
     TipoDeslocamento,
     TipoTrabalho,
@@ -24,7 +26,7 @@ from src.models.schemas import (
     TipoMoradia,
     AcessoInternet
 )
-from api.dependencies import get_auth_dependency
+from api.dependencies import get_auth_dependency, get_raw_social_read_permission
 
 router = APIRouter()
 
@@ -40,6 +42,8 @@ async def get_dados_sociais(
     pagina: int = Query(1, ge=1, description="Número da página (início em 1)"),
     por_pagina: int = Query(20, ge=1, le=100, description="Registros por página (máximo 100)"),
     periodo: Optional[str] = Query(None, description="Filtrar por período letivo"),
+    genero: Optional[Genero] = Query(None, description="Filtrar por gênero"),
+    polo: Optional[PoloSocial] = Query(None, description="Filtrar por polo"),
     cor_etnia: Optional[CorEtnia] = Query(None, description="Filtrar por cor/etnia"),
     pcd: Optional[SimNao] = Query(None, description="Filtrar por PCD"),
     renda: Optional[TipoRenda] = Query(None, description="Filtrar por faixa de renda"),
@@ -74,6 +78,8 @@ async def get_dados_sociais(
         # Criar objeto de filtros
         filtros = FiltrosDadosSociais(
             periodo=periodo,
+            genero=genero,
+            polo=polo,
             cor_etnia=cor_etnia,
             pcd=pcd,
             renda=renda,
@@ -89,13 +95,67 @@ async def get_dados_sociais(
             por_pagina=por_pagina,
             filtros=filtros
         )
-        
+
         return resultado
         
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Erro ao consultar dados sociais: {str(e)}"
+        )
+
+
+@router.get(
+    "/_dev/raw-social-data",
+    response_model=DadosSociaisResponse,
+    summary="Consulta secreta de dados sociais sem anonimização",
+    description="Endpoint reservado para DEV externo consultar dados sociais com matrícula original.",
+    include_in_schema=False
+)
+async def get_dados_sociais_raw_dev(
+    pagina: int = Query(1, ge=1, description="Número da página (início em 1)"),
+    por_pagina: int = Query(20, ge=1, le=100, description="Registros por página (máximo 100)"),
+    periodo: Optional[str] = Query(None, description="Filtrar por período letivo"),
+    genero: Optional[Genero] = Query(None, description="Filtrar por gênero"),
+    polo: Optional[PoloSocial] = Query(None, description="Filtrar por polo"),
+    cor_etnia: Optional[CorEtnia] = Query(None, description="Filtrar por cor/etnia"),
+    pcd: Optional[SimNao] = Query(None, description="Filtrar por PCD"),
+    renda: Optional[TipoRenda] = Query(None, description="Filtrar por faixa de renda"),
+    deslocamento: Optional[TipoDeslocamento] = Query(None, description="Filtrar por meio de deslocamento"),
+    trabalho: Optional[TipoTrabalho] = Query(None, description="Filtrar por situação de trabalho"),
+    assistencia_estudantil: Optional[QualidadeAssistencia] = Query(None, description="Filtrar por assistência estudantil"),
+    tipo_moradia: Optional[TipoMoradia] = Query(None, description="Filtrar por tipo de moradia"),
+    _: None = Depends(get_raw_social_read_permission)
+) -> DadosSociaisResponse:
+    """
+    Endpoint secreto para consulta não anonimizada.
+
+    Requer API key com permissão `read_raw_social`.
+    """
+    try:
+        filtros = FiltrosDadosSociais(
+            periodo=periodo,
+            genero=genero,
+            polo=polo,
+            cor_etnia=cor_etnia,
+            pcd=pcd,
+            renda=renda,
+            deslocamento=deslocamento,
+            trabalho=trabalho,
+            assistencia_estudantil=assistencia_estudantil,
+            tipo_moradia=tipo_moradia
+        )
+
+        return SocialDataService.get_dados_sociais(
+            pagina=pagina,
+            por_pagina=por_pagina,
+            filtros=filtros,
+            anonymize_matricula=False
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao consultar dados sociais brutos: {str(e)}"
         )
 
 
@@ -158,6 +218,8 @@ async def get_opcoes_filtros(
     Dicionário com as opções para cada tipo de filtro.
     """
     return {
+        "genero": [item.value for item in Genero],
+        "polo": [item.value for item in PoloSocial],
         "cor_etnia": [item.value for item in CorEtnia],
         "pcd": [item.value for item in SimNao],
         "renda": [item.value for item in TipoRenda],

@@ -28,6 +28,8 @@ _alerta_schema_lock = threading.Lock()
 _alerta_schema_ready = False
 _forms_schema_lock = threading.Lock()
 _forms_schema_ready = False
+_social_schema_lock = threading.Lock()
+_social_schema_ready = False
 
 
 def _ensure_forms_schema_columns() -> None:
@@ -69,6 +71,42 @@ def _ensure_forms_schema_columns() -> None:
                     )
 
         _forms_schema_ready = True
+
+
+def _ensure_social_schema_columns() -> None:
+    """Garante colunas adicionais da tabela social_submissions."""
+    global _social_schema_ready
+    with _social_schema_lock:
+        if _social_schema_ready:
+            return
+
+        inspector = inspect(engine)
+        existing_tables = set(inspector.get_table_names())
+        if "social_submissions" not in existing_tables:
+            _social_schema_ready = True
+            return
+
+        current_columns = {
+            col["name"] for col in inspector.get_columns("social_submissions")
+        }
+
+        with engine.begin() as conn:
+            if "genero" not in current_columns:
+                conn.execute(
+                    text(
+                        "ALTER TABLE social_submissions "
+                        "ADD COLUMN genero VARCHAR(50)"
+                    )
+                )
+            if "polo" not in current_columns:
+                conn.execute(
+                    text(
+                        "ALTER TABLE social_submissions "
+                        "ADD COLUMN polo VARCHAR(100)"
+                    )
+                )
+
+        _social_schema_ready = True
 
 
 def save_tcc_submission(data: Dict[str, Any]) -> int:
@@ -238,9 +276,13 @@ def save_social_submission(data: Dict[str, Any]) -> int:
     Returns:
         ID da submissão criada
     """
+    _ensure_social_schema_columns()
+
     submission = SocialSubmission(
         matricula=data["matricula"],
         periodo_referencia=data["periodo_referencia"],
+        genero=data.get("genero"),
+        polo=data.get("polo"),
         cor_etnia=data.get("cor_etnia"),
         pcd=data.get("pcd"),
         tipo_deficiencia=data.get("tipo_deficiencia"),

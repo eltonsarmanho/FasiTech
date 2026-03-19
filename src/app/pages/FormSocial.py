@@ -211,6 +211,16 @@ def render_form():
         if matricula and not _validate_matricula(matricula):
             st.warning("A matrícula deve conter exatamente 12 dígitos numéricos.")
 
+        genero = st.radio(
+            "Gênero *",
+            ["Feminino", "Masculino"],
+            horizontal=True,
+        )
+        polo = st.selectbox(
+            "Polo *",
+            ["Cametá", "Limoeiro", "Oeiras"],
+        )
+
         st.markdown('<div class="form-section-title">1. Perfil Pessoal (Inclusão e Diversidade)</div>', unsafe_allow_html=True)
         cor_etnia = st.radio(
             "Qual sua cor ou etnia/identidade racial?",
@@ -418,6 +428,8 @@ def render_form():
                     db_data = {
                         "matricula": matricula.strip(),
                         "periodo_referencia": get_periodo_atual(),
+                        "genero": genero,
+                        "polo": polo,
                         "cor_etnia": cor_etnia,
                         "pcd": pcd,
                         "tipo_deficiencia": ", ".join(tipo_deficiencia) if tipo_deficiencia else "",
@@ -448,6 +460,8 @@ def render_form():
                         subject = "[FASI] Nova resposta no Formulário Social"
                         body = f"""Matrícula: {matricula}
 Período: {get_periodo_atual()}
+Gênero: {genero}
+Polo: {polo}
 Cor/Etnia: {cor_etnia}
 PCD: {pcd}
 Tipo de Deficiência: {", ".join(tipo_deficiencia) if tipo_deficiencia else "N/A"}

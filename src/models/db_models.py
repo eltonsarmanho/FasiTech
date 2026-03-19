@@ -223,7 +223,9 @@ class SocialSubmission(SubmissionBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     matricula: str = Field(max_length=50, index=True)
     periodo_referencia: str = Field(max_length=50)
-    
+    genero: Optional[str] = Field(default=None, max_length=50)
+    polo: Optional[str] = Field(default=None, max_length=100)
+
     # Dados demográficos
     cor_etnia: Optional[str] = Field(default=None, max_length=100)
     pcd: Optional[str] = Field(default=None, max_length=50)
@@ -257,6 +259,8 @@ class SocialSubmission(SubmissionBase, table=True):
             "example": {
                 "matricula": "202276543",
                 "periodo_referencia": "2025.(1 e 2)",
+                "genero": "Feminino",
+                "polo": "Cametá",
                 "cor_etnia": "Pardo",
                 "pcd": "Não",
             }

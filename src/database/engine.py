@@ -78,6 +78,10 @@ def _ensure_additional_columns() -> None:
             "destination_type": "VARCHAR(20) DEFAULT 'docentes'",
             "destination_emails": "TEXT",
         },
+        "social_submissions": {
+            "genero": "VARCHAR(50)",
+            "polo": "VARCHAR(100)",
+        },
     }
     existing_tables = set(inspector.get_table_names())
 

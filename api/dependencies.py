@@ -33,3 +33,15 @@ def get_write_permission(client_info: dict = Depends(require_permission("write")
         Informações do cliente autenticado com permissão de escrita
     """
     return client_info
+
+
+def get_raw_social_read_permission(
+    client_info: dict = Depends(require_permission("read_raw_social"))
+) -> dict:
+    """
+    Dependência que exige permissão para leitura não anonimizada dos dados sociais.
+
+    Returns:
+        Informações do cliente autenticado com permissão sensível
+    """
+    return client_info

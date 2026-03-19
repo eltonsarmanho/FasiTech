@@ -23,6 +23,8 @@ from src.models.schemas import (
     FiltrosDadosSociais,
     CorEtnia,
     SimNao,
+    Genero,
+    PoloSocial,
     TipoRenda,
     TipoDeslocamento,
     TipoTrabalho,
@@ -205,6 +207,8 @@ class SocialDataService:
             column_mapping = {
                 'matricula': 'Matrícula',
                 'periodo_referencia': 'Periodo',
+                'genero': 'Genero',
+                'polo': 'Polo',
                 'cor_etnia': 'Cor/Etnia',
                 'pcd': 'PCD',
                 'tipo_deficiencia': 'Tipo de Deficiência',
@@ -236,16 +240,24 @@ class SocialDataService:
             raise Exception(f"Erro ao acessar banco de dados social_submissions: {e}")
 
     @staticmethod
-    def _convert_to_dado_social(row: pd.Series) -> Optional[DadoSocial]:
+    def _convert_to_dado_social(
+        row: pd.Series,
+        anonymize_matricula: bool = True
+    ) -> Optional[DadoSocial]:
         """Converte uma linha do DataFrame para o modelo DadoSocial."""
         try:
-            # Aplicar hash na matrícula para conformidade com LGPD
             matricula_original = str(row.get('Matrícula', ''))
-            matricula_anonima = hash_matricula(matricula_original)
+            matricula = (
+                hash_matricula(matricula_original)
+                if anonymize_matricula
+                else matricula_original
+            )
             
             return DadoSocial(
-                matricula=matricula_anonima,
+                matricula=matricula,
                 periodo=str(row.get('Periodo', '')),
+                genero=SocialDataService._parse_enum_value(row.get('Genero'), Genero),
+                polo=SocialDataService._parse_enum_value(row.get('Polo'), PoloSocial),
                 cor_etnia=SocialDataService._parse_enum_value(row.get('Cor/Etnia'), CorEtnia),
                 pcd=SocialDataService._parse_enum_value(row.get('PCD'), SimNao),
                 tipo_deficiencia=str(row.get('Tipo de Deficiência', '')) if pd.notna(row.get('Tipo de Deficiência')) else None,
@@ -277,7 +289,13 @@ class SocialDataService:
         
         if filtros.periodo:
             filtered_df = filtered_df[filtered_df['Periodo'] == filtros.periodo]
-        
+
+        if filtros.genero:
+            filtered_df = filtered_df[filtered_df['Genero'] == filtros.genero.value]
+
+        if filtros.polo:
+            filtered_df = filtered_df[filtered_df['Polo'] == filtros.polo.value]
+
         if filtros.cor_etnia:
             filtered_df = filtered_df[filtered_df['Cor/Etnia'] == filtros.cor_etnia.value]
         
@@ -305,7 +323,8 @@ class SocialDataService:
     def get_dados_sociais(
         pagina: int = 1,
         por_pagina: int = 20,
-        filtros: Optional[FiltrosDadosSociais] = None
+        filtros: Optional[FiltrosDadosSociais] = None,
+        anonymize_matricula: bool = True
     ) -> DadosSociaisResponse:
         """
         Obtém dados sociais com paginação e filtros.
@@ -347,7 +366,10 @@ class SocialDataService:
             # Converter para modelos Pydantic
             dados_convertidos = []
             for _, row in dados_pagina.iterrows():
-                dado = SocialDataService._convert_to_dado_social(row)
+                dado = SocialDataService._convert_to_dado_social(
+                    row,
+                    anonymize_matricula=anonymize_matricula
+                )
                 if dado:
                     dados_convertidos.append(dado)
             

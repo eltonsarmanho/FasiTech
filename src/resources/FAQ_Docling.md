@@ -137,6 +137,10 @@ Para resolver essa situação, você tem duas opções:
 1. **Reduzir a carga horária (Recomendado):** Retorne à tela de seleção de turmas e remova uma ou mais disciplinas até que o total de créditos da sua matrícula se enquadre no limite máximo permitido pelo seu currículo.
 2. **Solicitar aumento de limite:** Caso seja estritamente necessário cursar essa quantidade excedente de créditos (por exemplo, para não atrasar a conclusão do curso), você precisará de uma autorização especial. Entre em contato diretamente com Diretor ou Secretário por e-mail ou mensagem.
 
+## 17. Ao tentar me matricular em uma disciplina recebi o alerta "A turma de código XXXX não pode ser solicitada, pois ela é restrita a alunos de outras matrizes curriculares", é possível resolver isto?
+
+Sim. Ao solicitar a matrícula em uma disciplina é importante observar o turno em que está sendo ofertada. O erro ocorre por um estudante do turno matutino está tentando se matricular na disciplina do período vespertino, ou vice-versa. O aluno deve abrir um chamado no sagitta solicitando a reserva de vaga para a disciplina que deseja cursar para que a secretaria possa registrar (quando houver vaga disponível) e então no ajuste de matrícula o aluno poderá se matricular. 
+
 ## Cronograma Acadêmico UFPA - Ano 2026
 
 Abaixo, as ações do cronograma acadêmico estão listadas por período letivo, seguidas dos responsáveis e seus respectivos prazos.

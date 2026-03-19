@@ -35,6 +35,25 @@ def load_api_keys_from_env():
                     "permissions": ["read"]
                 }
 
+    dev_raw_keys = os.getenv("FASITECH_DEV_RAW_API_KEYS", "")
+    if dev_raw_keys:
+        for key_pair in dev_raw_keys.split(","):
+            if ":" in key_pair:
+                key, name = key_pair.split(":", 1)
+                key_hash = hashlib.sha256(key.strip().encode()).hexdigest()
+                VALID_API_KEYS[key_hash] = {
+                    "name": name.strip(),
+                    "permissions": ["read", "read_raw_social"]
+                }
+
+    dev_raw_single = os.getenv("FASITECH_DEV_EXTERNAL_API_KEY", "").strip()
+    if dev_raw_single:
+        key_hash = hashlib.sha256(dev_raw_single.encode()).hexdigest()
+        VALID_API_KEYS[key_hash] = {
+            "name": "External DEV Raw Social Access",
+            "permissions": ["read", "read_raw_social"]
+        }
+
 # Carregar keys do ambiente na inicialização
 load_api_keys_from_env()
 
