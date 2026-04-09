@@ -31,6 +31,37 @@ from api.dependencies import get_auth_dependency, get_raw_social_read_permission
 router = APIRouter()
 
 
+def _build_social_download_rows(dados):
+    """Monta as linhas exportadas de forma consistente para CSV e Excel."""
+    rows = []
+    for item in dados:
+        rows.append({
+            'ID_Anonimo': item.matricula,  # Campo anonimizado para LGPD
+            'Período': item.periodo,
+            'Genero': item.genero.value if item.genero else '',
+            'Polo': item.polo.value if item.polo else '',
+            'Cor/Etnia': item.cor_etnia.value if item.cor_etnia else '',
+            'PCD': item.pcd.value if item.pcd else '',
+            'Tipo de Deficiência': item.tipo_deficiencia or '',
+            'Renda': item.renda.value if item.renda else '',
+            'Deslocamento': item.deslocamento.value if item.deslocamento else '',
+            'Trabalho': item.trabalho.value if item.trabalho else '',
+            'Assistência Estudantil': item.assistencia_estudantil.value if item.assistencia_estudantil else '',
+            'Gasto Internet': item.gasto_internet.value if item.gasto_internet else '',
+            'Saúde Mental': item.saude_mental.value if item.saude_mental else '',
+            'Estresse': item.estresse.value if item.estresse else '',
+            'Acompanhamento': item.acompanhamento or '',
+            'Escolaridade Pai': item.escolaridade_pai.value if item.escolaridade_pai else '',
+            'Escolaridade Mãe': item.escolaridade_mae.value if item.escolaridade_mae else '',
+            'Qtd Computador': item.qtd_computador or 0,
+            'Qtd Celular': item.qtd_celular or 0,
+            'Computador Próprio': item.computador_proprio.value if item.computador_proprio else '',
+            'Acesso Internet': item.acesso_internet.value if item.acesso_internet else '',
+            'Tipo Moradia': item.tipo_moradia.value if item.tipo_moradia else ''
+        })
+    return rows
+
+
 @router.get(
     "/dados-sociais",
     response_model=DadosSociaisResponse,
@@ -382,33 +413,7 @@ async def download_dados_csv():
                 detail="Nenhum dado social encontrado"
             )
         
-        # Converter para DataFrame (removido Data/Hora)
-        dados_dict = []
-        for item in resultado.dados:
-            dados_dict.append({
-                'ID_Anonimo': item.matricula,  # Campo anonimizado para LGPD
-                'Período': item.periodo,
-                'Cor/Etnia': item.cor_etnia.value if item.cor_etnia else '',
-                'PCD': item.pcd.value if item.pcd else '',
-                'Tipo de Deficiência': item.tipo_deficiencia or '',
-                'Renda': item.renda.value if item.renda else '',
-                'Deslocamento': item.deslocamento.value if item.deslocamento else '',
-                'Trabalho': item.trabalho.value if item.trabalho else '',
-                'Assistência Estudantil': item.assistencia_estudantil.value if item.assistencia_estudantil else '',
-                'Gasto Internet': item.gasto_internet.value if item.gasto_internet else '',
-                'Saúde Mental': item.saude_mental.value if item.saude_mental else '',
-                'Estresse': item.estresse.value if item.estresse else '',
-                'Acompanhamento': item.acompanhamento or '',
-                'Escolaridade Pai': item.escolaridade_pai.value if item.escolaridade_pai else '',
-                'Escolaridade Mãe': item.escolaridade_mae.value if item.escolaridade_mae else '',
-                'Qtd Computador': item.qtd_computador or 0,
-                'Qtd Celular': item.qtd_celular or 0,
-                'Computador Próprio': item.computador_proprio.value if item.computador_proprio else '',
-                'Acesso Internet': item.acesso_internet.value if item.acesso_internet else '',
-                'Tipo Moradia': item.tipo_moradia.value if item.tipo_moradia else ''
-            })
-        
-        df = pd.DataFrame(dados_dict)
+        df = pd.DataFrame(_build_social_download_rows(resultado.dados))
         
         # Criar arquivo CSV em memória
         output = io.StringIO()
@@ -477,33 +482,7 @@ async def download_dados_excel():
                 detail="Nenhum dado social encontrado"
             )
         
-        # Converter para DataFrame (removido Data/Hora)
-        dados_dict = []
-        for item in resultado.dados:
-            dados_dict.append({
-                'ID_Anonimo': item.matricula,  # Campo anonimizado para LGPD
-                'Período': item.periodo,
-                'Cor/Etnia': item.cor_etnia.value if item.cor_etnia else '',
-                'PCD': item.pcd.value if item.pcd else '',
-                'Tipo de Deficiência': item.tipo_deficiencia or '',
-                'Renda': item.renda.value if item.renda else '',
-                'Deslocamento': item.deslocamento.value if item.deslocamento else '',
-                'Trabalho': item.trabalho.value if item.trabalho else '',
-                'Assistência Estudantil': item.assistencia_estudantil.value if item.assistencia_estudantil else '',
-                'Gasto Internet': item.gasto_internet.value if item.gasto_internet else '',
-                'Saúde Mental': item.saude_mental.value if item.saude_mental else '',
-                'Estresse': item.estresse.value if item.estresse else '',
-                'Acompanhamento': item.acompanhamento or '',
-                'Escolaridade Pai': item.escolaridade_pai.value if item.escolaridade_pai else '',
-                'Escolaridade Mãe': item.escolaridade_mae.value if item.escolaridade_mae else '',
-                'Qtd Computador': item.qtd_computador or 0,
-                'Qtd Celular': item.qtd_celular or 0,
-                'Computador Próprio': item.computador_proprio.value if item.computador_proprio else '',
-                'Acesso Internet': item.acesso_internet.value if item.acesso_internet else '',
-                'Tipo Moradia': item.tipo_moradia.value if item.tipo_moradia else ''
-            })
-        
-        df = pd.DataFrame(dados_dict)
+        df = pd.DataFrame(_build_social_download_rows(resultado.dados))
         
         # Criar arquivo Excel em memória
         output = io.BytesIO()
