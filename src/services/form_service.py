@@ -51,6 +51,22 @@ def _coerce_recipients(recipients: Iterable[str] | str | None) -> list[str]:
     return [email.strip() for email in recipients if email.strip()]
 
 
+def _parse_name_email_map(raw_value: str | None) -> dict[str, str]:
+    parsed: dict[str, str] = {}
+    if not raw_value:
+        return parsed
+
+    for item in raw_value.split(","):
+        if ":" not in item:
+            continue
+        name, email = item.split(":", 1)
+        name = name.strip()
+        email = email.strip()
+        if name and email:
+            parsed[name] = email
+    return parsed
+
+
 def _is_blank(value: Any) -> bool:
     """Retorna True para valores ausentes/vazios usados em validação."""
     if value is None:
@@ -63,6 +79,23 @@ def _normalize_filename(value: str) -> str:
     normalized = unicodedata.normalize("NFKD", value)
     ascii_only = normalized.encode("ascii", "ignore").decode("ascii")
     return " ".join(ascii_only.lower().replace("_", " ").replace("-", " ").split())
+
+
+def _normalize_person_name(value: str) -> str:
+    normalized = unicodedata.normalize("NFKD", value)
+    ascii_only = normalized.encode("ascii", "ignore").decode("ascii")
+    return " ".join(ascii_only.casefold().split())
+
+
+def _find_email_by_name(name: str, name_email_map: dict[str, str]) -> str | None:
+    if name in name_email_map:
+        return name_email_map[name]
+
+    normalized_name = _normalize_person_name(name)
+    for mapped_name, email in name_email_map.items():
+        if _normalize_person_name(mapped_name) == normalized_name:
+            return email
+    return None
 
 
 def validate_tcc2_uploaded_files(uploaded_files: Iterable[Any]) -> str | None:
@@ -783,15 +816,8 @@ def process_projetos_submission(
         st.secrets["projetos"].get("notification_recipients", [])
     )
     pareceristas_str = st.secrets["projetos"].get("pareceristas", "")
-    
-    # Parse do dicionário de pareceristas
-    pareceristas_dict = {}
-    if pareceristas_str:
-        pares = pareceristas_str.split(",")
-        for par in pares:
-            if ":" in par:
-                nome, email = par.split(":", 1)
-                pareceristas_dict[nome.strip()] = email.strip()
+    pareceristas_dict = _parse_name_email_map(pareceristas_str)
+    pareceristas_dict.update(_parse_name_email_map(os.getenv("PARECERISTAS", "")))
     
     # ===============================================
     # GERAR PDFs: Parecer e Declaração (exceto para Encerramento)
@@ -929,17 +955,17 @@ def process_projetos_submission(
     recipients = list(notification_recipients)
     
     # Adicionar email do docente se disponível
-    docente_email = pareceristas_dict.get(form_data["docente"])
+    docente_email = _find_email_by_name(form_data["docente"], pareceristas_dict)
     if docente_email and docente_email not in recipients:
         recipients.append(docente_email)
     
     # Adicionar email do Parecerista 1 se disponível
-    parecerista1_email = pareceristas_dict.get(form_data["parecerista1"])
+    parecerista1_email = _find_email_by_name(form_data["parecerista1"], pareceristas_dict)
     if parecerista1_email and parecerista1_email not in recipients:
         recipients.append(parecerista1_email)
     
     # Adicionar email do Parecerista 2 se disponível
-    parecerista2_email = pareceristas_dict.get(form_data["parecerista2"])
+    parecerista2_email = _find_email_by_name(form_data["parecerista2"], pareceristas_dict)
     if parecerista2_email and parecerista2_email not in recipients:
         recipients.append(parecerista2_email)
     
