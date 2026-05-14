@@ -1,486 +1,351 @@
-# FasiTech Forms Platform
+# FasiTech — Portal Acadêmico FASI/UFPA
 
-Solução moderna de formulários web com Streamlit (frontend) e FastAPI (backend), rodando em VM Linux com integrações para Google Drive, Google Sheets e envio de e-mails. Sistema completo com LGPD, download seguro de dados e API REST documentada. 
+Portal acadêmico moderno com React SPA (frontend) e FastAPI BFF (backend), rodando em VM Linux com integrações para Google Drive, Google Sheets e envio de e-mails. Sistema completo com LGPD, download seguro de dados e API REST documentada.
 
 ## 🚦 Camadas do Sistema
 
-- **Frontend:** Streamlit (UX institucional, formulários, navegação)
-- **Backend:** FastAPI (API REST, webhooks, download seguro, LGPD)
-- **Banco de Dados:** PostgreSQL (persistência, consultas, relatórios)
+- **Frontend:** React SPA (Vite + TypeScript + Tailwind, React Router, TanStack Query)
+- **Backend:** FastAPI — BFF (Clean Architecture, API REST, autenticação, LGPD)
+- **Banco de Dados:** SQLite em produção (SQLModel/SQLAlchemy)
 - **Proxy:** Nginx (HTTPS, roteamento, SSL Let's Encrypt)
 - **Armazenamento:** Google Drive, Google Sheets
-- **Notificações:** E-mail institucional
+- **Notificações:** E-mail institucional (SMTP)
+- **IA / RAG:** Gemini 2.0 Flash (LLM) + Ollama nomic-embed-text (embeddings) + LanceDB
 
 ## 🛡️ LGPD & Segurança de Dados
 
 - ✅ **Download seguro** de dados sociais via API FastAPI
 - ✅ **Anonimização** dos dados para pesquisa
-- ✅ **Controle de acesso** por ambiente (dev/prod)
+- ✅ **Controle de acesso** por chave de API (admin)
 - ✅ **Armazenamento seguro** no Google Drive institucional
 - ✅ **Conformidade LGPD**: Dados sensíveis nunca expostos publicamente
-- ✅ **Logs e auditoria** de acessos e downloads
 
 ## 🎯 Funcionalidades
 
-- ✅ **Portal centralizado** com múltiplos formulários
-- ✅ **Formulário ACC** para atividades complementares curriculares
-- ✅ **Formulário TCC** para submissão de trabalhos finais
-- ✅ **Formulário Requerimento TCC** para registro de defesa
+- ✅ **Portal centralizado** com SPA React e navegação por rotas
+- ✅ **Formulário ACC** para atividades complementares curriculares (com análise por IA em background)
+- ✅ **Formulário TCC** para submissão de TCC 1 e TCC 2
+- ✅ **Formulário Requerimento TCC** para registro de banca e defesa
 - ✅ **Formulário Estágio** para envio de documentos de estágio
-- ✅ **Formulário Plano de Ensino** aceita qualquer tipo de arquivo (PDF, DOC, DOCX, ODT, imagens, etc)
+- ✅ **Formulário Plano de Ensino** aceita PDF, DOC, DOCX, ODT e imagens
 - ✅ **Formulário Projetos** para submissão de projetos de ensino, pesquisa e extensão
 - ✅ **Formulário Social** para coleta de dados socioeconômicos dos estudantes
-- ✅ **Consulta de Projetos Docentes** visualização e análise de projetos submetidos com filtros e métricas
-- ✅ **Ofertas de Disciplinas** para consulta de grades curriculares e ofertas por período/turma
-- ✅ **FAQ** página de perguntas frequentes e suporte
-- ✅ **Diretor Virtual (RAG)** chatbot inteligente com busca semântica em documentos PPC
-- ✅ **Banco de dados PostgreSQL** para persistência e consulta de dados estruturados
-- ✅ **Upload seguro** de arquivos ao Google Drive
-- ✅ **Registro automático** em Google Sheets e banco de dados
-- ✅ **Notificações por e-mail** para coordenação
-- ✅ **UX moderna** com design responsivo e identidade visual institucional
+- ✅ **Emissão de Documentos** comprovante de conclusão e matrícula ativa (valida histórico SIGAA)
+- ✅ **Avaliação de Gestão** pesquisa de satisfação anônima
+- ✅ **Consulta de Projetos Docentes** visualização com filtros e métricas
+- ✅ **Ofertas de Disciplinas** grades por período/turma
+- ✅ **Diretor Virtual (RAG)** chatbot inteligente com busca semântica em documentos institucionais
+- ✅ **Dados Sociais** download CSV/Excel anonimizado (LGPD)
+- ✅ **Upload seguro** de arquivos ao Google Drive com estrutura hierárquica de pastas
+- ✅ **Notificações por e-mail** para coordenação e estudantes
 
-## 📁 Estrutura principal
+## 📁 Estrutura Principal
 
 ```text
-├── .streamlit/         # Configurações do Streamlit (tema, secrets)
-├── config/             # Configurações por ambiente (dev/prod)
-├── src/
-│   ├── app/
-│   │   ├── main.py     # Página principal com links para formulários
-│   │   └── pages/      # Páginas individuais:
-│   │       ├── FormACC.py              # Formulário ACC
-│   │       ├── FormTCC.py              # Formulário TCC
-│   │       ├── FormRequerimentoTCC.py  # Requerimento TCC
-│   │       ├── FormEstagio.py          # Formulário Estágio
-│   │       ├── FormPlanoEnsino.py      # Formulário Plano de Ensino
-│   │       ├── FormProjetos.py         # Formulário Projetos
-│   │       ├── FormSocial.py           # Formulário Social
-│   │       ├── PageDataDocentesProjetos.py # Consulta de Projetos Docentes
-│   │       ├── OfertasDisciplinas.py   # Ofertas de Disciplinas
-│   │       ├── PageDiretorVirtual.py   # Diretor Virtual (RAG Chatbot)
-│   │       └── FAQ.py                  # Página FAQ
-│   ├── services/       # Lógica de negócio (Drive, Sheets, Email, RAG)
-│   │   ├── form_service.py             # Processamento de formulários
-│   │   ├── google_drive.py             # Upload para Google Drive
-│   │   ├── google_sheets.py            # Integração Google Sheets
-│   │   ├── email_service.py            # Envio de e-mails
-│   │   ├── rag_ppc.py                  # Serviço RAG para Diretor Virtual
-│   │   └── acc_processor.py            # Processamento ACC específico
-│   ├── database/       # Camada de banco de dados
-│   │   ├── engine.py                   # Engine SQLModel e sessões
-│   │   └── repository.py               # Repositórios e consultas
-│   ├── models/         # Schemas Pydantic e modelos SQLModel
-│   └── utils/          # Utilitários (validadores, criptografia)
-├── api/                # Backend FastAPI (opcional)
-├── credentials/        # Credenciais Google divididas por ambiente
-├── docker/             # Arquivos de containerização
-├── scripts/            # Scripts de deploy e automação
-└── tests/              # Suite de testes
+├── backend/                    # FastAPI — BFF (Clean Architecture)
+│   ├── config/
+│   │   └── settings.py         # Configurações via variáveis de ambiente (Pydantic)
+│   ├── infrastructure/
+│   │   ├── database/           # SQLModel: engine, repositórios, schemas
+│   │   ├── documents/          # Emissão de documentos, assinatura digital
+│   │   ├── email/              # Serviço de e-mail SMTP
+│   │   ├── file_processing/    # Validação e preparação de arquivos
+│   │   ├── google/             # Drive e Sheets
+│   │   ├── rag/                # Serviço RAG (LanceDB + Gemini + Ollama)
+│   │   ├── scheduler/          # APScheduler — alertas automáticos
+│   │   └── sigaa/              # Integração SIGAA (lançamentos)
+│   ├── presentation/
+│   │   ├── api/v1/
+│   │   │   ├── forms/          # Endpoints de submissão de formulários
+│   │   │   ├── data/           # Endpoints de consulta de dados
+│   │   │   ├── rag/            # Endpoint Diretor Virtual
+│   │   │   ├── ofertas/        # Endpoint Ofertas de Disciplinas
+│   │   │   └── config.py       # Config pública (períodos letivos)
+│   │   ├── admin/              # Endpoints admin (alertas, lançamentos)
+│   │   ├── dependencies.py     # Autenticação por API key
+│   │   └── main.py             # App FastAPI + CORS + routers
+│   └── utils/                  # PDFGenerator, datetime, credenciais
+├── frontend/                   # React SPA (Vite + TypeScript)
+│   ├── src/
+│   │   ├── features/           # Páginas por funcionalidade
+│   │   │   ├── home/           # HomePage com cards de formulários
+│   │   │   ├── form-acc/       # Formulário ACC
+│   │   │   ├── form-tcc/       # Formulário TCC
+│   │   │   ├── form-estagio/   # Formulário Estágio
+│   │   │   ├── form-requerimento-tcc/
+│   │   │   ├── form-plano-ensino/
+│   │   │   ├── form-projetos/
+│   │   │   ├── form-social/
+│   │   │   ├── form-emissao-docs/
+│   │   │   ├── avaliacao-gestao/
+│   │   │   ├── diretor-virtual/ # ChatWidget flutuante
+│   │   │   ├── documentos/     # Consulta projetos e ofertas
+│   │   │   └── admin/          # Painel admin
+│   │   └── shared/             # Componentes, lib, hooks reutilizáveis
+│   ├── Dockerfile.frontend
+│   └── vite.config.ts
+├── resources/                  # Documentos do RAG (.md) e certificado PFX
+├── credentials/                # Credenciais Google (base64, fora do git)
+├── config/                     # Configs por ambiente
+├── docker/
+│   └── nginx/nginx.conf        # Proxy reverso com timeouts para IA
+├── docker-compose.production.yml
+├── docker-compose.productionUFPA.yml
+└── .env.production             # Variáveis de produção (na VM, fora do git)
 ```
 
-## 📝 Formulários e páginas disponíveis
+## 📝 Formulários e Páginas
 
-- **Formulário ACC**: Upload de certificados consolidados (PDF único, máx 10MB)
-- **Formulário TCC**: Submissão de documentos obrigatórios do TCC 1/2
-- **Formulário Requerimento TCC**: Registro de banca e dados para defesa
-- **Formulário Estágio**: Envio de plano e relatório de estágio
-- **Formulário Plano de Ensino**: Aceita qualquer tipo de arquivo (PDF, DOC, DOCX, ODT, imagens, etc)
-- **Formulário Projetos**: Submissão de projetos de ensino, pesquisa e extensão
-- **Formulário Social**: Coleta de dados socioeconômicos dos estudantes
-- **Consulta de Projetos Docentes**: Visualização de projetos submetidos com filtros por docente e natureza, métricas em tempo real
-- **Ofertas de Disciplinas**: Consulta de grades curriculares e ofertas por período/turma com visualização colorida por turma
-- **FAQ**: Página de perguntas frequentes e suporte aos usuários
+| Rota | Funcionalidade |
+|------|----------------|
+| `/` | Portal principal |
+| `/acc` | Formulário ACC |
+| `/tcc` | Formulário TCC 1/2 |
+| `/estagio` | Formulário Estágio |
+| `/requerimento-tcc` | Requerimento de banca |
+| `/plano-ensino` | Plano de Ensino |
+| `/projetos` | Submissão de Projetos |
+| `/social` | Dados Socioeconômicos |
+| `/emissao-documentos` | Emissão de Comprovantes |
+| `/avaliacao-gestao` | Avaliação de Gestão |
+| `/documentos` | Consulta de Projetos Docentes |
+| `/ofertas` | Ofertas de Disciplinas |
 
-## 🤖 Módulo Diretor Virtual (RAG - Retrieval Augmented Generation)
+O **Diretor Virtual** é um widget flutuante presente em todas as páginas.
 
-O **Diretor Virtual** é um chatbot inteligente powered by IA que responde perguntas sobre informações do Projeto Pedagógico do Curso (PPC) usando Retrieval Augmented Generation (RAG).
+## 🤖 Diretor Virtual (RAG)
 
-### Características
-
-- ✅ **Busca Semântica**: Encontra respostas relevantes em documentos PDF usando embeddings vetoriais
-- ✅ **Modelo IA Avançado**: Google Gemini 2.5-flash para respostas contextualizadas e precisas
-- ✅ **Embeddings Locais**: Ollama com modelo nomic-embed-text (768 dimensões) - funciona offline
-- ✅ **Sugestões Inteligentes**: Oferece sugestões de perguntas frequentes
-- ✅ **Histórico de Conversa**: Mantém contexto entre múltiplas perguntas
-- ✅ **Multi-Documento**: Suporta múltiplos PDFs na base de conhecimento
-- ✅ **Cache Persistente**: LanceDB para indexação rápida e persistente de documentos
+Chatbot inteligente que responde perguntas sobre regulamentos, TCC, ACC, estágio e PPC do curso usando Retrieval-Augmented Generation.
 
 ### Arquitetura RAG
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│           Pergunta do Usuário (Texto)                    │
-└──────────────────┬──────────────────────────────────────┘
-                   │
-        ┌──────────▼─────────┐
-        │  Ollama Embedder   │  (768-dim vetores)
-        │(nomic-embed-text)  │
-        └──────────┬─────────┘
-                   │
-        ┌──────────▼──────────────┐
-        │  LanceDB Vector Search  │
-        │  (Recuperação de docs)  │
-        └──────────┬──────────────┘
-                   │
-        ┌──────────▼──────────────────────┐
-        │  Google Gemini 2.5-flash (IA)   │
-        │  Gera resposta contextualizada   │
-        └──────────┬──────────────────────┘
-                   │
-┌──────────────────▼──────────────────────────────────┐
-│     Resposta Inteligente com Fonte de Dados        │
-└──────────────────────────────────────────────────────┘
+Pergunta do usuário
+        │
+  OllamaEmbedder          ← nomic-embed-text:latest (local, 768-dim)
+  (vetorização)
+        │
+  LanceDB Vector Search   ← busca semântica + keyword nos documentos
+  (recuperação de contexto)
+        │
+  Gemini 2.0 Flash        ← LLM via Google API (rápido, ~2–5s)
+  (geração da resposta)
+        │
+  Resposta ao usuário
 ```
 
-### Documentos Suportados
+### Documentos Indexados
 
-Os seguintes documentos podem ser adicionados ao Diretor Virtual:
+Todos os arquivos `.md` em `resources/` são automaticamente indexados:
 
-- **PPC.pdf**: Projeto Pedagógico do Curso (padrão)
-- Qualquer outro PDF em `src/resources/` será automaticamente indexado
+- `FAQ_Docling.md`
+- `Regimento_Interno_Docling.md`
+- `Resolução ACC FASI 2024_Docling.md`
+- `Resolução Estágio 2024.md`
+- `TCC_Docling.md`
 
-### Como Usar
+Para adicionar um novo documento: coloque o arquivo `.md` em `resources/` e reinicie o container da API (a reindexação ocorre automaticamente na inicialização se detectar mudanças).
 
-#### No Frontend (Streamlit)
+### API do Diretor Virtual
 
-```python
-# A página PageDiretorVirtual é acessível via main.py
-# Interface intuitiva com:
-# - Campo de entrada para perguntas
-# - Botões de sugestões rápidas
-# - Histórico de conversas
-# - Display de resposta com fontes citadas
+```
+POST /api/v1/diretor-virtual/chat
+Content-Type: application/json
+
+{ "mensagem": "Qual a carga horária do Estágio?" }
+
+→ { "resposta": "...", "fontes": [] }
 ```
 
-#### Como Adicionar Documentos
+Sem autenticação. Documentação completa em `https://www.fasitech.com.br/docs`.
 
-**Método 1: Script CLI (Recomendado)**
+### Variáveis de ambiente relevantes
+
+```env
+OLLAMA_HOST=http://172.18.0.1:11434   # Ollama no host (Docker bridge)
+GOOGLE_API_KEY=...                     # Gemini API key
+GEMINI_MODEL=gemini-2.0-flash          # Modelo padrão (override opcional)
+RAG_DOCUMENTS_DIR=/app/resources       # Caminho dos documentos no container
+```
+
+## 🚀 Desenvolvimento Local
+
+### Backend (FastAPI)
 
 ```bash
-# Listar documentos atuais
-python scripts/add_documents_to_rag.py --list
-
-# Adicionar novo documento
-python scripts/add_documents_to_rag.py --add /caminho/para/novo_documento.pdf
-
-# Limpar cache de indexação (força reprocessamento)
-python scripts/add_documents_to_rag.py --clear
-```
-
-**Método 2: Manual**
-
-1. Copie seu PDF para `src/resources/`
-2. Reinicie a aplicação
-3. O documento será automaticamente indexado
-
-**Método 3: Em Produção**
-
-```bash
-# SSH para o servidor
-ssh root@IP_VM
-
-# Copie o documento para o container
-docker compose -f docker-compose.production.yml cp seu_documento.pdf streamlit:/app/src/resources/
-
-# Restart para reindexar
-docker compose -f docker-compose.production.yml restart streamlit
-```
-
-### Gerenciamento de Documentos
-
-Para gerenciar os documentos indexados, consulte [RAG_DOCUMENT_MANAGEMENT.md](./RAG_DOCUMENT_MANAGEMENT.md) que contém:
-
-- Métodos detalhados de adição/remoção de documentos
-- Troubleshooting de problemas de indexação
-- Monitoramento de status da base de conhecimento
-- Best practices para otimização
-
-### Estrutura do Serviço
-
-```python
-# src/services/rag_ppc.py
-from src.services.rag_ppc import PPCChatbotService
-
-# Inicializar serviço
-service = PPCChatbotService()
-
-# Fazer uma pergunta
-resposta = service.answer_question("Qual é o objetivo do curso?")
-print(resposta)
-
-# Verificar status
-status = service.get_status()
-print(f"Documentos indexados: {len(status['document_files'])}")
-```
-
-### Dependências
-
-- `agno` (v2.2.10+): Framework RAG
-- `google-generativeai`: Gemini API
-- `lancedb` (v0.25.3+): Vector database
-- `ollama`: Embeddings locais
-- `streamlit`: Frontend
-
-### Troubleshooting
-
-| Problema | Solução |
-|----------|---------|
-| "Embedding service not available" | Verifique se Ollama está rodando: `curl http://localhost:11434` |
-| Resposta genérica | Adicione mais documentos ao RAG |
-| Cache desatualizado | Execute `python scripts/add_documents_to_rag.py --clear` |
-| Lentidão em indexação | Reduza tamanho dos PDFs ou processe em background |
-
-## 🚀 Primeiros passos
-
-### 1. Instale as dependências
-
-```bash
-python -m venv .venv
-source .venv/bin/activate  # No Windows: .venv\Scripts\activate
+python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
+
+# Variáveis de ambiente
+cp .env.example .env   # edite com suas credenciais
+
+export PYTHONPATH=$(pwd)
+uvicorn backend.presentation.main:app --reload --port 8000
 ```
 
-> **Novas dependências:**
-> - `openpyxl` (exportação Excel)
-> - `pandas` (manipulação de dados)
+Swagger disponível em `http://localhost:8000/docs`.
 
-### 2. Configure os secrets do Streamlit
-
-O arquivo `.streamlit/secrets.toml` já foi criado com valores padrão. Edite-o conforme necessário:
+### Frontend (React)
 
 ```bash
-# Edite o arquivo com suas credenciais reais
-nano .streamlit/secrets.toml
+cd frontend
+npm install
+npm run dev   # http://localhost:5173
 ```
 
-Estrutura do arquivo:
-
-```toml
-[acc]
-drive_folder_id = "seu-folder-id-do-google-drive"
-sheet_id = "seu-spreadsheet-id"
-notification_recipients = ["coordenacao@fasitech.edu.br"]
-```
-
-> **Nota:** O arquivo `secrets.toml` está no `.gitignore` e não será commitado ao repositório.
-
-### 3. Adicione credenciais do Google
-
-Coloque o arquivo JSON da conta de serviço do Google em:
-- `credentials/dev/service-account-dev.json` (desenvolvimento)
-- `credentials/prod/service-account-prod.json` (produção)
-
-### 4. Execute a aplicação
-
-**Opção A: Usando o script de inicialização (Recomendado)**
-
-```bash
-# Torna o script executável (apenas na primeira vez)
-chmod +x scripts/start.sh
-
-# Execute
-./scripts/start.sh
-```
-
-**Opção B: Manualmente**
-
-```bash
-# Configure o PYTHONPATH e execute
-export PYTHONPATH="${PWD}:${PYTHONPATH}"
-streamlit run src/app/main.py
-```
-
-A aplicação estará disponível em `http://localhost:8501`
-
-### 5. Execute o backend FastAPI
-
-```bash
-uvicorn api.main:app --host 0.0.0.0 --port 8000
-```
-
-Acesse a documentação da API em:
-- `https://www.fasitech.com.br/api/docs` (Swagger UI)
-- Endpoints de download: `https://www.fasitech.com.br/api/v1/dados-sociais/download`
-
-## 🧪 Testes
-
-```bash
-pytest
-```
+O Vite está configurado com proxy: chamadas para `/api/` são encaminhadas para `http://localhost:8000`.
 
 ## 🐳 Docker & Deploy
 
-### Desenvolvimento
-```bash
-cd docker
-docker-compose up
-```
-
 ### Produção
-```bash
-# Sincronize o código
-rsync -avz --progress --exclude 'venv/' --exclude '.git/' --exclude '__pycache__/' \
-    -e "ssh" /home/nees/Documents/VSCodigo/FasiTech/ root@IP_VM:/home/ubuntu/appStreamLit
 
-# Rebuild completo
-ssh root@IP_VM
-cd /home/ubuntu/appStreamLit/
-sudo docker-compose -f docker-compose.production.yml up -d --build
+```bash
+# 1. Sincronizar código para a VM (sem .env)
+rsync -avz --exclude '.env*' --exclude 'node_modules/' --exclude '.git/' \
+  /caminho/local/FasiTech/ root@IP_VM:/home/ubuntu/appStreamLit/
+
+# 2. Na VM — rebuild e restart
+cd /home/ubuntu/appStreamLit
+docker compose -f docker-compose.production.yml build
+docker compose -f docker-compose.production.yml up -d
 ```
 
-### Atualização rápida
+### Atualização rápida (sem rebuild)
+
 ```bash
-# Após alterações em código Python
-sudo docker-compose -f docker-compose.production.yml restart streamlit api
+# Copiar arquivo alterado direto para o container
+docker cp backend/infrastructure/rag/rag_ppc.py fasitech-api-prod:/app/backend/infrastructure/rag/rag_ppc.py
+
+# Reiniciar container
+docker restart fasitech-api-prod
 ```
+
+### Containers em produção
+
+| Container | Imagem | Função |
+|-----------|--------|--------|
+| `fasitech-api-prod` | `fasitech-bff:latest` | FastAPI BFF (:8000) |
+| `fasitech-frontend-prod` | `fasitech-spa:latest` | React SPA servida por nginx (:80) |
+| `fasitech-nginx-prod` | `nginx:alpine` | Proxy reverso HTTPS (:80/:443) |
+| `dashboard_api` | `dashboard-api` | Dashboard separado — não remover |
+| `dashboard_frontend` | `dashboard-frontend` | Dashboard separado — não remover |
+| `dashboard_nginx` | `nginx:alpine` | Dashboard separado — não remover |
+
+## 📡 Endpoints Disponíveis
+
+### Frontend
+- `https://www.fasitech.com.br/` — Portal principal (React SPA)
+- `https://www.fasitech.com.br/docs` — Swagger UI (FastAPI)
+- `https://www.fasitech.com.br/redoc` — ReDoc
+
+### API REST
+- `GET  /health` — Health check
+- `GET  /api/v1/config/periodos-letivos` — Períodos disponíveis
+- `POST /api/v1/forms/acc` — Submissão ACC
+- `POST /api/v1/forms/tcc` — Submissão TCC
+- `POST /api/v1/forms/estagio` — Submissão Estágio
+- `POST /api/v1/forms/requerimento-tcc` — Requerimento de banca
+- `POST /api/v1/forms/plano-ensino` — Plano de Ensino
+- `POST /api/v1/forms/projetos` — Projetos
+- `POST /api/v1/forms/social` — Dados sociais
+- `POST /api/v1/forms/emissao-documentos` — Emissão de comprovantes
+- `POST /api/v1/diretor-virtual/chat` — Chatbot RAG
+- `GET  /api/v1/dados-sociais/download` — Portal de download (HTML)
+- `GET  /api/v1/dados-sociais/download/csv` — CSV anonimizado
+- `GET  /api/v1/dados-sociais/download/excel` — Excel anonimizado
+- `GET  /api/v1/requerimento-tcc` — Listagem de requerimentos (admin)
+- `GET  /api/v1/projetos` — Listagem de projetos (admin)
 
 ## 🧩 Arquitetura do Sistema
 
 ```mermaid
 flowchart TB
-    %% Camada do Usuário
-    User["👤 Usuário<br/>Docente/Aluno"]
-    
-    %% Internet & HTTPS
-    Internet["🌐 Internet<br/>https://www.fasitech.com.br"]
-    
-    %% VM Linux
-    subgraph VM["🖥️ VM Linux<br/>Server"]
-        %% Nginx Proxy
-        Nginx["🔐 Nginx<br/>Proxy Reverso<br/>:80 → :443<br/>SSL/TLS"]
-        
-        %% Containers Docker
-        subgraph Containers["� Docker Containers"]
-            direction LR
-            Streamlit["🎨 Streamlit<br/>Frontend<br/>:8501<br/>• Portal formulários<br/>• UX responsiva<br/>• Navegação"]
-            
-            API["⚙️ FastAPI<br/>Backend<br/>:8000<br/>• API REST<br/>• Webhooks<br/>• Download seguro"]
-            
-            Nginx ---|� Route /| Streamlit
-            Nginx ---|📡 Route /api| API
+    User["👤 Usuário\nDocente/Aluno"]
+    Internet["🌐 https://www.fasitech.com.br"]
+
+    subgraph VM["🖥️ VM Linux"]
+        subgraph Containers["Docker Containers"]
+            Nginx["🔐 Nginx\nProxy Reverso\n:80/:443 SSL"]
+            Frontend["⚛️ React SPA\nVite + TypeScript\n:80"]
+            API["⚙️ FastAPI BFF\nClean Architecture\n:8000"]
         end
+        Ollama["🦙 Ollama\nnomic-embed-text\n:11434 (host)"]
     end
-    
-    %% Processamento
-    subgraph Processing["⚙️ Processamento"]
-        direction TB
-        FormRouter{"� Identificar<br/>Tipo de Formulário"}
-        FormACC["� ACC"]
-        FormTCC["� TCC"]
-        FormEstagio["� Estágio"]
-        FormProjetos["� Projetos"]
-        FormSocial["👥 Social"]
-        FormPlano["📚 Plano Ensino"]
-        
-        FormRouter --> FormACC
-        FormRouter --> FormTCC
-        FormRouter --> FormEstagio
-        FormRouter --> FormProjetos
-        FormRouter --> FormSocial
-        FormRouter --> FormPlano
+
+    subgraph Storage["Armazenamento"]
+        Drive["🗂️ Google Drive"]
+        Sheets["📊 Google Sheets"]
+        LanceDB["🔍 LanceDB\n(vetorial)"]
+        SQLite["🗄️ SQLite"]
     end
-    
-    %% Dados Sociais (API)
-    subgraph DadosSociais["📊 Dados Sociais (LGPD)"]
-        direction TB
-        GetData["GET /api/v1/dados-sociais"]
-        DownloadCSV["� Download CSV"]
-        DownloadXLSX["📥 Download Excel"]
-        Anonimizar["🔒 Anonimizar dados"]
-        
-        GetData --> Anonimizar
-        Anonimizar --> DownloadCSV
-        Anonimizar --> DownloadXLSX
+
+    subgraph AI["IA"]
+        Gemini["✨ Gemini 2.0 Flash\n(LLM)"]
     end
-    
-    %% Google Integration
-    subgraph Google["☁️ Google Workspace"]
-        Drive["🗂️ Google Drive<br/>Armazenamento<br/>de arquivos"]
-        Sheets["� Google Sheets<br/>Registro de<br/>submissões"]
-    end
-    
-    %% Notificações
-    subgraph Notify["📧 Notificações"]
-        Email["📬 Email SMTP<br/>Coordenação<br/>Confirmações"]
-    end
-    
-    %% Fluxo Principal
-    User -->|"Preenche"| Internet
-    Internet --> Nginx
-    
-    Streamlit --> FormRouter
-    FormRouter --> Processing
-    API --> DadosSociais
-    
-    Processing --> Google
-    Processing --> Email
-    
-    DadosSociais --> Sheets
-    FormACC --> Drive
-    FormTCC --> Drive
-    FormEstagio --> Drive
-    FormProjetos --> Drive
-    FormSocial --> Drive
-    FormPlano --> Drive
-    
-    %% Endpoints visíveis
-    Internet ---|"✅ https://www.fasitech.com.br"| Streamlit
-    Internet ---|"✅ https://www.fasitech.com.br/api/docs"| API
-    Internet ---|"✅ https://www.fasitech.com.br/api/health"| API
-    Internet ---|"✅ https://www.fasitech.com.br/api/v1/dados-sociais"| API
-    
-    %% Estilos
-    classDef user fill:#E1F5FE,stroke:#01579B,stroke-width:3px,color:#000
-    classDef vm fill:#FFF3E0,stroke:#E65100,stroke-width:3px,color:#000
-    classDef container fill:#E8F5E9,stroke:#1B5E20,stroke-width:2px,color:#000
-    classDef processing fill:#E0F2F1,stroke:#004D40,stroke-width:2px,color:#000
-    classDef security fill:#FCE4EC,stroke:#880E4F,stroke-width:2px,color:#000
-    classDef storage fill:#FFF9C4,stroke:#F57F17,stroke-width:2px,color:#000
-    classDef endpoint fill:#E1BEE7,stroke:#4A148C,stroke-width:2px,color:#000
-    
-    class User user
-    class VM vm
-    class Streamlit,API container
-    class FormRouter,FormACC,FormTCC,FormEstagio,FormProjetos,FormSocial,FormPlano processing
-    class GetData,Anonimizar,DownloadCSV,DownloadXLSX security
-    class Drive,Sheets storage
-    class Internet,Nginx endpoint
+
+    Email["📧 SMTP\nNotificações"]
+
+    User --> Internet --> Nginx
+    Nginx -->|"/"| Frontend
+    Nginx -->|"/api/"| API
+    Frontend -->|"XHR/fetch"| API
+    API --> Drive
+    API --> Sheets
+    API --> SQLite
+    API --> Email
+    API -->|"embeddings"| Ollama
+    API -->|"geração"| Gemini
+    Ollama --> LanceDB
+    API --> LanceDB
 ```
 
-## 📡 Endpoints Disponíveis
+## 🔧 Variáveis de Ambiente (.env / .env.production)
 
-### Frontend (Streamlit)
-- **`https://www.fasitech.com.br/`** - Portal principal com navegação
-- **`https://www.fasitech.com.br/?page=FormACC`** - Formulário ACC
-- **`https://www.fasitech.com.br/?page=FormTCC`** - Formulário TCC
-- **`https://www.fasitech.com.br/?page=FormEstagio`** - Formulário Estágio
-- **`https://www.fasitech.com.br/?page=FormProjetos`** - Formulário Projetos
-- **`https://www.fasitech.com.br/?page=FormSocial`** - Formulário Social
-- **`https://www.fasitech.com.br/?page=FormPlanoEnsino`** - Formulário Plano de Ensino
-- **`https://www.fasitech.com.br/?page=PageDataDocentesProjetos`** - 📊 Consulta de Projetos Docentes
-- **`https://www.fasitech.com.br/?page=OfertasDisciplinas`** - Ofertas de Disciplinas
-- **`https://www.fasitech.com.br/?page=PageDiretorVirtual`** - 🤖 Diretor Virtual (RAG Chatbot)
-- **`https://www.fasitech.com.br/?page=FAQ`** - Página FAQ
+```env
+# Banco de dados
+DATABASE_URL=sqlite:///./fasitech.db
 
-### API FastAPI (Dados Sociais - LGPD)
-- **`https://www.fasitech.com.br/api/health`** - Health check
-- **`https://www.fasitech.com.br/api/v1/dados-sociais`** - GET dados com filtros
-- **`https://www.fasitech.com.br/api/v1/dados-sociais/download?format=csv`** - Download CSV anonimizado
-- **`https://www.fasitech.com.br/api/v1/dados-sociais/download?format=xlsx`** - Download Excel anonimizado
-- **`https://www.fasitech.com.br/api/v1/dados-sociais/estatisticas`** - Estatísticas agregadas
-- **`https://www.fasitech.com.br/api/v1/dados-sociais/opcoes`** - Opções de filtros
+# Google APIs
+GOOGLE_CREDENTIALS_BASE64=...
+GOOGLE_CREDENTIALS_FASI_BASE64=...
+GOOGLE_API_KEY=...              # Gemini
 
-### Documentação & Admin
-- **`https://www.fasitech.com.br/api/docs`** - Swagger UI (documentação interativa)
-- **`https://www.fasitech.com.br/api/redoc`** - ReDoc (documentação alternativa)
+# Email
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=...
+SMTP_PASSWORD=...
 
-## 🎨 Personalização
+# Google Drive — pastas por formulário
+ACC_FOLDER_ID=...
+TCC_FOLDER_ID=...
+ESTAGIO_FOLDER_ID=...
+PLANO_FOLDER_ID=...
+PROJETOS_FOLDER_ID=...
 
-O tema visual está configurado em `.streamlit/config.toml`:
-- Cor primária: `#663399` (roxo institucional)
-- Gradientes e sombras seguindo design system
-- Logo da instituição: `src/resources/fasiOficial.png`
+# Google Sheets — planilhas por formulário
+ACC_SHEET_ID=...
+TCC_SHEET_ID=...
+ESTAGIO_SHEET_ID=...
+PLANO_SHEET_ID=...
+PROJETOS_SHEET_ID=...
+SOCIAL_SHEET_ID=...
+
+# Destinatários (CSV de e-mails)
+ACC_RECIPIENTS=coord@ufpa.br,...
+DESTINATARIOS=coord@ufpa.br
+
+# RAG / IA
+OLLAMA_HOST=http://172.18.0.1:11434
+RAG_DOCUMENTS_DIR=/app/resources
+GEMINI_MODEL=gemini-2.0-flash
+
+# App
+ENVIRONMENT=production
+API_BASE_URL=https://www.fasitech.com.br
+PERIODOS_LETIVOS=2026.1,2026.2,2026.3,2026.4
+ADMIN_API_KEYS=chave-secreta-admin
+```
 
 ## 📧 Suporte
 
