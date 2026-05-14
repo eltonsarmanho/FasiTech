@@ -19,14 +19,14 @@ openpyxl
 pandas 
 requests
 lancedb
+pylance
 ollama
 huggingface_hub
 sqlalchemy
+alembic
 pypdf
 tantivy
 openai
-streamlit-feedback
-pylance
 sqlmodel
 psycopg2-binary
 plotly
@@ -34,4 +34,6 @@ pyHanko>=0.25.0
 APScheduler>=3.10.0
 python-dotenv
 pydantic[email]
+pydantic-settings
+python-multipart
 playwright

@@ -1,22 +1,45 @@
 version: '3.8'
 
 services:
-  # API FastAPI
+  # Ollama — LLM local para embeddings (nomic-embed-text)
+  ollama:
+    image: ollama/ollama
+    container_name: fasitech-ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "-c", "ollama serve & sleep 15 && ollama pull nomic-embed-text && ollama pull qwen2.5:3b && wait"]
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 90s
+    networks:
+      - fasitech-network
+
+  # BFF — FastAPI (Clean Architecture)
   api:
     build:
       context: .
-      dockerfile: docker/Dockerfile.api
+      dockerfile: backend/Dockerfile.backend
     container_name: fasitech-api
     ports:
       - "8000:8000"
     environment:
       - PYTHONPATH=/app
+      - ENVIRONMENT=development
+      - OLLAMA_HOST=http://ollama:11434
+      - OLLAMA_LLM_MODEL=qwen2.5:3b
     env_file:
       - .env
     volumes:
       - ./credentials:/app/credentials:ro
       - ./config:/app/config:ro
     restart: unless-stopped
+    depends_on:
+      ollama:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -26,48 +49,34 @@ services:
     networks:
       - fasitech-network
 
-  # Streamlit App
-  streamlit:
+  # Frontend React SPA
+  frontend:
     build:
-      context: .
-      dockerfile: docker/Dockerfile
-    container_name: fasitech-streamlit
+      context: ./frontend
+      dockerfile: Dockerfile.frontend
+      args:
+        VITE_API_URL: ''
+    container_name: fasitech-frontend
     ports:
-      - "8501:8501"
-    environment:
-      - PYTHONPATH=/app
-      - API_BASE_URL=http://api:8000  # Usa comunicação interna entre containers
-    env_file:
-      - .env
-    volumes:
-      - ./credentials:/app/credentials:ro
-      - ./config:/app/config:ro
+      - "3000:80"
     restart: unless-stopped
     depends_on:
       api:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
     networks:
       - fasitech-network
 
-  # Nginx Proxy Reverso
+  # Nginx Proxy Reverso (dev — sem SSL)
   nginx:
     image: nginx:alpine
     container_name: fasitech-nginx
     ports:
       - "80:80"
-      - "443:443"
     volumes:
-      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./docker/nginx/ssl:/etc/nginx/ssl:ro
+      - ./docker/nginx/nginx.dev.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       - api
-      - streamlit
+      - frontend
     restart: unless-stopped
     networks:
       - fasitech-network
@@ -75,3 +84,6 @@ services:
 networks:
   fasitech-network:
     driver: bridge
+
+volumes:
+  ollama_data:

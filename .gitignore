@@ -1,4 +1,17 @@
 # ============================================
+# Node / Frontend
+# ============================================
+node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.*
+
+# ============================================
+# Docker dev overrides (local por desenvolvedor)
+# ============================================
+docker-compose.override.yml
+
+# ============================================
 # Python
 # ============================================
 # Byte-compiled / optimized / DLL files

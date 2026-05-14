@@ -1,64 +1,53 @@
 # docker-compose.production.yml
-# Arquivo específico para produção na VM
-
 version: '3.8'
 
 services:
-  # API FastAPI
+  # BFF — FastAPI (Clean Architecture)
   api:
     build:
       context: .
-      dockerfile: docker/Dockerfile.api
+      dockerfile: backend/Dockerfile.backend
+    image: fasitech-bff:latest
     container_name: fasitech-api-prod
     expose:
       - "8000"
     environment:
       - PYTHONPATH=/app
       - API_BASE_URL=https://www.fasitech.com.br
+      - RAG_DOCUMENTS_DIR=/app/resources
     env_file:
       - .env.production
     volumes:
       - ./credentials:/app/credentials:ro
       - ./config:/app/config:ro
+      - ./resources:/app/resources:ro
+      - ollama_data:/home/apiuser/.ollama
+      - app_cache:/home/apiuser/.cache
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 15s
+      start_period: 20s
     networks:
       - fasitech-network
 
-  # Streamlit App
-  streamlit:
+  # Frontend React SPA
+  frontend:
     build:
-      context: .
-      dockerfile: docker/Dockerfile
-    container_name: fasitech-streamlit-prod
+      context: ./frontend
+      dockerfile: Dockerfile.frontend
+      args:
+        VITE_API_URL: ''
+    image: fasitech-spa:latest
+    container_name: fasitech-frontend-prod
     expose:
-      - "8501"
-    environment:
-      - PYTHONPATH=/app
-      - API_BASE_URL=https://www.fasitech.com.br
-    env_file:
-      - .env.production
-    volumes:
-      - ./credentials:/app/credentials:ro
-      - ./config:/app/config:ro
-      # Volumes adicionados para persistência e performance:
-      - ollama_data:/home/appuser/.ollama  # Evita baixar modelo IA toda vez
-      - app_cache:/home/appuser/.cache   # Evita reindexar PDFs toda vez
+      - "80"
     restart: unless-stopped
     depends_on:
       api:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
     networks:
       - fasitech-network
 
@@ -71,11 +60,11 @@ services:
       - "443:443"
     volumes:
       - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - /home/ubuntu/certbot/conf:/etc/nginx/ssl:ro  # Certificados SSL (Certbot)
-      - /home/ubuntu/certbot/www:/var/www/certbot:ro  # Para renovação de certificados
+      - /etc/letsencrypt:/etc/nginx/ssl:ro
+      - /home/ubuntu/certbot/www:/var/www/certbot:ro
     depends_on:
       - api
-      - streamlit
+      - frontend
     restart: unless-stopped
     networks:
       - fasitech-network
@@ -84,7 +73,6 @@ networks:
   fasitech-network:
     driver: bridge
 
-# Definição dos volumes globais
 volumes:
   ollama_data:
   app_cache:
