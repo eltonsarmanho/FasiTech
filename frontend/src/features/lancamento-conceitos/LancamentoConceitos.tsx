@@ -36,7 +36,7 @@ export function LancamentoConceitos() {
     },
   })
 
-  const rows: Record<string, string>[] = Array.isArray(data) ? data : []
+  const rows: Record<string, any>[] = Array.isArray(data) ? data : []
 
   const filtered = useMemo(() => {
     return rows.filter(r => {
@@ -45,7 +45,7 @@ export function LancamentoConceitos() {
       if (filtroPeriodo && r.periodo !== filtroPeriodo) return false
       if (filtroMatricula && r.matricula !== filtroMatricula) return false
       if (filtroEstagio && r.componente !== filtroEstagio) return false
-      if (somentePendentes && r.matriculado === 'true' && r.consolidado === 'true') return false
+      if (somentePendentes && r.matriculado && r.consolidado) return false
       return true
     })
   }, [rows, filtroTurma, filtroPolo, filtroPeriodo, filtroMatricula, filtroEstagio, somentePendentes])
