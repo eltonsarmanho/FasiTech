@@ -181,10 +181,8 @@ def _aplicar_assinatura_visual(
 
         logo_box_w = s(76)
         logo_box_h = assinatura_altura - s(16)
-        logo_box_x = assinatura_x + assinatura_largura - logo_box_w - s(8)
+        logo_box_x = assinatura_x + s(8)
         logo_box_y = assinatura_y + s(8)
-
-        texto_x = assinatura_x + s(8)
 
         serpro_img = _resolver_caminho_serpro()
         if serpro_img:
@@ -200,6 +198,8 @@ def _aplicar_assinatura_visual(
                 preserveAspectRatio=True,
                 mask="auto",
             )
+
+        texto_x = logo_box_x + logo_box_w + s(12)
         c.setFillColorRGB(0.05, 0.30, 0.66)
         c.setFont("Helvetica-Bold", s(12))
         c.drawString(texto_x, assinatura_y + s(68), "ASSINATURA ELETRÔNICA")
