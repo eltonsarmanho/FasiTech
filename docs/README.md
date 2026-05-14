@@ -146,18 +146,7 @@ Todos os arquivos `.md` em `resources/` são automaticamente indexados:
 
 Para adicionar um novo documento: coloque o arquivo `.md` em `resources/` e reinicie o container da API (a reindexação ocorre automaticamente na inicialização se detectar mudanças).
 
-### API do Diretor Virtual
-
-```
-POST /api/v1/diretor-virtual/chat
-Content-Type: application/json
-
-{ "mensagem": "Qual a carga horária do Estágio?" }
-
-→ { "resposta": "...", "fontes": [] }
-```
-
-Sem autenticação. Documentação completa em `https://www.fasitech.com.br/docs`.
+O Diretor Virtual expõe um endpoint REST documentado em `https://www.fasitech.com.br/docs`.
 
 ### Variáveis de ambiente relevantes
 
@@ -227,9 +216,7 @@ docker restart fasitech-api-prod
 | `fasitech-api-prod` | `fasitech-bff:latest` | FastAPI BFF (:8000) |
 | `fasitech-frontend-prod` | `fasitech-spa:latest` | React SPA servida por nginx (:80) |
 | `fasitech-nginx-prod` | `nginx:alpine` | Proxy reverso HTTPS (:80/:443) |
-| `dashboard_api` | `dashboard-api` | Dashboard separado — não remover |
-| `dashboard_frontend` | `dashboard-frontend` | Dashboard separado — não remover |
-| `dashboard_nginx` | `nginx:alpine` | Dashboard separado — não remover |
+
 
 ## 📡 Endpoints Disponíveis
 
