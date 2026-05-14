@@ -21,8 +21,8 @@ def _resolver_caminho_certificado() -> Path:
     candidates = [
         Path(env_path).expanduser() if env_path else None,
         Path(__file__).resolve().parents[1] / "resources" / "certificado.pfx",
-        Path.cwd() / "src" / "resources" / "certificado.pfx",
-        Path("/app/src/resources/certificado.pfx"),
+        Path.cwd() / "resources" / "certificado.pfx",
+        Path("/app/resources/certificado.pfx"),
     ]
 
     for candidate in candidates:
@@ -31,7 +31,7 @@ def _resolver_caminho_certificado() -> Path:
 
     raise FileNotFoundError(
         "Certificado PFX não encontrado. Configure CERTIFICADO_PFX_PATH "
-        "ou garanta o arquivo src/resources/certificado.pfx."
+        "ou garanta o arquivo resources/certificado.pfx."
     )
 
 
@@ -41,8 +41,8 @@ def _resolver_caminho_serpro() -> Path | None:
     candidates = [
         Path(env_path).expanduser() if env_path else None,
         Path(__file__).resolve().parents[1] / "resources" / "serpro.png",
-        Path.cwd() / "src" / "resources" / "serpro.png",
-        Path("/app/src/resources/serpro.png"),
+        Path.cwd() / "resources" / "serpro.png",
+        Path("/app/resources/serpro.png"),
     ]
 
     for candidate in candidates:

@@ -4,10 +4,10 @@ from pathlib import Path
 from typing import Any, Iterable
 import re
 
-from src.services.StatusAlunoExtractor import StatusAlunoExtractor
+from backend.infrastructure.documents.status_extractor import StatusAlunoExtractor
 from backend.infrastructure.email.service import send_email_with_attachments
 from backend.infrastructure.file_processing.processor import sanitize_submission
-from src.services.gerador_certificado import assinar_pdf
+from backend.infrastructure.documents.certificate import assinar_pdf
 from backend.utils.datetime_utils import format_local_datetime, now_local
 from backend.utils.PDFGenerator import (
     gerar_pdf_comprovante_conclusao,

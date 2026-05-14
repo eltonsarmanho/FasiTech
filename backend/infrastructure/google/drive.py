@@ -8,8 +8,6 @@ from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
 
-# Importar o carregador de variáveis de ambiente
-from src.utils import env_loader
 from backend.utils.CredentialsEncoder import convertBase64ToJson
 
 

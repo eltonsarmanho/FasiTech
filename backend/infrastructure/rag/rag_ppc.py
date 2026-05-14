@@ -263,15 +263,20 @@ class ChatbotService:
         print("=== CONFIGURANDO AGENTE RAG ===")
         print("1. Configurando modelo de linguagem...")
 
-        from agno.models.ollama import Ollama
-
-        ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
-        ollama_model = os.getenv("OLLAMA_LLM_MODEL", "qwen2.5:3b")
-        print(f"   Usando Ollama local: {ollama_model} (host: {ollama_host})")
-        self.model = Ollama(id=ollama_model, host=ollama_host)
-        print(f"✅ Modelo Ollama '{ollama_model}' configurado com sucesso!")
-
         google_api_key = os.getenv("GOOGLE_API_KEY")
+
+        if google_api_key:
+            gemini_model = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+            print(f"   Usando Gemini: {gemini_model}")
+            self.model = Gemini(id=gemini_model, api_key=google_api_key)
+            print(f"✅ Modelo Gemini '{gemini_model}' configurado com sucesso!")
+        else:
+            from agno.models.ollama import Ollama
+            ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+            ollama_model = os.getenv("OLLAMA_LLM_MODEL", "qwen2.5:3b")
+            print(f"   Usando Ollama local: {ollama_model} (host: {ollama_host})")
+            self.model = Ollama(id=ollama_model, host=ollama_host)
+            print(f"✅ Modelo Ollama '{ollama_model}' configurado com sucesso!")
 
         # Create Ollama embedder
         print("2. Configurando embedder...")

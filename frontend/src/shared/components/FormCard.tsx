@@ -6,18 +6,24 @@ interface FormCardProps {
   title: string
   description: string
   to: string
+  external?: boolean
   variant?: 'primary' | 'warning'
 }
 
-export function FormCard({ icon, title, description, to, variant = 'primary' }: FormCardProps) {
+export function FormCard({ icon, title, description, to, external = false, variant = 'primary' }: FormCardProps) {
   const navigate = useNavigate()
+
+  const handleClick = () => {
+    if (external) window.open(to, '_blank', 'noopener,noreferrer')
+    else navigate(to)
+  }
 
   return (
     <div
       role="button"
       tabIndex={0}
-      onClick={() => navigate(to)}
-      onKeyDown={(e) => e.key === 'Enter' && navigate(to)}
+      onClick={handleClick}
+      onKeyDown={(e) => e.key === 'Enter' && handleClick()}
       className={cn(
         'group rounded-xl p-6 text-white cursor-pointer select-none',
         'transition-all duration-200 ease-out focus:outline-none',
