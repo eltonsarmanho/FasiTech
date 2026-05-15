@@ -21,13 +21,13 @@ from agno.models.google import Gemini
 from agno.media import Image, File
 from pathlib import Path
 
+from backend.config.LLMConfig import GEMINI_MODEL_VISION as GEMINI_MODEL
+
 # Carregar variáveis de ambiente
 load_dotenv(override=True)
 
 if not os.getenv("GOOGLE_API_KEY"):
     raise EnvironmentError("GOOGLE_API_KEY not set. Please add it to your environment or .env file before running.")
-
-GEMINI_MODEL = "gemini-2.5-flash-lite"
 
 def pdf_to_images(pdf_path: str, output_dir: str = "/tmp/acc_images") -> List[str]:
     """
