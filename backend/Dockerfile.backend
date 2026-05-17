@@ -16,8 +16,13 @@ RUN pip install --upgrade pip
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Set Playwright browsers location to a shared path
+ENV PLAYWRIGHT_BROWSERS_PATH=/app/.playwright
+RUN mkdir -p /app/.playwright
+
 # Instalar binários do Playwright antes de trocar para apiuser
-RUN python3 -m playwright install-deps && python3 -m playwright install
+RUN python3 -m playwright install-deps
+RUN python3 -m playwright install chromium
 
 COPY . .
 
