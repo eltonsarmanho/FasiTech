@@ -159,16 +159,7 @@ class LancamentoService:
             sucesso=False → falha, com mensagem e detalhes do erro
         """
         try:
-            if self._is_tcc():
-                try:
-                    from src.services.sigaa_Matricular_TCC import executar_fluxo_direto
-                except ModuleNotFoundError:
-                    from sigaa_Matricular_TCC import executar_fluxo_direto
-            else:
-                try:
-                    from src.services.sigaa_Matricular import executar_fluxo_direto
-                except ModuleNotFoundError:
-                    from sigaa_Matricular import executar_fluxo_direto
+            from backend.infrastructure.sigaa.matricular import executar_fluxo_direto
         except ModuleNotFoundError as exc:
             raise RuntimeError("Não foi possível importar o serviço de matrícula do SIGAA.") from exc
 
@@ -212,15 +203,9 @@ class LancamentoService:
         """
         try:
             if self._is_tcc():
-                try:
-                    from src.services.sigga_Consolidar_TCC import executar_consolidacao
-                except ModuleNotFoundError:
-                    from sigga_Consolidar_TCC import executar_consolidacao
+                from backend.infrastructure.sigaa.consolidar_tcc import executar_consolidacao
             else:
-                try:
-                    from src.services.sigaa_Consolidar import executar_consolidacao
-                except ModuleNotFoundError:
-                    from sigaa_Consolidar import executar_consolidacao
+                from backend.infrastructure.sigaa.consolidar import executar_consolidacao
         except ModuleNotFoundError as exc:
             raise RuntimeError("Não foi possível importar o serviço de consolidação do SIGAA.") from exc
 

@@ -14,6 +14,8 @@ class LancamentoRequest(BaseModel):
     periodo: str
     polo: str
     componente: str
+    orientador: Optional[str] = None  # Obrigatório para TCC
+    conceito: Optional[str] = "E"  # Para consolidação: A, B, C, D, E (padrão: E)
 
 
 @router.get("/lancamentos")
@@ -42,12 +44,19 @@ async def list_lancamentos(
 async def matricular_sigaa(data: LancamentoRequest, _: str = Depends(get_admin_dependency)):
     """Dispara automação Playwright para matricular aluno no SIGAA."""
     try:
-        from backend.infrastructure.sigaa.matricular import matricular_aluno
-        await matricular_aluno(
-            matricula=data.matricula, periodo=data.periodo,
-            polo=data.polo, componente=data.componente,
+        from backend.infrastructure.sigaa.lancamento_service import LancamentoService
+        servico = LancamentoService(
+            matricula=data.matricula,
+            polo=data.polo,
+            periodo=data.periodo,
+            componente=data.componente,
+            orientador=data.orientador,
         )
-        return {"message": f"Matrícula do aluno {data.matricula} iniciada no SIGAA"}
+        resultado = await servico.matricular()
+        if resultado.sucesso:
+            return {"message": resultado.mensagem, "detalhes": resultado.detalhes}
+        else:
+            raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, resultado.mensagem)
     except Exception as e:
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, f"Erro SIGAA: {e}")
 
@@ -56,11 +65,18 @@ async def matricular_sigaa(data: LancamentoRequest, _: str = Depends(get_admin_d
 async def consolidar_sigaa(data: LancamentoRequest, _: str = Depends(get_admin_dependency)):
     """Dispara automação Playwright para consolidar conceito no SIGAA."""
     try:
-        from backend.infrastructure.sigaa.consolidar import consolidar_aluno
-        await consolidar_aluno(
-            matricula=data.matricula, periodo=data.periodo,
-            polo=data.polo, componente=data.componente,
+        from backend.infrastructure.sigaa.lancamento_service import LancamentoService
+        servico = LancamentoService(
+            matricula=data.matricula,
+            polo=data.polo,
+            periodo=data.periodo,
+            componente=data.componente,
+            orientador=data.orientador,
         )
-        return {"message": f"Consolidação do aluno {data.matricula} iniciada no SIGAA"}
+        resultado = await servico.consolidar(conceito=data.conceito)
+        if resultado.sucesso:
+            return {"message": resultado.mensagem, "detalhes": resultado.detalhes}
+        else:
+            raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, resultado.mensagem)
     except Exception as e:
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, f"Erro SIGAA: {e}")

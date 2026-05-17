@@ -16,6 +16,9 @@ RUN pip install --upgrade pip
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Instalar binários do Playwright antes de trocar para apiuser
+RUN python3 -m playwright install-deps && python3 -m playwright install
+
 COPY . .
 
 RUN useradd --create-home apiuser && chown -R apiuser:apiuser /app
