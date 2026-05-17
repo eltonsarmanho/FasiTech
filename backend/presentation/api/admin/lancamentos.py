@@ -24,7 +24,13 @@ async def get_componentes_validos(_: str = Depends(get_admin_dependency)):
     from backend.infrastructure.sigaa.lancamento_service import LancamentoService
     return {
         "componentes": sorted(list(LancamentoService.COMPONENTES_VALIDOS)),
-        "descricao": "Componentes válidos para matrícula no SIGAA"
+        "componentes_expandidos": LancamentoService.COMPONENTES_EXPANDIDOS,
+        "descricao": "Componentes válidos para matrícula no SIGAA. ACC e TCC são expandidos automaticamente.",
+        "notas": [
+            "ACC → matricula/consolida em ACC I, ACC II, ACC III, ACC IV",
+            "TCC → matricula/consolida em TCC I, TCC II",
+            "Componentes específicos (ACC I, TCC I, etc.) são processados diretamente"
+        ]
     }
 
 

@@ -67,7 +67,9 @@ class LancamentoService:
     matricula  : str  — Matrícula do aluno (ex: "202285940020")
     polo       : str  — Nome do polo (ex: "OEIRAS DO PARA")
     periodo    : str  — Período acadêmico (ex: "2026.1")
-    componente : str  — Sigla do componente: ACC I, ACC II, ACC III, ACC IV, TCC, TCC I, TCC II
+    componente : str  — Sigla do componente: ACC, ACC I, ACC II, ACC III, ACC IV, TCC, TCC I, TCC II
+                        Se "ACC" → expande para [ACC I, ACC II, ACC III, ACC IV]
+                        Se "TCC" → expande para [TCC I, TCC II]
     executar   : bool — Se False, faz dry-run (navega, preenche, mas NÃO confirma).
                         Padrão True (executa de fato).
 
@@ -76,7 +78,11 @@ class LancamentoService:
     ValueError — se o componente informado não for válido.
     """
 
-    COMPONENTES_VALIDOS = {"ACC I", "ACC II", "ACC III", "ACC IV", "TCC", "TCC I", "TCC II"}
+    COMPONENTES_VALIDOS = {"ACC", "ACC I", "ACC II", "ACC III", "ACC IV", "TCC", "TCC I", "TCC II"}
+    COMPONENTES_EXPANDIDOS = {
+        "ACC": ["ACC I", "ACC II", "ACC III", "ACC IV"],
+        "TCC": ["TCC I", "TCC II"],
+    }
 
     def __init__(
         self,
@@ -112,6 +118,12 @@ class LancamentoService:
             raise ValueError("Orientador é obrigatório para lançamentos de TCC.")
 
     # ── Helpers internos ──────────────────────────────────────────────────────
+
+    def _expand_componentes(self) -> list[str]:
+        """Expande componente genérico (ACC, TCC) para lista específica."""
+        if self.componente in self.COMPONENTES_EXPANDIDOS:
+            return self.COMPONENTES_EXPANDIDOS[self.componente]
+        return [self.componente]
 
     def _is_tcc(self) -> bool:
         return self.componente.startswith("TCC")
@@ -153,6 +165,10 @@ class LancamentoService:
         """
         Realiza a matrícula do aluno no componente via SIGAA.
 
+        Se componente='ACC', matricula em ACC I, ACC II, ACC III, ACC IV.
+        Se componente='TCC', matricula em TCC I, TCC II.
+        Caso contrário, matricula no componente específico.
+
         Fluxo interno (sigaa_Matricular.py):
           Login → Selecionar Período → Portal Coord. Graduação →
           Selecionar Curso/Polo → Menu Atividades > Matricular →
@@ -167,7 +183,7 @@ class LancamentoService:
         import logging
         logger = logging.getLogger(__name__)
 
-        logger.info(f"[MATRICULAR_SERVICE] Iniciando matricular para {self.matricula}")
+        logger.info(f"[MATRICULAR_SERVICE] Iniciando matricular para {self.matricula} | componente: {self.componente}")
 
         try:
             logger.info(f"[MATRICULAR_SERVICE] Importando executar_fluxo_direto...")
@@ -177,30 +193,53 @@ class LancamentoService:
             logger.error(f"[MATRICULAR_SERVICE] Erro ao importar: {exc}")
             raise RuntimeError("Não foi possível importar o serviço de matrícula do SIGAA.") from exc
 
-        args = self._args_matricular()
-        logger.info(f"[MATRICULAR_SERVICE] Args construídos: componente={args.componente}, executar={args.executar}, headless={args.headless}")
+        componentes = self._expand_componentes()
+        logger.info(f"[MATRICULAR_SERVICE] Componentes a matricular: {componentes}")
 
-        try:
-            logger.info(f"[MATRICULAR_SERVICE] Chamando executar_fluxo_direto...")
-            await executar_fluxo_direto(args)
+        erros = []
+        matriculados = []
+
+        for componente_spec in componentes:
+            try:
+                logger.info(f"[MATRICULAR_SERVICE] Processando: {componente_spec}")
+                args = self._args_matricular()
+                args.componente = componente_spec
+
+                logger.info(f"[MATRICULAR_SERVICE] Chamando executar_fluxo_direto para {componente_spec}...")
+                await executar_fluxo_direto(args)
+                matriculados.append(componente_spec)
+                logger.info(f"[MATRICULAR_SERVICE] ✓ {componente_spec} matriculado com sucesso")
+            except Exception as exc:
+                logger.exception(f"[MATRICULAR_SERVICE] ✗ Erro ao matricular {componente_spec}: {type(exc).__name__}: {str(exc)}")
+                erros.append(f"{componente_spec}: {exc}")
+
+        if matriculados:
             acao = "simulada (dry-run)" if not self.executar else "concluída com sucesso"
-            mensagem = f"Matrícula de {self.matricula} em '{self.componente}' (polo: {self.polo} | período: {self.periodo}) {acao}."
-            logger.info(f"[MATRICULAR_SERVICE] Sucesso: {mensagem}")
+            mensagem = f"Matrícula de {self.matricula} em {', '.join(matriculados)} (polo: {self.polo} | período: {self.periodo}) {acao}."
+            if erros:
+                mensagem += f"\n⚠️ Componentes com erro: {'; '.join(erros)}"
+            logger.info(f"[MATRICULAR_SERVICE] Resultado parcial: {len(matriculados)} de {len(componentes)}")
             return ResultadoOperacao(
                 sucesso=True,
                 mensagem=mensagem,
+                detalhes=erros,
             )
-        except Exception as exc:
-            logger.exception(f"[MATRICULAR_SERVICE] Erro na execução: {type(exc).__name__}: {str(exc)}")
+        else:
+            mensagem = f"Falha ao matricular todos os componentes: {'; '.join(erros)}"
+            logger.error(f"[MATRICULAR_SERVICE] {mensagem}")
             return ResultadoOperacao(
                 sucesso=False,
-                mensagem=f"Erro na matrícula: {exc}",
-                detalhes=[repr(exc)],
+                mensagem=mensagem,
+                detalhes=erros,
             )
 
     async def consolidar(self, conceito: str = "E") -> ResultadoOperacao:
         """
         Consolida a matrícula do aluno atribuindo o conceito informado.
+
+        Se componente='ACC', consolida ACC I, ACC II, ACC III, ACC IV.
+        Se componente='TCC', consolida TCC I, TCC II.
+        Caso contrário, consolida o componente específico.
 
         Fluxo interno (sigaa_Consolidar.py):
           Login → Selecionar Período → Portal Coord. Graduação →
@@ -218,30 +257,60 @@ class LancamentoService:
             sucesso=True  → consolidação realizada (ou simulada em dry-run)
             sucesso=False → falha, com mensagem e detalhes do erro
         """
+        import logging
+        logger = logging.getLogger(__name__)
+
+        logger.info(f"[CONSOLIDAR_SERVICE] Iniciando consolidação para {self.matricula} | componente: {self.componente} | conceito: {conceito}")
+
         try:
-            if self._is_tcc():
+            if self.componente.startswith("TCC"):
+                logger.info(f"[CONSOLIDAR_SERVICE] Importando consolidar_tcc...")
                 from backend.infrastructure.sigaa.consolidar_tcc import executar_consolidacao
             else:
+                logger.info(f"[CONSOLIDAR_SERVICE] Importando consolidar...")
                 from backend.infrastructure.sigaa.consolidar import executar_consolidacao
         except ModuleNotFoundError as exc:
+            logger.error(f"[CONSOLIDAR_SERVICE] Erro ao importar: {exc}")
             raise RuntimeError("Não foi possível importar o serviço de consolidação do SIGAA.") from exc
 
-        args = self._args_consolidar(conceito)
-        try:
-            await executar_consolidacao(args)
+        componentes = self._expand_componentes()
+        logger.info(f"[CONSOLIDAR_SERVICE] Componentes a consolidar: {componentes}")
+
+        erros = []
+        consolidados = []
+
+        for componente_spec in componentes:
+            try:
+                logger.info(f"[CONSOLIDAR_SERVICE] Processando: {componente_spec}")
+                args = self._args_consolidar(conceito)
+                args.componente = componente_spec
+
+                logger.info(f"[CONSOLIDAR_SERVICE] Chamando executar_consolidacao para {componente_spec}...")
+                await executar_consolidacao(args)
+                consolidados.append(componente_spec)
+                logger.info(f"[CONSOLIDAR_SERVICE] ✓ {componente_spec} consolidado com sucesso")
+            except Exception as exc:
+                logger.exception(f"[CONSOLIDAR_SERVICE] ✗ Erro ao consolidar {componente_spec}: {type(exc).__name__}: {str(exc)}")
+                erros.append(f"{componente_spec}: {exc}")
+
+        if consolidados:
             acao = "simulada (dry-run)" if not self.executar else "concluída com sucesso"
+            mensagem = f"Consolidação de {self.matricula} em {', '.join(consolidados)} (polo: {self.polo} | período: {self.periodo} | conceito: {conceito.upper()}) {acao}."
+            if erros:
+                mensagem += f"\n⚠️ Componentes com erro: {'; '.join(erros)}"
+            logger.info(f"[CONSOLIDAR_SERVICE] Resultado parcial: {len(consolidados)} de {len(componentes)}")
             return ResultadoOperacao(
                 sucesso=True,
-                mensagem=(
-                    f"Consolidação de {self.matricula} em '{self.componente}' "
-                    f"(polo: {self.polo} | período: {self.periodo} | conceito: {conceito.upper()}) {acao}."
-                ),
+                mensagem=mensagem,
+                detalhes=erros,
             )
-        except Exception as exc:
+        else:
+            mensagem = f"Falha ao consolidar todos os componentes: {'; '.join(erros)}"
+            logger.error(f"[CONSOLIDAR_SERVICE] {mensagem}")
             return ResultadoOperacao(
                 sucesso=False,
-                mensagem=f"Erro na consolidação: {exc}",
-                detalhes=[repr(exc)],
+                mensagem=mensagem,
+                detalhes=erros,
             )
 
     # ── Versões síncronas (utilitários / testes) ──────────────────────────────
