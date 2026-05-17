@@ -43,8 +43,15 @@ async def list_lancamentos(
 @router.post("/lancamentos/matricular", status_code=202)
 async def matricular_sigaa(data: LancamentoRequest, _: str = Depends(get_admin_dependency)):
     """Dispara automação Playwright para matricular aluno no SIGAA."""
+    import logging
+    logger = logging.getLogger(__name__)
+
     try:
+        logger.info(f"[MATRICULAR] Iniciando matrícula - Matricula: {data.matricula}, Polo: {data.polo}, Componente: {data.componente}")
+
         from backend.infrastructure.sigaa.lancamento_service import LancamentoService
+        logger.info(f"[MATRICULAR] LancamentoService importado com sucesso")
+
         servico = LancamentoService(
             matricula=data.matricula,
             polo=data.polo,
@@ -52,12 +59,22 @@ async def matricular_sigaa(data: LancamentoRequest, _: str = Depends(get_admin_d
             componente=data.componente,
             orientador=data.orientador,
         )
+        logger.info(f"[MATRICULAR] Serviço criado com sucesso")
+
+        logger.info(f"[MATRICULAR] Chamando servico.matricular()...")
         resultado = await servico.matricular()
+        logger.info(f"[MATRICULAR] Resultado recebido - Sucesso: {resultado.sucesso}")
+
         if resultado.sucesso:
+            logger.info(f"[MATRICULAR] Matrícula bem-sucedida: {resultado.mensagem}")
             return {"message": resultado.mensagem, "detalhes": resultado.detalhes}
         else:
+            logger.error(f"[MATRICULAR] Falha na matrícula: {resultado.mensagem}")
             raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, resultado.mensagem)
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.exception(f"[MATRICULAR] Erro não tratado: {type(e).__name__}: {str(e)}")
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, f"Erro SIGAA: {e}")
 
 

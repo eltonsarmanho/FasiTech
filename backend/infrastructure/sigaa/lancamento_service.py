@@ -158,23 +158,34 @@ class LancamentoService:
             sucesso=True  → matrícula realizada (ou simulada em dry-run)
             sucesso=False → falha, com mensagem e detalhes do erro
         """
+        import logging
+        logger = logging.getLogger(__name__)
+
+        logger.info(f"[MATRICULAR_SERVICE] Iniciando matricular para {self.matricula}")
+
         try:
+            logger.info(f"[MATRICULAR_SERVICE] Importando executar_fluxo_direto...")
             from backend.infrastructure.sigaa.matricular import executar_fluxo_direto
+            logger.info(f"[MATRICULAR_SERVICE] executar_fluxo_direto importado com sucesso")
         except ModuleNotFoundError as exc:
+            logger.error(f"[MATRICULAR_SERVICE] Erro ao importar: {exc}")
             raise RuntimeError("Não foi possível importar o serviço de matrícula do SIGAA.") from exc
 
         args = self._args_matricular()
+        logger.info(f"[MATRICULAR_SERVICE] Args construídos: componente={args.componente}, executar={args.executar}, headless={args.headless}")
+
         try:
+            logger.info(f"[MATRICULAR_SERVICE] Chamando executar_fluxo_direto...")
             await executar_fluxo_direto(args)
             acao = "simulada (dry-run)" if not self.executar else "concluída com sucesso"
+            mensagem = f"Matrícula de {self.matricula} em '{self.componente}' (polo: {self.polo} | período: {self.periodo}) {acao}."
+            logger.info(f"[MATRICULAR_SERVICE] Sucesso: {mensagem}")
             return ResultadoOperacao(
                 sucesso=True,
-                mensagem=(
-                    f"Matrícula de {self.matricula} em '{self.componente}' "
-                    f"(polo: {self.polo} | período: {self.periodo}) {acao}."
-                ),
+                mensagem=mensagem,
             )
         except Exception as exc:
+            logger.exception(f"[MATRICULAR_SERVICE] Erro na execução: {type(exc).__name__}: {str(exc)}")
             return ResultadoOperacao(
                 sucesso=False,
                 mensagem=f"Erro na matrícula: {exc}",

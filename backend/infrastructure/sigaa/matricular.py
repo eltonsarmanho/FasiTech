@@ -754,14 +754,24 @@ async def _clicar_menu_atividades_matricular(page) -> bool:
 
 
 async def executar_fluxo_direto(args: argparse.Namespace) -> None:
+    import logging
+    logger = logging.getLogger(__name__)
+
+    logger.info(f"[MATRICULAR] [1/9] Verificando Playwright...")
     try:
         from playwright.async_api import async_playwright
+        logger.info(f"[MATRICULAR] Playwright importado com sucesso")
     except Exception as err:
+        logger.exception(f"[MATRICULAR] Erro ao importar Playwright")
         raise RuntimeError(
             "Playwright nao encontrado. Instale com: pip install playwright && playwright install chromium"
         ) from err
 
+    logger.info(f"[MATRICULAR] Carregando configurações de ambiente...")
     cfg = ler_config_env()
+    logger.info(f"[MATRICULAR] Configuração carregada: SIGAA_URL={cfg.sigaa_url}")
+
+    logger.info(f"[MATRICULAR] Validando entrada: matricula={args.matricula}, componente={args.componente}")
     entrada = EntradaLancamento(
         matricula=args.matricula,
         periodo=args.periodo,
@@ -769,42 +779,65 @@ async def executar_fluxo_direto(args: argparse.Namespace) -> None:
         componente=args.componente.upper(),
     )
     validar_entrada(entrada)
+    logger.info(f"[MATRICULAR] Entrada validada com sucesso")
 
     tipo_atividade, atividade_nome = MAPA_COMPONENTE[entrada.componente]
     if args.atividade_nome:
         atividade_nome = args.atividade_nome
 
     base = base_sigaa_url(cfg.sigaa_url)
+    logger.info(f"[MATRICULAR] Base URL: {base}")
 
-    print("[1/9] Abrindo navegador e SIGAA...")
+    logger.info(f"[MATRICULAR] [1/9] Abrindo navegador e SIGAA...")
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=args.headless)
+        logger.info(f"[MATRICULAR] [2/9] Iniciando navegador (headless={args.headless})...")
+        try:
+            browser = await p.chromium.launch(headless=args.headless)
+            logger.info(f"[MATRICULAR] Navegador iniciado com sucesso")
+        except Exception as e:
+            logger.exception(f"[MATRICULAR] Erro ao iniciar navegador")
+            raise
+
         context = await browser.new_context()
         page = await context.new_page()
+        logger.info(f"[MATRICULAR] Context e page criados")
 
         # --- LOGIN ---
         # Confirmado no mapeamento step 2-3: campos name="user.login" e name="user.senha"
-        print("[2/9] Login...")
-        await page.goto(cfg.sigaa_url, wait_until="domcontentloaded")
+        logger.info(f"[MATRICULAR] [2/9] Iniciando login em {cfg.sigaa_url}...")
+        try:
+            await page.goto(cfg.sigaa_url, wait_until="domcontentloaded")
+            logger.info(f"[MATRICULAR] Página carregada. URL atual: {page.url}")
 
-        login_field = page.locator("input[name='user.login']").first
-        await login_field.wait_for(state="visible", timeout=10000)
-        await login_field.fill(cfg.login)
+            login_field = page.locator("input[name='user.login']").first
+            await login_field.wait_for(state="visible", timeout=10000)
+            await login_field.fill(cfg.login)
+            logger.info(f"[MATRICULAR] Login preenchido")
 
-        senha_field = page.locator("input[name='user.senha']").first
-        await senha_field.fill(cfg.senha)
+            senha_field = page.locator("input[name='user.senha']").first
+            await senha_field.fill(cfg.senha)
+            logger.info(f"[MATRICULAR] Senha preenchida")
 
-        submit = page.locator("input[type='submit']").first
-        await submit.click()
-        await page.wait_for_load_state("domcontentloaded")
+            submit = page.locator("input[type='submit']").first
+            await submit.click()
+            logger.info(f"[MATRICULAR] Botão submit clicado")
+
+            await page.wait_for_load_state("domcontentloaded")
+            logger.info(f"[MATRICULAR] Login concluído. Nova URL: {page.url}")
+        except Exception as e:
+            logger.exception(f"[MATRICULAR] Erro durante login")
+            raise
 
         # --- SELECAO DE PERIODO NO CALENDARIO (step 4 do mapeamento) ---
         # Apos o login, SIGAA redireciona para calendarios_graduacao_vigentes.jsf.
         # E necessario clicar no link do periodo academico para ativar o contexto
         # de semestre. Sem esse passo, o dropdown de cursos no coordenador.jsf fica vazio.
-        print("[3/9] Selecionando periodo academico no calendario...")
+        logger.info(f"[MATRICULAR] [3/9] Selecionando periodo academico no calendario...")
         await page.wait_for_load_state("domcontentloaded")
+        logger.info(f"[MATRICULAR] URL após login: {page.url}")
+
         if "calendarios" in page.url or "verTelaLogin" not in page.url:
+            logger.info(f"[MATRICULAR] Selecionando período: {entrada.periodo}")
             # Tenta clicar no link do periodo (ex: "2026.1" ou "2026-1") dentro da pagina
             clicou_periodo = False
             for variacao in variacoes_periodo(entrada.periodo):
@@ -816,12 +849,14 @@ async def executar_fluxo_direto(args: argparse.Namespace) -> None:
                     await link_periodo.click()
                     await page.wait_for_load_state("domcontentloaded")
                     clicou_periodo = True
-                    print(f"   [OK] Periodo '{variacao}' selecionado.")
+                    logger.info(f"[MATRICULAR] Período '{variacao}' selecionado. Nova URL: {page.url}")
                     break
-                except Exception:
+                except Exception as e:
+                    logger.debug(f"[MATRICULAR] Variação '{variacao}' não encontrada: {e}")
                     continue
 
             if not clicou_periodo:
+                logger.warning(f"[MATRICULAR] Período não encontrado com variações. Tentando fallback...")
                 # Fallback: clica no primeiro link de periodo disponivel na tabela
                 try:
                     link_qualquer = page.locator(
@@ -1144,10 +1179,13 @@ async def executar_fluxo_direto(args: argparse.Namespace) -> None:
         # Clicar no botao de confirmacao para prosseguir a dados_registro.jsf.
         # ATENCAO: idx=35 e "Selecionar Outra Atividade" (form:btnAtividades) — NAO clicar neste!
         # O botao correto e outro submit (idx=37 no mapeamento step 21).
+        logger.info(f"[MATRICULAR] [8d/9] Aguardando confirmação de atividade...")
         await page.wait_for_load_state("domcontentloaded")
         await page.wait_for_timeout(500)
+        logger.info(f"[MATRICULAR] URL antes de buscar dados_registro: {page.url}")
 
         if "dados_registro.jsf" not in page.url:
+            logger.info(f"[MATRICULAR] dados_registro.jsf não está na URL. Procurando botão de confirmação...")
             clicou_proximo = await clicar_primeiro_visivel(
                 page,
                 [
@@ -1163,11 +1201,16 @@ async def executar_fluxo_direto(args: argparse.Namespace) -> None:
                 ],
                 timeout_ms=5000,
             )
+            logger.info(f"[MATRICULAR] Botão de confirmação clicado: {clicou_proximo}")
             if clicou_proximo:
                 await page.wait_for_timeout(500)
+                logger.info(f"[MATRICULAR] Aguardando navegação para dados_registro.jsf...")
                 await _aguardar_navegacao(page, "dados_registro.jsf", timeout_ms=8000)
 
+        logger.info(f"[MATRICULAR] URL final: {page.url}")
         if "dados_registro.jsf" not in page.url:
+            logger.error(f"[MATRICULAR] ERRO CRÍTICO: Esperava dados_registro.jsf mas recebeu: {page.url}")
+            logger.error(f"[MATRICULAR] Este é o ponto de falha - SIGAA pode ter mudado sua navegação")
             raise RuntimeError(f"Esperava dados_registro.jsf, mas URL e: {page.url}")
 
         # --- SENHA E CONFIRMACAO ---
