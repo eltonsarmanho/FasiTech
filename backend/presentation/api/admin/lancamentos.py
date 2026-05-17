@@ -18,6 +18,16 @@ class LancamentoRequest(BaseModel):
     conceito: Optional[str] = "E"  # Para consolidação: A, B, C, D, E (padrão: E)
 
 
+@router.get("/lancamentos/componentes-validos")
+async def get_componentes_validos(_: str = Depends(get_admin_dependency)):
+    """Retorna lista de componentes válidos para matrícula"""
+    from backend.infrastructure.sigaa.lancamento_service import LancamentoService
+    return {
+        "componentes": sorted(list(LancamentoService.COMPONENTES_VALIDOS)),
+        "descricao": "Componentes válidos para matrícula no SIGAA"
+    }
+
+
 @router.get("/lancamentos")
 async def list_lancamentos(
     tipo_formulario: str = Query(..., description="ACC, TCC ou Estagio"),
@@ -73,6 +83,12 @@ async def matricular_sigaa(data: LancamentoRequest, _: str = Depends(get_admin_d
             raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, resultado.mensagem)
     except HTTPException:
         raise
+    except ValueError as e:
+        logger.error(f"[MATRICULAR] Erro de validação: {str(e)}")
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            f"{str(e)} Consulte GET /api/admin/lancamentos/componentes-validos para a lista correta."
+        )
     except Exception as e:
         logger.exception(f"[MATRICULAR] Erro não tratado: {type(e).__name__}: {str(e)}")
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, f"Erro SIGAA: {e}")
@@ -81,8 +97,15 @@ async def matricular_sigaa(data: LancamentoRequest, _: str = Depends(get_admin_d
 @router.post("/lancamentos/consolidar", status_code=202)
 async def consolidar_sigaa(data: LancamentoRequest, _: str = Depends(get_admin_dependency)):
     """Dispara automação Playwright para consolidar conceito no SIGAA."""
+    import logging
+    logger = logging.getLogger(__name__)
+
     try:
+        logger.info(f"[CONSOLIDAR] Iniciando consolidação - Matricula: {data.matricula}, Componente: {data.componente}")
+
         from backend.infrastructure.sigaa.lancamento_service import LancamentoService
+        logger.info(f"[CONSOLIDAR] LancamentoService importado com sucesso")
+
         servico = LancamentoService(
             matricula=data.matricula,
             polo=data.polo,
@@ -90,10 +113,26 @@ async def consolidar_sigaa(data: LancamentoRequest, _: str = Depends(get_admin_d
             componente=data.componente,
             orientador=data.orientador,
         )
+        logger.info(f"[CONSOLIDAR] Serviço criado com sucesso")
+
+        logger.info(f"[CONSOLIDAR] Chamando servico.consolidar(conceito={data.conceito})...")
         resultado = await servico.consolidar(conceito=data.conceito)
+        logger.info(f"[CONSOLIDAR] Resultado recebido - Sucesso: {resultado.sucesso}")
+
         if resultado.sucesso:
+            logger.info(f"[CONSOLIDAR] Consolidação bem-sucedida: {resultado.mensagem}")
             return {"message": resultado.mensagem, "detalhes": resultado.detalhes}
         else:
+            logger.error(f"[CONSOLIDAR] Falha na consolidação: {resultado.mensagem}")
             raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, resultado.mensagem)
+    except HTTPException:
+        raise
+    except ValueError as e:
+        logger.error(f"[CONSOLIDAR] Erro de validação: {str(e)}")
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            f"{str(e)} Consulte GET /api/admin/lancamentos/componentes-validos para a lista correta."
+        )
     except Exception as e:
+        logger.exception(f"[CONSOLIDAR] Erro não tratado: {type(e).__name__}: {str(e)}")
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, f"Erro SIGAA: {e}")

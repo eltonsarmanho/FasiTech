@@ -87,12 +87,18 @@ class LancamentoService:
         orientador: str | None = None,
         executar: bool = True,
     ) -> None:
+        import logging
+        logger = logging.getLogger(__name__)
+
         componente_upper = componente.strip().upper()
+        logger.info(f"[LANCAMENTO_SERVICE] Validando componente: '{componente}' → '{componente_upper}'")
+
         if componente_upper not in self.COMPONENTES_VALIDOS:
             validos = ", ".join(sorted(self.COMPONENTES_VALIDOS))
+            logger.error(f"[LANCAMENTO_SERVICE] Componente inválido: '{componente}'")
             raise ValueError(
                 f"Componente inválido: '{componente}'. "
-                f"Use um de: {validos}"
+                f"Componentes válidos: {validos}"
             )
 
         self.matricula = matricula.strip()
