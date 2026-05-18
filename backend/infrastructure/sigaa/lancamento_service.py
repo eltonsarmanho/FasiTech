@@ -63,7 +63,11 @@ class LancamentoService:
     headless   : False → abre janela do browser (útil para depuração). Padrão True.
     """
 
-    COMPONENTES_VALIDOS = {"ACC I", "ACC II", "ACC III", "ACC IV", "TCC I", "TCC II"}
+    COMPONENTES_VALIDOS = {"ACC", "ACC I", "ACC II", "ACC III", "ACC IV", "TCC", "TCC I", "TCC II"}
+    COMPONENTES_EXPANDIDOS = {
+        "ACC": ["ACC I", "ACC II", "ACC III", "ACC IV"],
+        "TCC": ["TCC I", "TCC II"],
+    }
 
     def __init__(
         self,
@@ -93,6 +97,14 @@ class LancamentoService:
         self.orientador = orientador
         self.executar = executar
         self.headless = headless
+
+    # ── Helpers internos ──────────────────────────────────────────────────────
+
+    def _expand_componentes(self) -> list[str]:
+        """Expande componente genérico (ACC, TCC) para lista específica."""
+        if self.componente in self.COMPONENTES_EXPANDIDOS:
+            return self.COMPONENTES_EXPANDIDOS[self.componente]
+        return [self.componente]
 
     # ── Builders de argumento ─────────────────────────────────────────────────
 
@@ -134,6 +146,9 @@ class LancamentoService:
         """
         Matrícula do aluno no componente via SIGAA.
 
+        Se componente='ACC', matricula em ACC I, ACC II, ACC III, ACC IV.
+        Se componente='TCC', matricula em TCC I, TCC II.
+
         Fluxo (ACC):
           Login → Período → Portal Coord. Graduação → Curso/Polo →
           Atividades > Matricular → Buscar Discente →
@@ -144,32 +159,48 @@ class LancamentoService:
           Mesmo fluxo, porém usa sigaa_Matricular_TCC. Etapa extra:
           Dados de Registro → Orientador (autocomplete) → Próximo Passo → Senha → Confirmar.
         """
-        if self.componente.startswith("TCC"):
-            from backend.infrastructure.sigaa.matricular_tcc import executar_fluxo_direto
-        else:
-            from backend.infrastructure.sigaa.matricular import executar_fluxo_direto
+        componentes = self._expand_componentes()
+        erros = []
+        matriculados = []
 
-        args = self._args_matricular()
-        try:
-            await executar_fluxo_direto(args)
+        for componente_spec in componentes:
+            try:
+                if componente_spec.startswith("TCC"):
+                    from backend.infrastructure.sigaa.matricular_tcc import executar_fluxo_direto
+                else:
+                    from backend.infrastructure.sigaa.matricular import executar_fluxo_direto
+
+                args = self._args_matricular()
+                args.componente = componente_spec
+
+                await executar_fluxo_direto(args)
+                matriculados.append(componente_spec)
+            except Exception as exc:
+                erros.append(f"{componente_spec}: {exc}")
+
+        if matriculados:
             acao = "simulada (dry-run)" if not self.executar else "concluída com sucesso"
+            mensagem = f"Matrícula de {self.matricula} em {', '.join(matriculados)} (polo: {self.polo} | período: {self.periodo}) {acao}."
+            if erros:
+                mensagem += f"\n⚠️ Erros: {'; '.join(erros)}"
             return ResultadoOperacao(
                 sucesso=True,
-                mensagem=(
-                    f"Matrícula de {self.matricula} em '{self.componente}' "
-                    f"(polo: {self.polo} | período: {self.periodo}) {acao}."
-                ),
+                mensagem=mensagem,
+                detalhes=erros,
             )
-        except Exception as exc:
+        else:
             return ResultadoOperacao(
                 sucesso=False,
-                mensagem=f"Erro na matrícula: {exc}",
-                detalhes=[repr(exc)],
+                mensagem=f"Falha ao matricular: {'; '.join(erros)}",
+                detalhes=erros,
             )
 
     async def consolidar(self, conceito: str = "E") -> ResultadoOperacao:
         """
         Consolida a matrícula atribuindo o conceito informado.
+
+        Se componente='ACC', consolida ACC I, ACC II, ACC III, ACC IV.
+        Se componente='TCC', consolida TCC I, TCC II.
 
         Fluxo (ACC e TCC):
           Login → Período → Portal Coord. Graduação → Curso/Polo →
@@ -187,28 +218,40 @@ class LancamentoService:
                 f"Conceito inválido: '{conceito}'. Use um de: {', '.join(sorted(conceitos_validos))}"
             )
 
-        if self.componente.startswith("TCC"):
-            from backend.infrastructure.sigaa.consolidar_tcc import executar_consolidacao
-        else:
-            from backend.infrastructure.sigaa.consolidar import executar_consolidacao
+        componentes = self._expand_componentes()
+        erros = []
+        consolidados = []
 
-        args = self._args_consolidar(conceito_upper)
-        try:
-            await executar_consolidacao(args)
+        for componente_spec in componentes:
+            try:
+                if componente_spec.startswith("TCC"):
+                    from backend.infrastructure.sigaa.consolidar_tcc import executar_consolidacao
+                else:
+                    from backend.infrastructure.sigaa.consolidar import executar_consolidacao
+
+                args = self._args_consolidar(conceito_upper)
+                args.componente = componente_spec
+
+                await executar_consolidacao(args)
+                consolidados.append(componente_spec)
+            except Exception as exc:
+                erros.append(f"{componente_spec}: {exc}")
+
+        if consolidados:
             acao = "simulada (dry-run)" if not self.executar else "concluída com sucesso"
+            mensagem = f"Consolidação de {self.matricula} em {', '.join(consolidados)} (polo: {self.polo} | período: {self.periodo} | conceito: {conceito_upper}) {acao}."
+            if erros:
+                mensagem += f"\n⚠️ Erros: {'; '.join(erros)}"
             return ResultadoOperacao(
                 sucesso=True,
-                mensagem=(
-                    f"Consolidação de {self.matricula} em '{self.componente}' "
-                    f"(polo: {self.polo} | período: {self.periodo} "
-                    f"| conceito: {conceito_upper}) {acao}."
-                ),
+                mensagem=mensagem,
+                detalhes=erros,
             )
-        except Exception as exc:
+        else:
             return ResultadoOperacao(
                 sucesso=False,
-                mensagem=f"Erro na consolidação: {exc}",
-                detalhes=[repr(exc)],
+                mensagem=f"Falha ao consolidar: {'; '.join(erros)}",
+                detalhes=erros,
             )
 
     # ── Versões síncronas (utilitários / testes) ──────────────────────────────
