@@ -55,18 +55,32 @@ export function LancamentoConceitos() {
     setFiltroMatricula(''); setFiltroEstagio(''); setSomentePendentes(false)
   }
 
+  const queryClient = require('@tanstack/react-query').useQueryClient()
+
   const matricularMutation = useMutation({
     mutationFn: (row: { matricula: string; periodo: string; polo: string; componente: string }) =>
       apiAuth.post('/api/admin/lancamentos/matricular', row),
-    onSuccess: () => toast.success('Matrícula iniciada no SIGAA'),
-    onError: () => toast.error('Erro ao matricular no SIGAA'),
+    onSuccess: (response) => {
+      toast.success('Matrícula processada! Status atualizado automaticamente.')
+      // Recarregar dados após sucesso
+      queryClient.invalidateQueries({ queryKey: ['lancamentos'] })
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.detail || 'Erro ao matricular no SIGAA')
+    },
   })
 
   const consolidarMutation = useMutation({
     mutationFn: (row: { matricula: string; periodo: string; polo: string; componente: string }) =>
       apiAuth.post('/api/admin/lancamentos/consolidar', row),
-    onSuccess: () => toast.success('Consolidação iniciada no SIGAA'),
-    onError: () => toast.error('Erro ao consolidar no SIGAA'),
+    onSuccess: (response) => {
+      toast.success('Consolidação processada! Status atualizado automaticamente.')
+      // Recarregar dados após sucesso
+      queryClient.invalidateQueries({ queryKey: ['lancamentos'] })
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.detail || 'Erro ao consolidar no SIGAA')
+    },
   })
 
   const atualizarStatusMutation = useMutation({
@@ -253,23 +267,40 @@ export function LancamentoConceitos() {
                         </button>
                       </div>
                     </td>
-                    <td className="px-3 py-2 flex gap-1.5 justify-center">
-                      <button
-                        onClick={() => matricularMutation.mutate({ matricula: row.matricula, periodo: row.periodo, polo: row.polo, componente: row.componente })}
-                        disabled={matricularMutation.isPending}
-                        className="fasi-btn-outline py-1 px-2 text-xs"
-                        title="Matricular no SIGAA"
-                      >
-                        <Play className="w-3 h-3" /> Matricular
-                      </button>
-                      <button
-                        onClick={() => consolidarMutation.mutate({ matricula: row.matricula, periodo: row.periodo, polo: row.polo, componente: row.componente })}
-                        disabled={consolidarMutation.isPending}
-                        className="fasi-btn-secondary py-1 px-2 text-xs"
-                        title="Consolidar no SIGAA"
-                      >
-                        <Play className="w-3 h-3" /> Consolidar
-                      </button>
+                    <td className="px-3 py-2">
+                      <div className="flex gap-1.5 justify-center flex-col items-center">
+                        <div className="flex gap-1.5">
+                          <button
+                            onClick={() => matricularMutation.mutate({ matricula: row.matricula, periodo: row.periodo, polo: row.polo, componente: row.componente })}
+                            disabled={matricularMutation.isPending || consolidarMutation.isPending}
+                            className="fasi-btn-outline py-1 px-2 text-xs"
+                            title="Matricular no SIGAA"
+                          >
+                            {matricularMutation.isPending ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <Play className="w-3 h-3" />
+                            )}
+                            {matricularMutation.isPending ? 'Aguarde...' : 'Matricular'}
+                          </button>
+                          <button
+                            onClick={() => consolidarMutation.mutate({ matricula: row.matricula, periodo: row.periodo, polo: row.polo, componente: row.componente })}
+                            disabled={matricularMutation.isPending || consolidarMutation.isPending}
+                            className="fasi-btn-secondary py-1 px-2 text-xs"
+                            title="Consolidar no SIGAA"
+                          >
+                            {consolidarMutation.isPending ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <Play className="w-3 h-3" />
+                            )}
+                            {consolidarMutation.isPending ? 'Aguarde...' : 'Consolidar'}
+                          </button>
+                        </div>
+                        {(matricularMutation.isPending || consolidarMutation.isPending) && (
+                          <p className="text-xs text-amber-600 font-medium">⏳ Processando...</p>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

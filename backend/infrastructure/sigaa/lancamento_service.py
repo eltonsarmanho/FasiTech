@@ -186,7 +186,7 @@ class LancamentoService:
             return ResultadoOperacao(
                 sucesso=True,
                 mensagem=mensagem,
-                detalhes=erros,
+                detalhes=erros + [f"SUCESSO: {comp}" for comp in matriculados],
             )
         else:
             return ResultadoOperacao(
@@ -245,7 +245,7 @@ class LancamentoService:
             return ResultadoOperacao(
                 sucesso=True,
                 mensagem=mensagem,
-                detalhes=erros,
+                detalhes=erros + [f"SUCESSO: {comp}" for comp in consolidados],
             )
         else:
             return ResultadoOperacao(

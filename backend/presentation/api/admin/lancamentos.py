@@ -77,6 +77,8 @@ async def matricular_sigaa(data: LancamentoRequest, _: str = Depends(get_admin_d
         logger.info(f"[MATRICULAR] Iniciando matrícula - Matricula: {data.matricula}, Polo: {data.polo}, Componente: {data.componente}")
 
         from backend.infrastructure.sigaa.lancamento_service import LancamentoService
+        from backend.infrastructure.database.repository import atualizar_status_lancamento
+
         logger.info(f"[MATRICULAR] LancamentoService importado com sucesso")
 
         servico = LancamentoService(
@@ -94,7 +96,26 @@ async def matricular_sigaa(data: LancamentoRequest, _: str = Depends(get_admin_d
 
         if resultado.sucesso:
             logger.info(f"[MATRICULAR] Matrícula bem-sucedida: {resultado.mensagem}")
-            return {"message": resultado.mensagem, "detalhes": resultado.detalhes}
+
+            # Extrair componentes que tiveram sucesso dos detalhes
+            componentes_sucesso = [d.replace("SUCESSO: ", "") for d in resultado.detalhes if d.startswith("SUCESSO:")]
+
+            # Atualizar status automaticamente para componentes bem-sucedidos
+            for comp in componentes_sucesso:
+                atualizar_status_lancamento(
+                    matricula=data.matricula,
+                    periodo=data.periodo,
+                    polo=data.polo,
+                    componente=comp,
+                    matriculado=True
+                )
+                logger.info(f"[MATRICULAR] Status atualizado para {comp}: matriculado=True")
+
+            return {
+                "message": resultado.mensagem,
+                "detalhes": resultado.detalhes,
+                "componentes_sucesso": componentes_sucesso
+            }
         else:
             logger.error(f"[MATRICULAR] Falha na matrícula: {resultado.mensagem}")
             raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, resultado.mensagem)
@@ -121,6 +142,8 @@ async def consolidar_sigaa(data: LancamentoRequest, _: str = Depends(get_admin_d
         logger.info(f"[CONSOLIDAR] Iniciando consolidação - Matricula: {data.matricula}, Componente: {data.componente}")
 
         from backend.infrastructure.sigaa.lancamento_service import LancamentoService
+        from backend.infrastructure.database.repository import atualizar_status_lancamento
+
         logger.info(f"[CONSOLIDAR] LancamentoService importado com sucesso")
 
         servico = LancamentoService(
@@ -138,7 +161,26 @@ async def consolidar_sigaa(data: LancamentoRequest, _: str = Depends(get_admin_d
 
         if resultado.sucesso:
             logger.info(f"[CONSOLIDAR] Consolidação bem-sucedida: {resultado.mensagem}")
-            return {"message": resultado.mensagem, "detalhes": resultado.detalhes}
+
+            # Extrair componentes que tiveram sucesso dos detalhes
+            componentes_sucesso = [d.replace("SUCESSO: ", "") for d in resultado.detalhes if d.startswith("SUCESSO:")]
+
+            # Atualizar status automaticamente para componentes bem-sucedidos
+            for comp in componentes_sucesso:
+                atualizar_status_lancamento(
+                    matricula=data.matricula,
+                    periodo=data.periodo,
+                    polo=data.polo,
+                    componente=comp,
+                    consolidado=True
+                )
+                logger.info(f"[CONSOLIDAR] Status atualizado para {comp}: consolidado=True")
+
+            return {
+                "message": resultado.mensagem,
+                "detalhes": resultado.detalhes,
+                "componentes_sucesso": componentes_sucesso
+            }
         else:
             logger.error(f"[CONSOLIDAR] Falha na consolidação: {resultado.mensagem}")
             raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, resultado.mensagem)
