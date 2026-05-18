@@ -197,65 +197,6 @@ async def consolidar_sigaa(data: LancamentoRequest, _: str = Depends(get_admin_d
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, f"Erro SIGAA: {e}")
 
 
-@router.patch("/lancamentos/marcar-consolidados-expandidos")
-async def marcar_consolidados_expandidos(
-    data: dict,
-    _: str = Depends(get_admin_dependency)
-):
-    """Marca todos os componentes expandidos como consolidados de uma vez.
-
-    Útil quando a automação falha mas você fez a operação manualmente no SIGAA.
-    """
-    import logging
-    logger = logging.getLogger(__name__)
-
-    try:
-        from backend.infrastructure.database.repository import atualizar_status_lancamento
-        from backend.infrastructure.sigaa.lancamento_service import LancamentoService
-
-        matricula = data.get("matricula")
-        periodo = data.get("periodo")
-        polo = data.get("polo")
-        componente = data.get("componente")
-
-        if not all([matricula, periodo, polo, componente]):
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Campos obrigatórios: matricula, periodo, polo, componente")
-
-        # Expandir componentes
-        svc = LancamentoService(
-            matricula=matricula,
-            periodo=periodo,
-            polo=polo,
-            componente=componente
-        )
-        componentes = svc._expand_componentes()
-
-        # Marcar todos como consolidados
-        atualizados = 0
-        for comp in componentes:
-            resultado = atualizar_status_lancamento(
-                matricula=matricula,
-                periodo=periodo,
-                polo=polo,
-                componente=comp,
-                consolidado=True
-            )
-            if resultado:
-                atualizados += 1
-                logger.info(f"[MARCADOS] {comp} → consolidado=True")
-
-        return {
-            "message": f"Marcados {atualizados} de {len(componentes)} componentes como consolidados",
-            "componentes_marcados": atualizados,
-            "componentes_total": len(componentes),
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.exception(f"[MARCADOS] Erro: {str(e)}")
-        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, f"Erro ao marcar: {str(e)}")
-
-
 @router.patch("/lancamentos/atualizar-status")
 async def atualizar_status_lancamento(
     data: AtualizarStatusRequest,

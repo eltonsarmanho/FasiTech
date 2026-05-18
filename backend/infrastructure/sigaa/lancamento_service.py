@@ -248,21 +248,11 @@ class LancamentoService:
                 detalhes=erros + [f"SUCESSO: {comp}" for comp in consolidados],
             )
         else:
-            # Mesmo com erros, retornar sucesso parcial se expandiu
-            # Porque pode ser que o componente já estava consolidado
-            if len(componentes) > 1:
-                mensagem = f"Nenhum componente consolidado (possível: já consolidados ou indisponíveis no SIGAA).\nComponentes tentados: {', '.join(componentes)}"
-                return ResultadoOperacao(
-                    sucesso=False,
-                    mensagem=f"Falha ao consolidar: {'; '.join(erros)}",
-                    detalhes=erros,
-                )
-            else:
-                return ResultadoOperacao(
-                    sucesso=False,
-                    mensagem=f"Falha ao consolidar: {'; '.join(erros)}",
-                    detalhes=erros,
-                )
+            return ResultadoOperacao(
+                sucesso=False,
+                mensagem=f"Falha ao consolidar: {'; '.join(erros)}",
+                detalhes=erros,
+            )
 
     # ── Versões síncronas ─────────────────────────────────────────────────────
 

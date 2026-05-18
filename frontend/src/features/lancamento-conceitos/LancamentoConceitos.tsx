@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { useState, useMemo } from 'react'
-import { Loader2, Play, Check, X, CheckCircle } from 'lucide-react'
+import { Loader2, Play, Check, X } from 'lucide-react'
 
 import { PageShell } from '@/shared/components/PageShell'
 import { FormSection, FieldGroup, Field } from '@/shared/components/FormSection'
@@ -92,16 +92,6 @@ export function LancamentoConceitos() {
       window.location.reload()
     },
     onError: () => toast.error('Erro ao atualizar status'),
-  })
-
-  const marcarConsolidadosExpandidosMutation = useMutation({
-    mutationFn: (row: { matricula: string; periodo: string; polo: string; componente: string }) =>
-      apiAuth.patch('/api/admin/lancamentos/marcar-consolidados-expandidos', row),
-    onSuccess: (response) => {
-      toast.success(`✓ ${response.data.componentes_marcados}/${response.data.componentes_total} componentes marcados como consolidados`)
-      queryClient.invalidateQueries({ queryKey: ['lancamentos'] })
-    },
-    onError: () => toast.error('Erro ao marcar como consolidados'),
   })
 
   return (
@@ -279,7 +269,7 @@ export function LancamentoConceitos() {
                     </td>
                     <td className="px-3 py-2">
                       <div className="flex gap-1.5 justify-center flex-col items-center">
-                        <div className="flex gap-1.5 flex-wrap justify-center">
+                        <div className="flex gap-1.5">
                           <button
                             onClick={() => matricularMutation.mutate({ matricula: row.matricula, periodo: row.periodo, polo: row.polo, componente: row.componente })}
                             disabled={matricularMutation.isPending || consolidarMutation.isPending}
@@ -306,23 +296,8 @@ export function LancamentoConceitos() {
                             )}
                             {consolidarMutation.isPending ? 'Aguarde...' : 'Consolidar'}
                           </button>
-                          {!row.consolidado && (
-                            <button
-                              onClick={() => marcarConsolidadosExpandidosMutation.mutate({ matricula: row.matricula, periodo: row.periodo, polo: row.polo, componente: row.componente })}
-                              disabled={marcarConsolidadosExpandidosMutation.isPending}
-                              className="fasi-btn py-1 px-2 text-xs bg-blue-50 text-blue-700 hover:bg-blue-100"
-                              title="Marcar todos como consolidados (quando já feito no SIGAA)"
-                            >
-                              {marcarConsolidadosExpandidosMutation.isPending ? (
-                                <Loader2 className="w-3 h-3 animate-spin" />
-                              ) : (
-                                <CheckCircle className="w-3 h-3" />
-                              )}
-                              {marcarConsolidadosExpandidosMutation.isPending ? 'Marcando...' : 'Marcar Ok'}
-                            </button>
-                          )}
                         </div>
-                        {(matricularMutation.isPending || consolidarMutation.isPending || marcarConsolidadosExpandidosMutation.isPending) && (
+                        {(matricularMutation.isPending || consolidarMutation.isPending) && (
                           <p className="text-xs text-amber-600 font-medium">⏳ Processando...</p>
                         )}
                       </div>
