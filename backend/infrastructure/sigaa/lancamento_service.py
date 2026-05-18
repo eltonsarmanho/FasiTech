@@ -254,20 +254,12 @@ class LancamentoService:
                 detalhes=erros,
             )
 
-    # ── Versões síncronas (utilitários / testes) ──────────────────────────────
+    # ── Versões síncronas ─────────────────────────────────────────────────────
 
     def matricular_sync(self) -> ResultadoOperacao:
-        """
-        Versão síncrona de matricular().
-        Útil para testes diretos fora de contexto async.
-        NÃO use em callbacks do Streamlit — prefira a versão async.
-        """
+        """Versão síncrona de matricular(). Não use dentro de callbacks Streamlit."""
         return asyncio.run(self.matricular())
 
     def consolidar_sync(self, conceito: str = "E") -> ResultadoOperacao:
-        """
-        Versão síncrona de consolidar().
-        Útil para testes diretos fora de contexto async.
-        NÃO use em callbacks do Streamlit — prefira a versão async.
-        """
+        """Versão síncrona de consolidar(). Não use dentro de callbacks Streamlit."""
         return asyncio.run(self.consolidar(conceito))
