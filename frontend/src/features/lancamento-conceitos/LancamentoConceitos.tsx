@@ -1,7 +1,7 @@
 import { useQuery, useMutation } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { useState, useMemo } from 'react'
-import { Loader2, Play } from 'lucide-react'
+import { Loader2, Play, Check, X } from 'lucide-react'
 
 import { PageShell } from '@/shared/components/PageShell'
 import { FormSection, FieldGroup, Field } from '@/shared/components/FormSection'
@@ -67,6 +67,17 @@ export function LancamentoConceitos() {
       apiAuth.post('/api/admin/lancamentos/consolidar', row),
     onSuccess: () => toast.success('Consolidação iniciada no SIGAA'),
     onError: () => toast.error('Erro ao consolidar no SIGAA'),
+  })
+
+  const atualizarStatusMutation = useMutation({
+    mutationFn: (data: { matricula: string; periodo: string; polo: string; componente: string; matriculado?: boolean; consolidado?: boolean }) =>
+      apiAuth.patch('/api/admin/lancamentos/atualizar-status', data),
+    onSuccess: (response) => {
+      toast.success('Status atualizado com sucesso')
+      // Reload data
+      window.location.reload()
+    },
+    onError: () => toast.error('Erro ao atualizar status'),
   })
 
   return (
@@ -193,14 +204,54 @@ export function LancamentoConceitos() {
                     <td className="px-3 py-2">{row.polo}</td>
                     <td className="px-3 py-2">{row.componente}</td>
                     <td className="px-3 py-2">
-                      <span className={`fasi-badge ${row.matriculado ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                        {row.matriculado ? 'Sim' : 'Não'}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className={`fasi-badge ${row.matriculado ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                          {row.matriculado ? 'Sim' : 'Não'}
+                        </span>
+                        <button
+                          onClick={() => atualizarStatusMutation.mutate({
+                            matricula: row.matricula,
+                            periodo: row.periodo,
+                            polo: row.polo,
+                            componente: row.componente,
+                            matriculado: !row.matriculado
+                          })}
+                          disabled={atualizarStatusMutation.isPending}
+                          className="p-1 rounded hover:bg-gray-100 transition-colors"
+                          title={`Alterar de ${row.matriculado ? 'Sim' : 'Não'} para ${row.matriculado ? 'Não' : 'Sim'}`}
+                        >
+                          {row.matriculado ? (
+                            <Check className="w-4 h-4 text-green-600" />
+                          ) : (
+                            <X className="w-4 h-4 text-red-600" />
+                          )}
+                        </button>
+                      </div>
                     </td>
                     <td className="px-3 py-2">
-                      <span className={`fasi-badge ${row.consolidado ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                        {row.consolidado ? 'Sim' : 'Pendente'}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className={`fasi-badge ${row.consolidado ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                          {row.consolidado ? 'Sim' : 'Pendente'}
+                        </span>
+                        <button
+                          onClick={() => atualizarStatusMutation.mutate({
+                            matricula: row.matricula,
+                            periodo: row.periodo,
+                            polo: row.polo,
+                            componente: row.componente,
+                            consolidado: !row.consolidado
+                          })}
+                          disabled={atualizarStatusMutation.isPending}
+                          className="p-1 rounded hover:bg-gray-100 transition-colors"
+                          title={`Alterar de ${row.consolidado ? 'Sim' : 'Não'} para ${row.consolidado ? 'Não' : 'Sim'}`}
+                        >
+                          {row.consolidado ? (
+                            <Check className="w-4 h-4 text-green-600" />
+                          ) : (
+                            <X className="w-4 h-4 text-yellow-600" />
+                          )}
+                        </button>
+                      </div>
                     </td>
                     <td className="px-3 py-2 flex gap-1.5 justify-center">
                       <button
