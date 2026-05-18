@@ -19,7 +19,10 @@ def _resolver_caminho_pdf(nome_arquivo):
 def _resolver_caminho_logo_ufpa() -> str | None:
     """Resolve caminho da logo UFPA em ambiente local/VM."""
     candidates = [
+        Path(__file__).resolve().parents[2] / "resources" / "ufpa.png",
+        Path(__file__).resolve().parents[1] / "resources" / "ufpa.png",
         Path(__file__).resolve().parents[1] / "resources" / "logo_ufpa.png",
+        Path.cwd() / "resources" / "ufpa.png",
         Path.cwd() / "src" / "resources" / "logo_ufpa.png",
         Path("/app/src/resources/logo_ufpa.png"),
     ]
