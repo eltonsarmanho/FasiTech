@@ -1,4 +1,4 @@
-import { useQuery, useMutation } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { useState, useMemo } from 'react'
 import { Loader2, Play, Check, X } from 'lucide-react'
@@ -55,12 +55,12 @@ export function LancamentoConceitos() {
     setFiltroMatricula(''); setFiltroEstagio(''); setSomentePendentes(false)
   }
 
-  const queryClient = require('@tanstack/react-query').useQueryClient()
+  const queryClient = useQueryClient()
 
   const matricularMutation = useMutation({
     mutationFn: (row: { matricula: string; periodo: string; polo: string; componente: string }) =>
       apiAuth.post('/api/admin/lancamentos/matricular', row),
-    onSuccess: (response) => {
+    onSuccess: () => {
       toast.success('Matrícula processada! Status atualizado automaticamente.')
       // Recarregar dados após sucesso
       queryClient.invalidateQueries({ queryKey: ['lancamentos'] })
@@ -73,7 +73,7 @@ export function LancamentoConceitos() {
   const consolidarMutation = useMutation({
     mutationFn: (row: { matricula: string; periodo: string; polo: string; componente: string }) =>
       apiAuth.post('/api/admin/lancamentos/consolidar', row),
-    onSuccess: (response) => {
+    onSuccess: () => {
       toast.success('Consolidação processada! Status atualizado automaticamente.')
       // Recarregar dados após sucesso
       queryClient.invalidateQueries({ queryKey: ['lancamentos'] })
