@@ -72,7 +72,7 @@ export function LancamentoConceitos() {
   const atualizarStatusMutation = useMutation({
     mutationFn: (data: { matricula: string; periodo: string; polo: string; componente: string; matriculado?: boolean; consolidado?: boolean }) =>
       apiAuth.patch('/api/admin/lancamentos/atualizar-status', data),
-    onSuccess: (response) => {
+    onSuccess: () => {
       toast.success('Status atualizado com sucesso')
       // Reload data
       window.location.reload()
