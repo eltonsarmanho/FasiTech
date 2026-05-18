@@ -1,0 +1,268 @@
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                          FASITECH - QUICK REFERENCE                            ║
+║                        Architecture at a Glance (2 min)                         ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+┌─ FRONTEND ─────────────────────────────────────────────────────────────────────┐
+│ React 18.x + TypeScript + Tailwind CSS + React Query                           │
+│ ├─ Features/                                                                   │
+│ │  ├─ lancamento-conceitos/     (Painel de matrícula/consolidação)           │
+│ │  ├─ acc-form/                 (Formulário ACC)                             │
+│ │  ├─ tcc-form/                 (Formulário TCC)                             │
+│ │  └─ director-chat/            (Chat IA - Diretor Virtual)                 │
+│ └─ Shared Components & Hooks                                                  │
+└────────────────────────────────────────────────────────────────────────────────┘
+                                    ↓ HTTP/REST
+┌─ API GATEWAY ──────────────────────────────────────────────────────────────────┐
+│ FastAPI (Port 8000)                                                            │
+│ Pydantic Validation + JWT Auth + Dependency Injection                          │
+└────────────────────────────────────────────────────────────────────────────────┘
+                                    ↓
+┌─ PRESENTATION LAYER ───────────────────────────────────────────────────────────┐
+│ /api/v1/forms/*    (ACC, TCC, Estágio, Plano, Projetos)                       │
+│ /api/v1/data/*     (Social, Projetos, TCC)                                    │
+│ /api/v1/ofertas/*  (Disciplinas)                                              │
+│ /api/v1/rag/*      (Diretor Virtual - Chat)                                   │
+│ /api/admin/*       (Lançamentos, Alertas)                                     │
+└────────────────────────────────────────────────────────────────────────────────┘
+                                    ↓
+┌─ DOMAIN LAYER (Business Logic) ────────────────────────────────────────────────┐
+│ Services:                                                                       │
+│ ├─ LancamentoService           (Matricular/Consolidar com expansão)          │
+│ ├─ DirectorVirtualService      (RAG com LLM)                                 │
+│ ├─ ProcessarACC/TCC/Estagio    (Form processing)                             │
+│ └─ GerarAlertasJob             (Agendamento de alertas)                      │
+│                                                                                 │
+│ Entities:                        Repositories (Interfaces):                   │
+│ ├─ Aluno                        ├─ IAluno                                    │
+│ ├─ Disciplina                   ├─ IDisciplina                               │
+│ ├─ Componente                   ├─ IComponente                               │
+│ └─ Lançamento                   └─ ILancamento                               │
+└────────────────────────────────────────────────────────────────────────────────┘
+                                    ↓
+┌─ INFRASTRUCTURE LAYER (Implementações Técnicas) ──────────────────────────────┐
+│                                                                                │
+│ 🎓 SIGAA Domain (Playwright Automation)                                       │
+│    ├─ matricular.py        (ACC I-IV automation)                              │
+│    ├─ matricular_tcc.py    (TCC I-II automation)                              │
+│    ├─ consolidar.py        (ACC I-IV consolidation)                           │
+│    └─ consolidar_tcc.py    (TCC I-II consolidation)                           │
+│                                                                                │
+│ 🗄️  DATABASE Domain (PostgreSQL)                                             │
+│    ├─ Models (SQLModel):                                                     │
+│    │  └─ LancamentoConceito (matricula, periodo, componente, status)         │
+│    └─ Repository Implementation (atualizar_status, get_lancamentos)          │
+│                                                                                │
+│ 🤖 RAG Domain (LangChain + Claude)                                            │
+│    ├─ DocumentProcessor    (Extract, Chunk, Embed)                            │
+│    ├─ LangChain Integration (RetrievalQA)                                     │
+│    ├─ Vector Store         (Chroma/FAISS)                                     │
+│    └─ Claude API calls     (Embeddings + Completions)                         │
+│                                                                                │
+│ 📧 EMAIL Domain (SMTP)                                                         │
+│    └─ Send notifications to professors & students                             │
+│                                                                                │
+│ ⏰ SCHEDULER Domain (APScheduler)                                              │
+│    ├─ AlertJob            (Daily at 08:00)                                    │
+│    └─ CleanupJob          (Weekly)                                            │
+│                                                                                │
+│ 🔗 GOOGLE Domain (Drive + Sheets)                                             │
+│    ├─ Sync files from Google Drive                                            │
+│    └─ Index to Vector Store                                                   │
+│                                                                                │
+│ 📁 FILE PROCESSING Domain                                                      │
+│    ├─ DOCX Handler         (Word documents)                                   │
+│    ├─ PDF Handler          (PDF files)                                        │
+│    └─ Excel Handler        (Spreadsheets)                                     │
+│                                                                                │
+└────────────────────────────────────────────────────────────────────────────────┘
+                                    ↓
+┌─ EXTERNAL SERVICES ────────────────────────────────────────────────────────────┐
+│ 🎓 SIGAA System (UFPA)    │  🤖 Claude API (Anthropic)                        │
+│ 🔗 Google APIs            │  📧 SMTP Server (Gmail/Sendgrid)                  │
+│ 🗄️  PostgreSQL Database   │  📊 Vector Store (Chroma/FAISS)                   │
+└────────────────────────────────────────────────────────────────────────────────┘
+
+═════════════════════════════════════════════════════════════════════════════════
+
+🎯 KEY PATTERNS
+
+┌─ Component Expansion Pattern ──────────────────────────────────────────────────┐
+│  ACC        → [ACC I, ACC II, ACC III, ACC IV]  (Expande automaticamente)    │
+│  TCC        → [TCC I, TCC II]                    (Expande automaticamente)    │
+│  Específico → [Específico]                       (Processa direto)           │
+└────────────────────────────────────────────────────────────────────────────────┘
+
+┌─ Dynamic Module Import ────────────────────────────────────────────────────────┐
+│  if component.startswith("TCC"):                                              │
+│      import matricular_tcc                                                    │
+│  else:                                                                         │
+│      import matricular                                                        │
+│                                                                                │
+│  Cada componente tem seu próprio fluxo Playwright                             │
+└────────────────────────────────────────────────────────────────────────────────┘
+
+┌─ Repository Pattern ───────────────────────────────────────────────────────────┐
+│  Domain          →   Interface (ILancamento, IAluno, etc)                     │
+│  Infrastructure  →   Implementation (LancamentoRepository, etc)               │
+│  Desacoplamento perfeito entre lógica e persistência                          │
+└────────────────────────────────────────────────────────────────────────────────┘
+
+┌─ React Query Pattern ──────────────────────────────────────────────────────────┐
+│  useQuery(['lancamentos', tipo])                                              │
+│      └─ Fetch + Cache + Auto-refetch                                         │
+│                                                                                │
+│  useMutation({                                                                │
+│      mutationFn: () => POST /endpoint,                                       │
+│      onSuccess: () => invalidateQueries(['lancamentos'])                     │
+│  })                                                                            │
+│      └─ Mutation + Cache invalidation + Auto-refetch                         │
+└────────────────────────────────────────────────────────────────────────────────┘
+
+═════════════════════════════════════════════════════════════════════════════════
+
+📊 MAIN FLOWS
+
+┌─ Flow 1: Matriculation & Consolidation (Matrícula) ──────────────────────────┐
+│  Secretary clicks Matricular
+│          ↓
+│  Frontend POST /api/admin/lancamentos/matricular
+│          ↓
+│  LancamentoService.matricular()
+│          ├─ Expand: ACC → [ACC I, II, III, IV]
+│          ├─ For each component:
+│          │  ├─ Import correct module (matricular.py or matricular_tcc.py)
+│          │  ├─ Run Playwright automation
+│          │  └─ Collect success/error
+│          ├─ Update database for successful components
+│          └─ Return ResultadoOperacao
+│          ↓
+│  Frontend invalidates cache
+│          ↓
+│  Table re-renders with updated status
+│          ↓
+│  Secretary sees ✓ (Sim) or ✗ (Não)
+└────────────────────────────────────────────────────────────────────────────────┘
+
+┌─ Flow 2: RAG Chat (Diretor Virtual) ───────────────────────────────────────────┐
+│  User types question in chat
+│          ↓
+│  Generate embedding of question
+│          ↓
+│  Vector Store finds similar docs (k=5)
+│          ↓
+│  LangChain mounts context
+│          ↓
+│  Claude API generates response with citations
+│          ↓
+│  Frontend displays response + sources
+└────────────────────────────────────────────────────────────────────────────────┘
+
+┌─ Flow 3: Form Processing ──────────────────────────────────────────────────────┐
+│  User fills form (ACC/TCC/Estágio)
+│          ↓
+│  Frontend validates → POST /api/v1/forms/acc
+│          ↓
+│  Pydantic validates schema
+│          ↓
+│  ProcessarACC UseCase executes
+│          ├─ Business logic
+│          ├─ Save to database
+│          └─ Send email notification
+│          ↓
+│  Frontend shows confirmation
+└────────────────────────────────────────────────────────────────────────────────┘
+
+═════════════════════════════════════════════════════════════════════════════════
+
+🔗 API ENDPOINTS (26 total)
+
+ADMIN:
+  GET    /api/admin/lancamentos
+  GET    /api/admin/lancamentos/componentes-validos
+  POST   /api/admin/lancamentos/matricular
+  POST   /api/admin/lancamentos/consolidar
+  PATCH  /api/admin/lancamentos/atualizar-status
+  GET    /api/admin/alertas
+
+FORMS (v1):
+  POST   /api/v1/forms/acc
+  POST   /api/v1/forms/tcc
+  POST   /api/v1/forms/estagio
+  POST   /api/v1/forms/plano-ensino
+  POST   /api/v1/forms/projetos
+  POST   /api/v1/forms/requerimento-tcc
+  POST   /api/v1/forms/avaliacao-gestao
+  POST   /api/v1/forms/social
+  POST   /api/v1/forms/emissao-documentos
+
+DATA (v1):
+  GET    /api/v1/data/social-data
+  GET    /api/v1/data/projetos-data
+  GET    /api/v1/data/tcc-data
+
+OFERTAS (v1):
+  GET    /api/v1/ofertas/disciplinas
+
+RAG (v1):
+  POST   /api/v1/rag/diretor-virtual
+
+═════════════════════════════════════════════════════════════════════════════════
+
+📚 DOCUMENTATION
+
+Start here:
+├─ ARQUITETURA.md (this project)                          ← Navigation hub
+├─ docs/ARQUITETURA_VISUAL_RESUMIDA.md   (10 min)         ← Quick start
+├─ docs/ARQUITETURA_SISTEMA.md           (20 min)         ← Full diagram
+├─ docs/FLUXOS_INTEGRACAO.md             (30 min)         ← Detailed flows
+└─ docs/COMPONENTES_ARQUITETURA.md       (25 min)         ← Component breakdown
+
+═════════════════════════════════════════════════════════════════════════════════
+
+🎯 WHICH DOCUMENT TO READ?
+
+Iniciante?                   → ARQUITETURA_VISUAL_RESUMIDA.md
+Full overview?               → ARQUITETURA_SISTEMA.md
+Detailed flows?              → FLUXOS_INTEGRACAO.md
+Component breakdown?         → COMPONENTES_ARQUITETURA.md
+Quick cheat sheet?           → Este arquivo (QUICK_REFERENCE.txt)
+
+═════════════════════════════════════════════════════════════════════════════════
+
+⚡ QUICK FACTS
+
+• Stack: React 18 + FastAPI + PostgreSQL + Playwright + LangChain + Claude
+• Architecture: Clean Architecture + DDD (Domain-Driven Design)
+• Database: PostgreSQL 15+ with SQLModel ORM
+• Deployment: Docker Compose on Linux VM (72.60.6.113)
+• Async: Full async/await stack (FastAPI + Playwright + LangChain)
+• RAG: Document indexing + semantic search + LLM generation
+• Automation: Playwright for SIGAA browser automation
+• Status: ✅ Production ready (since May 2026)
+
+═════════════════════════════════════════════════════════════════════════════════
+
+💾 FILE STRUCTURE
+
+backend/
+├── domain/          ← Pure business logic (no framework dependencies)
+├── infrastructure/  ← Technical implementations (DB, RAG, SIGAA, Email, etc)
+└── presentation/    ← HTTP APIs (FastAPI routes, Pydantic schemas)
+
+frontend/
+└── src/
+    ├── features/    ← React components by functionality
+    └── shared/      ← Reusable components and hooks
+
+docs/
+├── ARQUITETURA_SISTEMA.md             ← Integrated architecture diagram
+├── FLUXOS_INTEGRACAO.md               ← 10 detailed sequence diagrams
+├── COMPONENTES_ARQUITETURA.md         ← Component decomposition
+└── ARQUITETURA_VISUAL_RESUMIDA.md     ← Quick visual overview
+
+═════════════════════════════════════════════════════════════════════════════════
+
+Created: May 17, 2026
+Updated: May 17, 2026
+Status: ✅ Complete Architecture Documentation

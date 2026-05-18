@@ -12,7 +12,6 @@ export function Footer() {
           >
             Elton Sarmanho
           </a>
-          {' '}— FASI / UFPA Cametá
         </p>
         <p className="mt-1 text-xs">
           Para dúvidas:{' '}

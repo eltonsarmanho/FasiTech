@@ -2,6 +2,24 @@
 
 Portal acadêmico moderno com React SPA (frontend) e FastAPI BFF (backend), rodando em VM Linux com integrações para Google Drive, Google Sheets e envio de e-mails. Sistema completo com LGPD, download seguro de dados e API REST documentada.
 
+## 📐 Documentação de Arquitetura
+
+**Novidade**: Diagramas detalhados da arquitetura do sistema!
+
+- 📊 [**ARQUITETURA_SISTEMA.md**](./ARQUITETURA_SISTEMA.md) — Visão integrada completa com diagrama Mermaid mostrando frontend, APIs, domínios, infrastructure e externos
+- 🔄 [**FLUXOS_INTEGRACAO.md**](./FLUXOS_INTEGRACAO.md) — Fluxos sequenciais detalhados (matrícula, consolidação, RAG, formulários, alertas, etc.)
+- 🧩 [**COMPONENTES_ARQUITETURA.md**](./COMPONENTES_ARQUITETURA.md) — Decomposição de componentes por funcionalidade principal
+- 🎯 [**ARQUITETURA_VISUAL_RESUMIDA.md**](./ARQUITETURA_VISUAL_RESUMIDA.md) — Resumo visual rápido para referência
+
+### Quick Start - Entender o Projeto
+
+```
+Iniciante?                  → ARQUITETURA_VISUAL_RESUMIDA.md
+Quer ver tudo integrado?    → ARQUITETURA_SISTEMA.md
+Estudando fluxos?           → FLUXOS_INTEGRACAO.md
+Desenvolvendo um domínio?   → COMPONENTES_ARQUITETURA.md
+```
+
 ## 🚦 Camadas do Sistema
 
 - **Frontend:** React SPA (Vite + TypeScript + Tailwind, React Router, TanStack Query)
