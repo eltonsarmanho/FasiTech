@@ -724,6 +724,52 @@ def update_lancamento_conceitos_status(
     return updated_count, ignored_count
 
 
+def atualizar_status_lancamento(
+    matricula: str,
+    periodo: str,
+    polo: str,
+    componente: str,
+    matriculado: Optional[bool] = None,
+    consolidado: Optional[bool] = None,
+) -> Optional[LancamentoConceito]:
+    """
+    Atualiza manualmente o status de matriculado e/ou consolidado para um lançamento específico.
+
+    Args:
+        matricula: Matrícula do aluno
+        periodo: Período acadêmico (ex: "2026.1")
+        polo: Nome do polo
+        componente: Componente (ACC I, TCC I, etc.)
+        matriculado: Novo status de matriculado (opcional)
+        consolidado: Novo status de consolidado (opcional)
+
+    Returns:
+        LancamentoConceito atualizado ou None se não encontrado
+    """
+    with get_db_session() as session:
+        stmt = select(LancamentoConceito).where(
+            LancamentoConceito.matricula == matricula,
+            LancamentoConceito.periodo == periodo,
+            LancamentoConceito.polo == polo,
+            LancamentoConceito.componente == componente,
+        )
+        registro = session.exec(stmt).first()
+
+        if registro is None:
+            return None
+
+        if matriculado is not None:
+            registro.matriculado = matriculado
+        if consolidado is not None:
+            registro.consolidado = consolidado
+
+        session.add(registro)
+        session.commit()
+        session.refresh(registro)
+
+    return registro
+
+
 def delete_lancamento_conceitos(ids: List[int]) -> tuple[int, int]:
     """
     Remove registros de lancamento_conceitos pelos IDs.

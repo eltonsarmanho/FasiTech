@@ -18,6 +18,15 @@ class LancamentoRequest(BaseModel):
     conceito: Optional[str] = "E"  # Para consolidação: B, E, I, R, S (padrão: E)
 
 
+class AtualizarStatusRequest(BaseModel):
+    matricula: str
+    periodo: str
+    polo: str
+    componente: str
+    matriculado: Optional[bool] = None
+    consolidado: Optional[bool] = None
+
+
 @router.get("/lancamentos/componentes-validos")
 async def get_componentes_validos(_: str = Depends(get_admin_dependency)):
     """Retorna lista de componentes válidos para matrícula"""
@@ -144,3 +153,59 @@ async def consolidar_sigaa(data: LancamentoRequest, _: str = Depends(get_admin_d
     except Exception as e:
         logger.exception(f"[CONSOLIDAR] Erro não tratado: {type(e).__name__}: {str(e)}")
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, f"Erro SIGAA: {e}")
+
+
+@router.patch("/lancamentos/atualizar-status")
+async def atualizar_status_lancamento(
+    data: AtualizarStatusRequest,
+    _: str = Depends(get_admin_dependency)
+):
+    """Atualiza manualmente o status de matriculado e/ou consolidado.
+
+    Use quando o secretário faz a operação diretamente no SIGAA (não pelo FasiTech).
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+
+    try:
+        from backend.infrastructure.database.repository import atualizar_status_lancamento
+
+        resultado = atualizar_status_lancamento(
+            matricula=data.matricula,
+            periodo=data.periodo,
+            polo=data.polo,
+            componente=data.componente,
+            matriculado=data.matriculado,
+            consolidado=data.consolidado,
+        )
+
+        if resultado:
+            logger.info(
+                f"[STATUS] Atualizado - Matricula: {data.matricula}, "
+                f"Componente: {data.componente}, "
+                f"Matriculado: {data.matriculado}, Consolidado: {data.consolidado}"
+            )
+            return {
+                "message": "Status atualizado com sucesso",
+                "matricula": resultado.matricula,
+                "componente": resultado.componente,
+                "matriculado": resultado.matriculado,
+                "consolidado": resultado.consolidado,
+            }
+        else:
+            logger.error(
+                f"[STATUS] Registro não encontrado - Matricula: {data.matricula}, "
+                f"Componente: {data.componente}"
+            )
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND,
+                f"Nenhum lançamento encontrado para: {data.matricula} - {data.componente}"
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"[STATUS] Erro ao atualizar: {type(e).__name__}: {str(e)}")
+        raise HTTPException(
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            f"Erro ao atualizar status: {str(e)}"
+        )
