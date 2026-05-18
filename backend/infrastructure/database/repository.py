@@ -206,15 +206,30 @@ def save_projetos_submission(data: Dict[str, Any]) -> int:
         return submission.id
 
 
+def update_projeto_status(projeto_id: int, novo_status: str) -> bool:
+    with get_db_session() as session:
+        stmt = select(ProjetosSubmission).where(ProjetosSubmission.id == projeto_id)
+        projeto = session.exec(stmt).first()
+        if projeto is None:
+            return False
+        projeto.status = novo_status
+        session.add(projeto)
+        session.commit()
+        return True
+
+
 def list_projetos_submissions(
     pagina: int = 1,
     por_pagina: int = 20,
     natureza: Optional[str] = None,
+    status: Optional[str] = None,
 ) -> Dict[str, Any]:
     with get_db_session() as session:
         query = select(ProjetosSubmission)
         if natureza:
             query = query.where(ProjetosSubmission.natureza == natureza)
+        if status:
+            query = query.where(ProjetosSubmission.status == status)
         query = query.order_by(ProjetosSubmission.submission_date.desc())
 
         total = len(session.exec(query).all())

@@ -203,7 +203,7 @@ local/
 *.local
 
 # Data files (se houver dados sensíveis)
-data/
+/data/
 *.csv
 *.xlsx
 *.xls
