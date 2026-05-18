@@ -13,9 +13,9 @@ class LancamentoRequest(BaseModel):
     matricula: str
     periodo: str
     polo: str
-    componente: str
+    componente: str  # ACC I, ACC II, ACC III, ACC IV, TCC I, TCC II
     orientador: Optional[str] = None  # Obrigatório para TCC
-    conceito: Optional[str] = "E"  # Para consolidação: A, B, C, D, E (padrão: E)
+    conceito: Optional[str] = "E"  # Para consolidação: B, E, I, R, S (padrão: E)
 
 
 @router.get("/lancamentos/componentes-validos")
@@ -24,12 +24,12 @@ async def get_componentes_validos(_: str = Depends(get_admin_dependency)):
     from backend.infrastructure.sigaa.lancamento_service import LancamentoService
     return {
         "componentes": sorted(list(LancamentoService.COMPONENTES_VALIDOS)),
-        "componentes_expandidos": LancamentoService.COMPONENTES_EXPANDIDOS,
-        "descricao": "Componentes válidos para matrícula no SIGAA. ACC e TCC são expandidos automaticamente.",
+        "descricao": "Componentes válidos para matrícula no SIGAA",
+        "conceitos_validos": ["B", "E", "I", "R", "S"],
         "notas": [
-            "ACC → matricula/consolida em ACC I, ACC II, ACC III, ACC IV",
-            "TCC → matricula/consolida em TCC I, TCC II",
-            "Componentes específicos (ACC I, TCC I, etc.) são processados diretamente"
+            "Escolha o componente específico: ACC I, ACC II, ACC III, ACC IV (não 'ACC' genérico)",
+            "Para TCC, sempre inclua o campo 'orientador'",
+            "Na consolidação, conceitos válidos: B, E, I, R, S"
         ]
     }
 
