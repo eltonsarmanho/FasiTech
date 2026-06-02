@@ -1,5 +1,6 @@
 import { FormCard } from '@/shared/components/FormCard'
 import fasiLogo from '@/assets/fasiOficial.png'
+import seloSebrae from '@/assets/selo-sebrae.png'
 
 // ── Dados dos cards ──────────────────────────────────────────────────────────
 
@@ -98,6 +99,26 @@ export function HomePage() {
               Acesse todos os recursos acadêmicos de forma rápida e unificada.
             </p>
           </div>
+
+        </div>
+      </div>
+
+      {/* ── Reconhecimento ────────────────────────────────────────────────── */}
+      <div className="flex items-center gap-4 rounded-xl border border-green-200 bg-green-50 px-5 py-4">
+        <img
+          src={seloSebrae}
+          alt="Selo Sebrae — Prêmio Educador Transformador"
+          className="h-32 w-32 shrink-0 object-contain"
+        />
+        <div>
+          <p className="font-semibold text-green-800 text-sm">
+            🏆 2º Lugar em Gestão Educacional Transformadora — Prêmio Educador Transformador · 3ª Edição
+          </p>
+          <p className="text-green-700 text-xs mt-0.5 leading-relaxed">
+            O FasiTech conquistou o 2º lugar na categoria Gestão Educacional Transformadora no
+            Prêmio Educador Transformador (3ª Edição), promovido pelo Sebrae, reconhecendo sua
+            contribuição à inovação e digitalização dos processos acadêmicos.
+          </p>
         </div>
       </div>
 
