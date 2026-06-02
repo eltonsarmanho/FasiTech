@@ -1,4 +1,4 @@
-# Cronograma de Atividades de TCC - Facet / UFPA (Ano Letivo 2026)
+# Cronograma de Atividades de TCC - FASI / UFPA (Ano Letivo 2026)
 
 Este documento contém o cronograma consolidado de ações, responsáveis e prazos para o Trabalho de Conclusão de Curso (TCC) da Faculdade de Sistemas de Informação da Universidade Federal do Pará (UFPA) para os períodos letivos de 2026.2, 2026.3 e 2026.4.
 

@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { Bot, User, Send, X, Loader2, MessageCircle } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { cn } from '@/shared/lib/utils'
 import { submitJson } from '@/shared/lib/api'
 
@@ -103,7 +105,26 @@ export function ChatWidget() {
                     ? 'bg-fasi-500 text-white rounded-tr-sm'
                     : 'bg-white text-foreground rounded-tl-sm border border-border',
                 )}>
-                  {m.content}
+                  {m.role === 'assistant' ? (
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        p: ({ children }) => <p className="mb-1 last:mb-0">{children}</p>,
+                        strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                        ul: ({ children }) => <ul className="list-disc pl-4 mb-1 space-y-0.5">{children}</ul>,
+                        ol: ({ children }) => <ol className="list-decimal pl-4 mb-1 space-y-0.5">{children}</ol>,
+                        li: ({ children }) => <li className="leading-snug">{children}</li>,
+                        a: ({ href, children }) => (
+                          <a href={href} target="_blank" rel="noreferrer" className="underline text-fasi-600 hover:text-fasi-700">{children}</a>
+                        ),
+                        code: ({ children }) => <code className="bg-gray-100 rounded px-1 font-mono text-[10px]">{children}</code>,
+                      }}
+                    >
+                      {m.content}
+                    </ReactMarkdown>
+                  ) : (
+                    m.content
+                  )}
                 </div>
               </div>
             ))}
