@@ -1,0 +1,757 @@
+\documentclass[12pt,a4paper]{report}
+
+% ── Codificação e Idioma ──────────────────────────────────────────────────────
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+
+% ── Tipografia ────────────────────────────────────────────────────────────────
+\usepackage{lmodern}
+\usepackage{microtype}
+
+% ── Layout ───────────────────────────────────────────────────────────────────
+\usepackage[top=3cm,bottom=2cm,left=3cm,right=2cm]{geometry}
+\usepackage{setspace}
+\onehalfspacing
+
+% ── Gráficos e Figuras ────────────────────────────────────────────────────────
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,shapes.geometric,positioning,fit,backgrounds}
+
+% ── Tabelas ───────────────────────────────────────────────────────────────────
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{multirow}
+
+% ── Código ────────────────────────────────────────────────────────────────────
+\usepackage{listings}
+\usepackage{xcolor}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{blue}\bfseries,
+  commentstyle=\color{gray}\itshape,
+  stringstyle=\color{teal},
+  breaklines=true,
+  frame=single,
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  captionpos=b,
+  showstringspaces=false,
+}
+
+% ── Matemática ───────────────────────────────────────────────────────────────
+\usepackage{amsmath,amssymb,mathtools}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
+
+% ── Hiperlinks ───────────────────────────────────────────────────────────────
+\usepackage[hidelinks]{hyperref}
+
+% ── Referências ──────────────────────────────────────────────────────────────
+\usepackage[style=abnt,backend=biber]{biblatex}
+\addbibresource{referencias.bib}
+
+% ── Cabeçalho e Rodapé ───────────────────────────────────────────────────────
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[R]{\small\textit{FasiTech — Fundamentos Científicos}}
+\fancyfoot[C]{\thepage}
+
+% ── Caixas de Destaque ────────────────────────────────────────────────────────
+\usepackage{tcolorbox}
+\tcbuselibrary{skins,breakable}
+
+\newtcolorbox{insight}[1][]{
+  colback=blue!5!white,colframe=blue!40!black,
+  fonttitle=\bfseries, title=Decisão de Projeto,#1
+}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\begin{document}
+
+\begin{titlepage}
+  \centering
+  \vspace*{2cm}
+  {\Large\bfseries Universidade Federal do Pará\\
+  Faculdade de Sistemas de Informação\par}
+  \vspace{3cm}
+  {\Huge\bfseries FasiTech\\[0.5em]
+  \large Fundamentos Científicos do Sistema\par}
+  \vspace{2cm}
+  {\large
+  Módulo de Recuperação com Geração Aumentada (RAG)\\
+  Módulo de Extração Inteligente de Documentos (ACC)
+  \par}
+  \vfill
+  {\large Belém -- PA\\2026}
+\end{titlepage}
+
+\tableofcontents
+\clearpage
+
+% ─────────────────────────────────────────────────────────────────────────────
+\chapter{Introdução}
+% ─────────────────────────────────────────────────────────────────────────────
+
+O sistema FasiTech é uma plataforma web institucional desenvolvida para centralizar
+fluxos acadêmicos da Faculdade de Sistemas de Informação (FASI) da UFPA.
+Entre seus módulos, dois se apoiam diretamente em técnicas de Inteligência Artificial:
+
+\begin{enumerate}
+  \item \textbf{Diretor Virtual} — assistente conversacional baseado em
+        \textit{Retrieval-Augmented Generation} (RAG) que responde perguntas
+        sobre regulamentos, cronogramas e documentos acadêmicos.
+  \item \textbf{Módulo ACC} — extrator automático de cargas horárias de
+        certificados enviados em formato PDF, usando Modelos de Linguagem
+        Multimodais (\textit{Multimodal Large Language Models}).
+\end{enumerate}
+
+Este documento registra a ciência aplicada em cada componente, servindo de
+referência para manutenção, evolução e publicação futura dos resultados.
+
+% ─────────────────────────────────────────────────────────────────────────────
+\chapter{Módulo RAG — Diretor Virtual}
+% ─────────────────────────────────────────────────────────────────────────────
+
+\section{Fundamentos: Retrieval-Augmented Generation}
+
+\textit{Retrieval-Augmented Generation} (RAG) é uma arquitetura que combina
+recuperação de documentos com geração de linguagem natural.
+A formulação original foi proposta por \textcite{lewis2020rag}:
+dado um modelo generativo \(p_\theta(y \mid x)\) e um índice de documentos $\mathcal{D}$,
+o modelo recupera os documentos mais relevantes \(\mathbf{z} = \text{Top-}k(q, \mathcal{D})\)
+e condiciona a geração sobre eles:
+
+\begin{equation}
+  p(y \mid x) = \sum_{z \in \mathbf{z}} p_\eta(z \mid x)\, p_\theta(y \mid x, z)
+  \label{eq:rag}
+\end{equation}
+
+onde $p_\eta(z \mid x)$ é a probabilidade do documento $z$ ser relevante para
+a consulta $x$, calculada via busca densa, e $p_\theta$ é o LLM gerador.
+
+\begin{insight}[title=Por que RAG e não fine-tuning?]
+Fine-tuning parametriza o conhecimento no modelo, tornando atualizações
+custosas e sem rastreabilidade de fonte. RAG externaliza o conhecimento
+nos documentos, permitindo atualização imediata sem retreinamento e
+garantindo que respostas sejam fundamentadas em trechos verificáveis.
+\end{insight}
+
+\subsection{Recuperação Densa com Bi-Encoders}
+
+A recuperação densa (DR — \textit{Dense Retrieval}) representa consultas e
+documentos como vetores densos em um espaço semântico compartilhado.
+O trabalho seminal de \textcite{karpukhin2020dpr} (DPR —
+\textit{Dense Passage Retrieval}) demonstrou que bi-encoders treinados por
+aprendizado contrastivo superam a busca esparsa BM25 em domínios factuais.
+
+A similaridade entre a consulta $q$ e um documento $d$ é calculada por:
+
+\begin{equation}
+  \text{sim}(q, d) = \cos\!\left(E_Q(q),\, E_D(d)\right)
+  = \frac{E_Q(q) \cdot E_D(d)}{\|E_Q(q)\|\,\|E_D(d)\|}
+  \label{eq:cosine}
+\end{equation}
+
+No sistema FasiTech, o embedder é o \textbf{Ollama Embedder}
+(\texttt{nomic-embed-text} \autocite{nussbaum2024nomic}), executado localmente via servidor Ollama
+\autocite{ollama2023}
+(\texttt{OLLAMA\_HOST}, padrão \texttt{localhost:11434}), produzindo
+vetores de 768 dimensões. Todos os vetores são normalizados pelo
+serviço (norma L2 = 1) antes de serem armazenados no LanceDB,
+permitindo que a similaridade cosseno seja computada como produto
+escalar simples — $\text{sim}(q,d) = E(q) \cdot E(d)$.
+
+\subsection{Busca Híbrida: Semântica + BM25}
+
+Busca híbrida combina recuperação densa (semântica) com recuperação esparsa
+baseada em frequência de termos \autocite{robertson1994okapi}.
+O score BM25 para um documento $d$ dado uma consulta $q$ com termos $\{q_i\}$ é:
+
+\begin{equation}
+  \text{BM25}(d,q) = \sum_{i} \text{IDF}(q_i) \cdot
+  \frac{f(q_i,d)\,(k_1+1)}{f(q_i,d) + k_1\!\left(1 - b + b\,\frac{|d|}{\text{avgdl}}\right)}
+  \label{eq:bm25}
+\end{equation}
+
+onde $k_1$ e $b$ são hiperparâmetros de saturação de frequência e normalização
+por comprimento do documento, respectivamente.
+
+O banco vetorial \textbf{LanceDB} utilizado no FasiTech configura
+\texttt{SearchType.hybrid}, combinando os dois rankings via
+\textit{Reciprocal Rank Fusion} (RRF) \autocite{cormack2009rrf}:
+
+\begin{equation}
+  \text{RRF}(d) = \sum_{r \in R} \frac{1}{k + r(d)}
+  \label{eq:rrf}
+\end{equation}
+
+onde $r(d)$ é a posição do documento no ranking $r$ e $k=60$ é constante.
+Além disso, o módulo \texttt{\_keyword\_search} realiza busca adicional por
+palavras-chave como complemento pós-semântico.
+
+\section{Estratégias de Chunking}
+
+\subsection{Chunking Básico com Sobreposição}
+
+A fragmentação de documentos (\textit{chunking}) é etapa crítica no pipeline
+RAG. O método original no FasiTech divide textos em blocos de 800 caracteres
+com sobreposição (\textit{overlap}) de 150 caracteres, respeitando quebras
+de parágrafo. Esta abordagem, denominada \textit{fixed-size chunking with
+overlap}, minimiza a perda de contexto nas fronteiras dos chunks.
+
+\subsection{Chunking Contextual de Seção (Melhoria 1)}
+\label{sec:melhoria1}
+
+A limitação do chunking simples é a perda do contexto hierárquico do documento.
+Quando um chunk pertence à seção ``Período Letivo 2026.2'', o título dessa
+seção pode estar em um chunk anterior, tornando a recuperação dependente de
+que o usuário mencione explicitamente ``2026.2'' na consulta.
+
+Inspirado no \textit{Contextual Retrieval} proposto pela Anthropic
+\autocite{anthropic2024contextual} e no trabalho de \textcite{shi2023large}
+sobre prepend de contexto para melhoria de recuperação, o FasiTech implementa
+o método \texttt{\_split\_with\_section\_context}:
+
+\begin{enumerate}
+  \item O documento Markdown é percorrido linha a linha.
+  \item Cabeçalhos (\texttt{\#}, \texttt{\#\#}, \texttt{\#\#\#},
+        \texttt{\#\#\#\#}) são detectados via expressão regular
+        \texttt{\^{}(\#\{1,4\})\textbackslash{}s+(.+)} e armazenados
+        como \texttt{section\_header} corrente.
+  \item Cada chunk gerado pelo método base (\texttt{\_split\_into\_chunks})
+        recebe um \emph{prefixo contextual}:
+        \begin{center}
+          \texttt{[Documento: X | Seção: Y]$\backslash$n$\backslash$n<chunk>}
+        \end{center}
+  \item O par \texttt{(section\_header, chunk\_contextualizado)} é retornado;
+        o campo \texttt{section} é persistido nos metadados do LanceDB.
+  \item O chunk contextualizado — não o texto bruto — é embeddado e indexado.
+\end{enumerate}
+
+\begin{lstlisting}[language=Python,
+  caption={Núcleo de \texttt{\_split\_with\_section\_context} (\texttt{rag\_ppc.py}).}]
+lines = text.split("\n")
+heading_re = re.compile(r"^(#{1,4})\s+(.+)")
+
+# Agrupa linhas por secao
+sections: List[tuple[str, List[str]]] = []
+current_header, current_lines = "", []
+for line in lines:
+    m = heading_re.match(line)
+    if m:
+        if current_lines:
+            sections.append((current_header, current_lines))
+        current_header = m.group(2).strip()
+        current_lines = []
+    else:
+        current_lines.append(line)
+
+# Gera chunks contextualizados
+result: List[tuple[str, str]] = []
+for sec_header, sec_lines in sections:
+    block = "\n".join(sec_lines).strip()
+    raw_chunks = ChatbotService._split_into_chunks(block, chunk_size, overlap)
+    for chunk in raw_chunks:
+        prefix = f"[Documento: {doc_name} | Secao: {sec_header}]\n\n"
+        contextualized = (prefix + chunk) if sec_header else chunk
+        result.append((sec_header, contextualized))
+\end{lstlisting}
+
+O efeito é que o embedding do chunk carrega informação da seção pai,
+aumentando a similaridade com consultas que referenciam aquela seção,
+mesmo que o chunk em si não a mencione.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  node distance=0.6cm and 1.2cm,
+  box/.style={draw,rounded corners,fill=blue!8,minimum width=3.8cm,minimum height=0.8cm,align=center,font=\small},
+  arrow/.style={-{Stealth},thick}
+]
+  \node[box] (doc)  {Documento Markdown};
+  \node[box,below=of doc] (parse) {Parse de Headings\\(\texttt{\#\#} etc.)};
+  \node[box,below=of parse] (chunk) {Chunking por\\Parágrafo};
+  \node[box,below=of chunk] (prefix) {Prefixo:\\{[Doc | Seção]}};
+  \node[box,below=of prefix] (embed) {Embedding\\(Gemini 768-d)};
+  \node[box,below=of embed] (lance) {LanceDB\\(Hybrid Index)};
+  \draw[arrow] (doc) -- (parse);
+  \draw[arrow] (parse) -- (chunk);
+  \draw[arrow] (chunk) -- (prefix);
+  \draw[arrow] (prefix) -- (embed);
+  \draw[arrow] (embed) -- (lance);
+\end{tikzpicture}
+\caption{Pipeline de indexação com chunking contextual de seção.}
+\label{fig:chunking}
+\end{figure}
+
+\subsection{Chunking Pai-Filho (\textit{Small-to-Big})}
+
+Como direção futura, o FasiTech pode adotar o \textit{Parent-Child Chunking}
+introduzido no LlamaIndex \autocite{llamaindex2023}: chunks pequenos
+(200 chars) são indexados para busca precisa, mas o contexto entregue ao
+LLM é o chunk pai (1\,200 chars) que contém o trecho recuperado.
+Isso reduz o ruído na busca vetorial enquanto mantém contexto suficiente
+para a geração.
+
+\section{Cache Semântico}
+
+\subsection{Motivação e Arquitetura}
+
+O cache semântico armazena pares (pergunta, resposta) avaliados positivamente
+e os serve em consultas futuras semanticamente similares, eliminando chamadas
+ao LLM para perguntas recorrentes. Esta abordagem é referenciada em
+\textcite{bang2023gptcache} e \textcite{zhu2023semsimilaritycache}.
+
+O sistema FasiTech implementa um cache em duas camadas no LanceDB:
+
+\begin{table}[H]
+\centering
+\caption{Parâmetros do cache semântico do FasiTech.}
+\label{tab:cache}
+\begin{tabularx}{\textwidth}{lXl}
+\toprule
+\textbf{Parâmetro} & \textbf{Descrição} & \textbf{Valor} \\
+\midrule
+Threshold de similaridade & Cosseno mínimo para hit de cache & 0,90 \\
+Avaliação mínima (\textit{trusted}) & Média de notas para promover entrada & 4,4/5 \\
+Avaliações para promoção & Qtd. mínima de feedbacks & 2 \\
+TTL \textit{trusted} & Validade de entrada confiável & 30 dias \\
+TTL \textit{candidate} & Validade de entrada candidata & 14 dias \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Ciclo de Vida das Entradas}
+
+Uma entrada percorre o seguinte ciclo:
+
+\begin{enumerate}
+  \item \textbf{Candidate} — criada após primeira avaliação positiva (nota $\geq 3$).
+  \item \textbf{Trusted} — promovida quando $\bar{r} \geq 4{,}4$ com $n \geq 2$ avaliações.
+  \item \textbf{Servida} — retornada diretamente ao usuário sem chamar o LLM.
+  \item \textbf{Expirada} — removida após TTL ou se nota $\leq 2$ na última avaliação.
+\end{enumerate}
+
+A função de confiança $C$ combina qualidade e volume:
+
+\begin{equation}
+  C = \frac{\bar{r} - 1}{4} \cdot \min\!\left(1,\,\frac{n}{n_{\min}}\right)
+\end{equation}
+
+Adicionalmente, cada entrada armazena o \texttt{documents\_hash}, garantindo
+que mudanças nos documentos fontes invalidem automaticamente o cache.
+
+\section{Filtragem de Domínio}
+
+Antes de acionar o RAG, o sistema verifica se a pergunta pertence ao domínio
+acadêmico para evitar respostas sobre tópicos fora de escopo.
+
+A estratégia é bifásica: (1) detecção de palavras-chave acadêmicas
+(ex.: ``TCC'', ``matrícula'', ``ACC'') ajusta o limiar de similaridade para
+mais permissivo ($\tau = 0{,}50$); (2) na ausência de palavras-chave, um
+limiar mais estrito é aplicado ($\tau = 0{,}72$) para evitar que perguntas
+genéricas em português sejam processadas por similaridade superficial de idioma.
+
+O score combinado usa 40\% da melhor similaridade e 60\% da média dos
+três primeiros resultados:
+
+\begin{equation}
+  S = 0{,}4 \cdot \text{sim}_{\max} + 0{,}6 \cdot \bar{\text{sim}}_3
+\end{equation}
+
+\section{Detecção de Ambiguidade Temporal (Melhoria 2)}
+\label{sec:melhoria2}
+
+Estudos em busca conversacional demonstram que perguntas ambíguas — aquelas
+que carecem de entidades contextuais necessárias para uma resposta precisa —
+devem ser respondidas com uma pergunta de esclarecimento antes da recuperação
+\autocite{aliannejadi2021clariq}.
+
+No contexto do FasiTech, a ambiguidade temporal ocorre quando o usuário
+pergunta sobre prazos sem especificar o período letivo. O método
+\texttt{\_needs\_temporal\_clarification} implementa a seguinte lógica:
+
+\begin{equation}
+  \text{clarify}(q) = \underbrace{\exists\, t \in T_{\text{trigger}} : t \in q}_{\text{gatilho temporal}}
+  \;\wedge\;
+  \underbrace{\nexists\, e \in E_{\text{period}} : e \in q}_{\text{ausência de entidade}}
+\end{equation}
+
+Os conjuntos são implementados como \texttt{frozenset} para busca $O(1)$:
+
+\begin{lstlisting}[language=Python,
+  caption={Constantes de detecção temporal (\texttt{rag\_ppc.py}).}]
+_TEMPORAL_TRIGGERS: frozenset = frozenset({
+    "periodo", "prazo", "submissao", "entrega", "data", "quando",
+    "limite", "cronograma", "calendario", "vencimento", "ate quando",
+    "deadline", "datas", "prazos", "agenda",
+})
+_TEMPORAL_ENTITIES: frozenset = frozenset({
+    # Identificadores de periodo letivo: 2024.1 ... 2028.4
+    "2024.1", "2024.2", "2024.3", "2024.4",
+    "2025.1", "2025.2", "2025.3", "2025.4",
+    "2026.1", "2026.2", "2026.3", "2026.4",
+    "2027.1", ..., "2028.4",
+    # Expressoes naturais de periodo
+    "primeiro periodo", "segundo periodo", "semestre atual",
+    "proximo semestre", "este semestre",
+})
+
+@staticmethod
+def _needs_temporal_clarification(question: str) -> bool:
+    q_lower = question.lower()
+    has_trigger = any(t in q_lower for t in _TEMPORAL_TRIGGERS)
+    has_entity  = any(e in q_lower for e in _TEMPORAL_ENTITIES)
+    return has_trigger and not has_entity
+\end{lstlisting}
+
+Quando $\text{clarify}(q) = \top$, o método \texttt{\_get\_available\_periods}
+varre todos os chunks do LanceDB em busca do padrão
+\texttt{\textbackslash b(20\textbackslash d\{2\}.\textbackslash{}[1-4\textbackslash{}])\textbackslash b}
+e retorna os períodos reais indexados:
+
+\begin{lstlisting}[language=Python,
+  caption={Descoberta dinâmica de períodos (\texttt{rag\_ppc.py}).}]
+def _get_available_periods(self) -> List[str]:
+    period_re = re.compile(r"\b(20\d{2}\.[1-4])\b")
+    found: set = set()
+    df = lancedb.connect(self.db_url).open_table("recipes").to_pandas()
+    for row in df.itertuples():
+        p = json.loads(row.payload)
+        for m in period_re.findall(p.get("content", "")):
+            found.add(m)
+    return sorted(found)   # ex.: ['2026.2', '2026.3', '2026.4']
+\end{lstlisting}
+
+A resposta de esclarecimento é formatada em Markdown (renderizado no
+frontend via \texttt{react-markdown} + \texttt{remark-gfm}):
+
+\begin{lstlisting}[language=Python,
+  caption={Mensagem de esclarecimento gerada dinamicamente.}]
+period_list = ", ".join(available_periods)  # ex.: 2026.2, 2026.3, 2026.4
+clarification = (
+    f"Para qual **periodo letivo** voce deseja as informacoes?\n\n"
+    f"Periodos disponiveis nos documentos: **{period_list}**\n\n"
+    f"Por favor, especifique o periodo (ex.: *2026.2*) para que eu "
+    f"possa te dar uma resposta precisa."
+)
+\end{lstlisting}
+
+Esta abordagem elimina chamadas desnecessárias ao LLM antes de
+executar o pipeline RAG completo com contexto insuficiente.
+
+\begin{insight}[title=Ganho esperado]
+Esta abordagem elimina a necessidade de o usuário reformular a pergunta.
+Em vez de receber uma resposta incompleta ou mesclada entre períodos,
+o sistema pede esclarecimento na primeira interação, reduzindo o número
+médio de turnos para resposta de $\approx 2$ para $1$.
+\end{insight}
+
+\section{Expansão de Consulta por Siglas}
+
+O método \texttt{\_expand\_query} implementa um mapa de siglas para seus
+expandidos semânticos (ex.: ``ACC'' $\to$ ``Atividade Curricular
+Complementar atividades complementares ACG extracurricular'').
+
+Esta técnica é variante do \textit{Query Expansion} estudado em
+\textcite{carpineto2012survey}: ao adicionar termos sinônimos à consulta
+antes do embedding, aumenta-se o recall da busca vetorial sem modificar
+o banco de vetores.
+
+\section{Visão Geral do Pipeline RAG}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  node distance=0.5cm and 0.4cm,
+  proc/.style={draw,rounded corners,fill=green!8,minimum width=4.0cm,
+               minimum height=0.75cm,align=center,font=\footnotesize},
+  dec/.style={draw,diamond,fill=orange!12,aspect=2,
+              minimum width=3.2cm,minimum height=0.6cm,
+              align=center,font=\footnotesize},
+  term/.style={draw,rounded corners,fill=gray!12,minimum width=3.2cm,
+               minimum height=0.6cm,align=center,font=\footnotesize},
+  arrow/.style={-{Stealth},thick}
+]
+  \node[proc]  (q)     {Pergunta do Usuário};
+  \node[dec,below=of q]  (cache)  {Cache\\Hit?};
+  \node[term,right=2.8cm of cache] (ret)    {Retorna do Cache};
+  \node[dec,below=0.8cm of cache]  (temp)   {Ambiguidade\\Temporal?};
+  \node[term,right=2.8cm of temp]  (clar)   {Pergunta de\\Esclarecimento};
+  \node[dec,below=0.8cm of temp]   (dom)    {In-Domain?};
+  \node[term,right=2.8cm of dom]   (ood)    {Fora de Escopo};
+  \node[proc,below=0.8cm of dom]   (exp)    {Expansão de Siglas};
+  \node[proc,below=of exp]         (retr)   {Busca Híbrida\\(Semântica + BM25)};
+  \node[proc,below=of retr]        (prompt) {Injeção de Contexto\\no Prompt};
+  \node[proc,below=of prompt]      (llm)    {LLM (Gemini 2.5 Flash\\ou Ollama fallback)};
+  \node[proc,below=of llm]         (ans)    {Resposta ao Usuário};
+
+  \draw[arrow] (q) -- (cache);
+  \draw[arrow] (cache) -- node[right,font=\tiny]{Não} (temp);
+  \draw[arrow] (cache) -- node[above,font=\tiny]{Sim} (ret);
+  \draw[arrow] (temp) -- node[right,font=\tiny]{Não} (dom);
+  \draw[arrow] (temp) -- node[above,font=\tiny]{Sim} (clar);
+  \draw[arrow] (dom) -- node[right,font=\tiny]{Sim} (exp);
+  \draw[arrow] (dom) -- node[above,font=\tiny]{Não} (ood);
+  \draw[arrow] (exp) -- (retr);
+  \draw[arrow] (retr) -- (prompt);
+  \draw[arrow] (prompt) -- (llm);
+  \draw[arrow] (llm) -- (ans);
+\end{tikzpicture}
+\caption{Fluxo completo do pipeline RAG do Diretor Virtual.}
+\label{fig:pipeline}
+\end{figure}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\chapter{Módulo ACC — Extração Inteligente de Documentos}
+% ─────────────────────────────────────────────────────────────────────────────
+
+\section{Contexto e Desafio}
+
+As Atividades Complementares de Graduação (ACC/ACG) são requisito curricular
+para integralização do curso de Sistemas de Informação.
+Historicamente, a validação dessas atividades é feita manualmente por
+servidores, que examinam cada certificado entregue pelo aluno e somam
+as cargas horárias.
+
+O processo é:
+\begin{itemize}
+  \item \textbf{Heterogêneo} — certificados variam em formato, layout, idioma e fonte.
+  \item \textbf{Propenso a erros} — leitura manual de dezenas de certificados por aluno.
+  \item \textbf{Não escalável} — custo cresce linearmente com o número de alunos.
+\end{itemize}
+
+O módulo ACC do FasiTech automatiza a extração da carga horária via
+\textit{Document AI} com Modelos de Linguagem Multimodais.
+
+\section{Fundamentos: Document AI e Multimodal LLMs}
+
+\textit{Document AI} é o campo de estudo da compreensão automática de
+documentos não-estruturados \autocite{cui2021documentai}.
+Diferentemente de NLP clássico — que opera sobre texto puro —,
+Document AI lida com a informação visual e estrutural de documentos
+(layout, tabelas, fontes, posição do texto).
+
+\subsection{Modelos Multimodais}
+
+Modelos de linguagem multimodais (\textit{Multimodal LLMs}) processam
+imagens e texto de forma conjunta, sem necessidade de OCR separado.
+O \textbf{Gemini} \autocite{team2023gemini} é um modelo multimodal
+nativo que interpreta texto, imagens e PDFs em uma única passagem,
+sendo especialmente adequado para certificados escaneados.
+
+A geração de resposta $y$ dado um documento $D$ (página PDF) e uma
+instrução $I$ pode ser expressa como:
+
+\begin{equation}
+  y = \argmax_y\; p_\theta(y \mid D, I)
+  \label{eq:multimodal}
+\end{equation}
+
+onde $D$ é representado como sequência de tokens visuais extraídos por
+um \textit{Vision Encoder} e $I$ é o prompt de instrução.
+
+\subsection{Processamento de PDFs com pdf2image e Poppler}
+
+Quando o modelo não suporta PDF nativo, a conversão para imagens de alta
+resolução (300 DPI) via \textit{pdf2image}/\textit{Poppler} é prática
+padrão \autocite{blecher2023nougat}. O FasiTech oferece suporte a ambos
+os modos:
+
+\begin{enumerate}
+  \item \textbf{PDF direto} — enviado como objeto \texttt{File} ao Gemini,
+        que processa nativamente todas as páginas.
+  \item \textbf{PDF $\to$ imagem} — cada página é convertida a PNG 300 DPI
+        e enviada individualmente ao modelo via \texttt{Image}.
+\end{enumerate}
+
+\section{Arquitetura do Módulo ACC}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  node distance=0.6cm,
+  proc/.style={draw,rounded corners,fill=teal!8,minimum width=4.2cm,
+               minimum height=0.8cm,align=center,font=\small},
+  arrow/.style={-{Stealth},thick}
+]
+  \node[proc] (upload)  {Upload do PDF\\(certificados mesclados)};
+  \node[proc,below=of upload] (val)     {Validação\\(tamanho, formato)};
+  \node[proc,below=of val]    (agent)   {Agente Gemini\\(GEMINI\_MODEL\_VISION)};
+  \node[proc,below=of agent]  (prompt)  {Prompt Estruturado\\(extração por página)};
+  \node[proc,below=of prompt] (parse)   {Parse da Resposta\\(regex TOTAL GERAL)};
+  \node[proc,below=of parse]  (save)    {Persistência\\(BD + Google Sheets)};
+  \node[proc,below=of save]   (email)   {Notificação\\por E-mail};
+
+  \draw[arrow] (upload) -- (val);
+  \draw[arrow] (val) -- (agent);
+  \draw[arrow] (agent) -- (prompt);
+  \draw[arrow] (prompt) -- (parse);
+  \draw[arrow] (parse) -- (save);
+  \draw[arrow] (save) -- (email);
+\end{tikzpicture}
+\caption{Pipeline de processamento do Módulo ACC.}
+\label{fig:acc}
+\end{figure}
+
+\section{Prompt Engineering para Extração Estruturada}
+
+O desempenho de LLMs em tarefas de extração de informação depende
+criticamente da qualidade do prompt \autocite{brown2020gpt3}.
+O FasiTech utiliza um prompt de \textit{few-shot} implícito com
+especificação de:
+
+\begin{itemize}
+  \item \textbf{Papel e tarefa} — ``Você é um especialista em extrair
+        informações de certificados acadêmicos''.
+  \item \textbf{Formatos esperados} — lista de padrões comuns
+        (``40h'', ``40 horas'', ``CH: 40h'', etc.).
+  \item \textbf{Formato de saída} — estrutura canônica por página e
+        linha \texttt{TOTAL GERAL: X horas}.
+  \item \textbf{Tratamento de casos-limite} — carga horária em dias
+        (8h/dia), múltiplas cargas na página, ausência de carga.
+\end{itemize}
+
+\subsection{Extração do Total por Expressão Regular}
+
+Após a resposta do modelo, o sistema executa parsing determinístico
+para extrair o total numérico, mitigando alucinações:
+
+\begin{lstlisting}[language=Python,caption={Extração de total com regex.}]
+padroes = [
+    r'TOTAL GERAL:\s*(\d+(?:,\d+)?)\s*horas?',
+    r'Total Geral:\s*(\d+(?:,\d+)?)\s*horas?',
+    r'TOTAL:\s*(\d+(?:,\d+)?)\s*horas?',
+]
+for padrao in padroes:
+    match = re.search(padrao, texto, re.IGNORECASE)
+    if match:
+        horas = match.group(1).replace(',', '.')
+        return f"TOTAL GERAL: {horas} horas"
+\end{lstlisting}
+
+\section{Análise de Confiabilidade e Limitações}
+
+\subsection{Fontes de Erro}
+
+\begin{table}[H]
+\centering
+\caption{Fontes de erro e mitigações no módulo ACC.}
+\label{tab:erros}
+\begin{tabularx}{\textwidth}{lXX}
+\toprule
+\textbf{Fonte} & \textbf{Descrição} & \textbf{Mitigação} \\
+\midrule
+Baixa resolução & PDFs escaneados em $<150$ DPI & Reprocessamento a 300 DPI \\
+Tabelas complexas & Layout de certificado não padrão & Prompt com múltiplos formatos \\
+Alucinação do modelo & LLM inventa carga não presente & Regex pós-geração + fallback manual \\
+Idioma estrangeiro & Certificados em inglês/espanhol & Instrução multilíngue no prompt \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Escalabilidade}
+
+O modelo é chamado uma vez por envio (PDF completo), tornando o custo
+fixo por aluno independente do número de páginas dentro do limite de
+contexto do Gemini 2.5 Flash Lite ($\approx 1{,}5\times10^6$ tokens).
+Para envios com muitos certificados, o sistema pode ser estendido com
+paginação em lotes de 10--15 páginas por chamada.
+
+% ─────────────────────────────────────────────────────────────────────────────
+\chapter{Infraestrutura e Integração}
+% ─────────────────────────────────────────────────────────────────────────────
+
+\section{Banco de Dados Vetorial: LanceDB}
+
+LanceDB \autocite{lancedb2023} é um banco de dados vetorial embutido
+(\textit{embedded}) baseado no formato Apache Lance, projetado para
+alto desempenho em hardware de commodity.
+No FasiTech, ele persiste:
+
+\begin{itemize}
+  \item Tabela \texttt{recipes} — chunks dos documentos com vetores 768-d.
+  \item Tabela \texttt{semantic\_cache} — entradas de cache semântico com
+        vetores, metadados e timestamps.
+\end{itemize}
+
+\section{Modelos de Linguagem e Embedder}
+
+O FasiTech utiliza o framework \textbf{Agno} (ex-Phidata) para abstrair
+a camada de LLM. A seleção do modelo de geração é feita em tempo de
+inicialização do \texttt{ChatbotService}:
+
+\begin{enumerate}
+  \item Se \texttt{GOOGLE\_API\_KEY} estiver configurada: usa
+        \textbf{Gemini} via API Google.
+  \item Caso contrário: usa \textbf{Ollama} \autocite{ollama2023} local como fallback
+        (modelo \texttt{OLLAMA\_LLM\_MODEL}).
+\end{enumerate}
+
+\begin{table}[H]
+\centering
+\caption{Configuração dos modelos no FasiTech (\texttt{LLMConfig.py}).}
+\begin{tabularx}{\textwidth}{lXX}
+\toprule
+\textbf{Variável} & \textbf{Uso} & \textbf{Padrão} \\
+\midrule
+\texttt{GEMINI\_MODEL} & Geração de respostas — Diretor Virtual & \texttt{gemini-2.5-flash} \\
+\texttt{GEMINI\_MODEL\_VISION} & Extração de certificados — ACC & \texttt{gemini-2.5-flash-lite} \\
+\texttt{OLLAMA\_LLM\_MODEL} & Fallback local (sem API key) & \texttt{qwen2.5:3b} \\
+\texttt{nomic-embed-text} & Embeddings 768-d (sempre Ollama) & \texttt{OllamaEmbedder} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\noindent\textbf{Nota:} O embedder (\texttt{nomic-embed-text}) é sempre local via Ollama,
+independentemente da disponibilidade da API Google. O modelo de geração
+(Gemini vs.\ Ollama) é o único componente que muda conforme o ambiente.
+
+\section{Padrão de Projeto: Singleton com Inicialização Lazy}
+
+O \texttt{ChatbotService} implementa o padrão Singleton via \texttt{\_\_new\_\_},
+garantindo que a inicialização custosa (conexão com Ollama, criação do
+índice LanceDB, carregamento dos documentos) ocorra apenas uma vez por
+processo. O diretório de dados é \texttt{\textasciitilde/.cache/fasitech/rag/}
+(persistência por usuário do SO, compatível com ambientes Docker).
+
+Sessões de usuário são isoladas por \texttt{session\_id}; cada sessão
+cria um \texttt{Agent} Agno sob demanda com histórico de conversa
+independente armazenado em SQLite (\texttt{.db} no mesmo diretório de cache).
+Quando \texttt{persist\_history=False}, o histórico fica apenas em RAM.
+
+% ─────────────────────────────────────────────────────────────────────────────
+\chapter{Trabalhos Futuros}
+% ─────────────────────────────────────────────────────────────────────────────
+
+\begin{enumerate}
+  \item \textbf{Multi-Query Retrieval} — gerar 3 variações da pergunta via
+        LLM antes da busca e fundir resultados com RRF
+        \autocite{es2023ragas,langchain2023multiquery}.
+  \item \textbf{HyDE} (\textit{Hypothetical Document Embeddings}) — embeddar
+        uma resposta hipotética gerada pelo LLM em vez da query original
+        para maior precisão semântica \autocite{gao2022hyde}.
+  \item \textbf{Parent-Child Chunking} — indexar chunks pequenos para
+        busca, retornar chunk pai para geração \autocite{llamaindex2023}.
+  \item \textbf{Cross-Encoder Reranking} — aplicar um reranker
+        (\texttt{BAAI/bge-reranker-base}) sobre os chunks recuperados
+        antes de montar o prompt \autocite{khattab2020colbert}.
+  \item \textbf{Interface de Feedback} — expor botões de avaliação
+        (1--5 estrelas) no ChatWidget para alimentar o cache semântico
+        com dados reais de usuários.
+  \item \textbf{Validação Cruzada ACC} — comparar resultado do Gemini
+        com extração por OCR clássico (Tesseract) para medir
+        concordância e detectar certificados problemáticos.
+\end{enumerate}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\printbibliography[title={Referências}]
+% ─────────────────────────────────────────────────────────────────────────────
+
+\end{document}

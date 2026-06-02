@@ -75,6 +75,24 @@ _DOMAIN_KEYWORDS: frozenset = frozenset({
     "faq", "dúvida", "pergunta frequente",
 })
 
+# ── Melhoria 2: Detecção de Ambiguidade Temporal ──────────────────────────────
+# Palavras que indicam que a pergunta envolve um prazo/data.
+_TEMPORAL_TRIGGERS: frozenset = frozenset({
+    "período", "prazo", "submissão", "entrega", "data", "quando",
+    "limite", "cronograma", "calendário", "vencimento", "até quando",
+    "deadline", "datas", "prazos", "agenda",
+})
+# Identificadores de período letivo específicos.
+_TEMPORAL_ENTITIES: frozenset = frozenset({
+    "2024.1", "2024.2", "2024.3", "2024.4",
+    "2025.1", "2025.2", "2025.3", "2025.4",
+    "2026.1", "2026.2", "2026.3", "2026.4",
+    "2027.1", "2027.2", "2027.3", "2027.4",
+    "2028.1", "2028.2", "2028.3", "2028.4",
+    "primeiro período", "segundo período", "terceiro período", "quarto período",
+    "semestre atual", "próximo semestre", "este semestre",
+})
+
 
 class ChatbotService:
     """Serviço de chatbot para consultas sobre o PPC do curso."""
@@ -967,13 +985,74 @@ class ChatbotService:
             chunks.append(current.strip())
         return [c for c in chunks if len(c) > 50]
 
+    @staticmethod
+    def _split_with_section_context(
+        text: str,
+        doc_name: str,
+        chunk_size: int = 800,
+        overlap: int = 150,
+    ) -> List[tuple[str, str]]:
+        """
+        Divide o texto em chunks preservando o contexto da seção pai (Melhoria 1).
+
+        Para cada chunk retorna (section_header, chunk_text).
+        Quando o chunk pertence a uma seção identificada por heading Markdown,
+        o header é prefixado ao chunk antes de ser embeddado, garantindo que
+        a busca vetorial encontre o chunk mesmo quando a query não menciona
+        explicitamente o identificador da seção (ex.: '2026.2').
+
+        Referência: Anthropic Contextual Retrieval (2024).
+        """
+        import re
+
+        lines = text.split("\n")
+        heading_re = re.compile(r"^(#{1,4})\s+(.+)")
+
+        # Constrói lista de (section_header, block_of_lines)
+        sections: List[tuple[str, List[str]]] = []
+        current_header = ""
+        current_lines: List[str] = []
+
+        for line in lines:
+            m = heading_re.match(line)
+            if m:
+                if current_lines:
+                    sections.append((current_header, current_lines))
+                current_header = m.group(2).strip()
+                current_lines = []
+            else:
+                current_lines.append(line)
+
+        if current_lines:
+            sections.append((current_header, current_lines))
+
+        result: List[tuple[str, str]] = []
+        for sec_header, sec_lines in sections:
+            block = "\n".join(sec_lines).strip()
+            if not block:
+                continue
+            raw_chunks = ChatbotService._split_into_chunks(block, chunk_size, overlap)
+            for chunk in raw_chunks:
+                if sec_header:
+                    prefix = f"[Documento: {doc_name} | Seção: {sec_header}]\n\n"
+                    contextualized = prefix + chunk
+                else:
+                    contextualized = chunk
+                result.append((sec_header, contextualized))
+
+        return result
+
     def _index_documents_fine_grained(
         self,
         files: List[Path],
         chunk_size: int = 800,
         overlap: int = 150,
     ) -> None:
-        """Indexa documentos com chunking fino (800 chars / 150 overlap) direto no LanceDB."""
+        """Indexa documentos com chunking fino (800 chars / 150 overlap) direto no LanceDB.
+
+        Utiliza _split_with_section_context para preservar o cabeçalho da seção
+        pai em cada chunk (Melhoria 1 — Contextual Chunking).
+        """
         import lancedb
         import uuid
 
@@ -990,10 +1069,12 @@ class ChatbotService:
         for doc_file in files:
             doc_name = f"{doc_file.stem} Document"
             text = doc_file.read_text(encoding="utf-8", errors="ignore")
-            chunks = self._split_into_chunks(text, chunk_size, overlap)
-            print(f"   📄 {doc_file.name}: {len(chunks)} chunks (chunk_size={chunk_size})")
+            section_chunks = self._split_with_section_context(
+                text, doc_file.name, chunk_size, overlap
+            )
+            print(f"   📄 {doc_file.name}: {len(section_chunks)} chunks contextuais (chunk_size={chunk_size})")
 
-            for i, chunk in enumerate(chunks):
+            for i, (sec_header, chunk) in enumerate(section_chunks):
                 embedding = self._get_question_embedding(chunk)
                 if not embedding:
                     continue
@@ -1005,7 +1086,12 @@ class ChatbotService:
 
                 payload = json.dumps({
                     "name": doc_name,
-                    "meta_data": {"chunk": i + 1, "chunk_size": len(chunk), "source": doc_file.name},
+                    "meta_data": {
+                        "chunk": i + 1,
+                        "chunk_size": len(chunk),
+                        "source": doc_file.name,
+                        "section": sec_header,
+                    },
                     "content": chunk,
                 }, ensure_ascii=False)
 
@@ -1148,6 +1234,55 @@ class ChatbotService:
         """Retorna True se a pergunta contiver ao menos uma palavra-chave do domínio acadêmico."""
         q_lower = question.lower()
         return any(kw in q_lower for kw in _DOMAIN_KEYWORDS)
+
+    @staticmethod
+    def _needs_temporal_clarification(question: str) -> bool:
+        """
+        Retorna True quando a pergunta envolve prazo/data mas não especifica
+        o período letivo (ex.: '2026.2'), indicando ambiguidade temporal.
+
+        Lógica (Melhoria 2 — Temporal Ambiguity Detection):
+        - A pergunta deve conter ao menos um TRIGGER temporal (prazo, data, etc.)
+        - E NÃO deve conter nenhuma ENTIDADE de período específico.
+
+        Referência: CLARIQ — Aliannejadi et al. (2021); Clarification in
+        Conversational Search.
+        """
+        q_lower = question.lower()
+        has_trigger = any(t in q_lower for t in _TEMPORAL_TRIGGERS)
+        has_entity  = any(e in q_lower for e in _TEMPORAL_ENTITIES)
+        return has_trigger and not has_entity
+
+    def _get_available_periods(self) -> List[str]:
+        """
+        Escaneia os documentos indexados e retorna os identificadores de período
+        letivo encontrados nos conteúdos (ex.: '2026.2', '2026.3').
+
+        Usado pela detecção de ambiguidade temporal para montar a pergunta de
+        esclarecimento com os períodos reais disponíveis nos documentos.
+        """
+        import re
+        import lancedb
+
+        period_re = re.compile(r"\b(20\d{2}\.[1-4])\b")
+        found: set = set()
+        try:
+            if self.vector_db is None:
+                return []
+            db = lancedb.connect(self.db_url)
+            table = db.open_table("recipes")
+            df = table.to_pandas()
+            for row in df.itertuples():
+                payload = row.payload if hasattr(row, "payload") else None
+                if not payload:
+                    continue
+                p = json.loads(payload) if isinstance(payload, str) else payload
+                content = p.get("content", "")
+                for m in period_re.findall(content):
+                    found.add(m)
+        except Exception:
+            pass
+        return sorted(found)
 
     def _is_question_in_domain(self, question: str) -> tuple[bool, float]:
         """
@@ -1316,7 +1451,37 @@ class ChatbotService:
                     }
                 }
             
-            # 2. Cache MISS - Verificar se a pergunta pertence ao domínio dos documentos
+            # 2. Cache MISS - Verificar se a pergunta precisa de esclarecimento temporal
+            if self._needs_temporal_clarification(normalized_question):
+                logger.info(
+                    "🕐 Ambiguidade temporal detectada. Solicitando esclarecimento: '%s...'",
+                    normalized_question[:60],
+                )
+                # Descobre quais períodos estão disponíveis nos documentos indexados
+                available_periods = self._get_available_periods()
+                if available_periods:
+                    period_list = ", ".join(available_periods)
+                    clarification = (
+                        f"Para qual **período letivo** você deseja as informações?\n\n"
+                        f"Períodos disponíveis nos documentos: **{period_list}**\n\n"
+                        f"Por favor, especifique o período (ex.: *2026.2*) para que eu possa "
+                        f"te dar uma resposta precisa."
+                    )
+                else:
+                    clarification = (
+                        "Para qual **período letivo** você deseja as informações? "
+                        "(ex.: 2026.2, 2026.3 ou 2026.4)\n\n"
+                        "Especificar o período me ajuda a encontrar os prazos corretos."
+                    )
+                return {
+                    "success": True,
+                    "answer": clarification,
+                    "method": "clarification",
+                    "needs_clarification": True,
+                    "question": normalized_question,
+                }
+
+            # 3. Verificar se a pergunta pertence ao domínio dos documentos
             is_in_domain, domain_similarity = self._is_question_in_domain(normalized_question)
             if not is_in_domain:
                 logger.info(
@@ -1337,7 +1502,7 @@ class ChatbotService:
                     "question": normalized_question,
                 }
 
-            # 3. Dentro do domínio - RAG manual: busca chunks + injeção no prompt
+            # 4. Dentro do domínio - RAG manual: busca chunks + injeção no prompt
             context_chunks = self._retrieve_context(normalized_question)
             context_text = "\n\n---\n\n".join(context_chunks) if context_chunks else ""
 
