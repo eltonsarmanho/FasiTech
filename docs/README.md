@@ -28,7 +28,7 @@ Desenvolvendo um domínio?   → COMPONENTES_ARQUITETURA.md
 - **Proxy:** Nginx (HTTPS, roteamento, SSL Let's Encrypt)
 - **Armazenamento:** Google Drive, Google Sheets
 - **Notificações:** E-mail institucional (SMTP)
-- **IA / RAG:** Gemini 2.0 Flash (LLM) + Ollama nomic-embed-text (embeddings) + LanceDB
+- **IA / RAG:** Gemini 2.5 Flash (LLM, com fallback Ollama) + Ollama nomic-embed-text (embeddings) + LanceDB
 
 ## 🛡️ LGPD & Segurança de Dados
 
@@ -135,22 +135,58 @@ O **Diretor Virtual** é um widget flutuante presente em todas as páginas.
 
 Chatbot inteligente que responde perguntas sobre regulamentos, TCC, ACC, estágio e PPC do curso usando Retrieval-Augmented Generation.
 
-### Arquitetura RAG
+### Arquitetura RAG (atualizada)
+
+Fluxo de execução do Diretor Virtual, alinhado com a implementação atual:
 
 ```
 Pergunta do usuário
-        │
-  OllamaEmbedder          ← nomic-embed-text:latest (local, 768-dim)
-  (vetorização)
-        │
-  LanceDB Vector Search   ← busca semântica + keyword nos documentos
-  (recuperação de contexto)
-        │
-  Gemini 2.0 Flash        ← LLM via Google API (rápido, ~2–5s)
-  (geração da resposta)
-        │
-  Resposta ao usuário
+      │
+ [1] Cache semântico (LanceDB)
+     - match por similaridade (threshold 0.90)
+     - serve resposta trusted sem chamar LLM
+      │
+ [2] Checagem de ambiguidade temporal
+     - detecta pergunta com prazo/período sem entidade temporal
+     - pede clarificação (ex.: 2026.2)
+      │
+ [3] Filtro de domínio acadêmico (in-domain)
+     - limiar dinâmico por palavras-chave acadêmicas
+      │
+ [4] Expansão de consulta por siglas
+     - ACC/TCC/PPC etc. -> termos expandidos
+      │
+ [5] Recuperação híbrida no LanceDB
+     - semântica (vetorial) + BM25 (keyword) + RRF
+      │
+ [6] Geração da resposta
+     - Gemini (padrão) ou fallback Ollama
+      │
+Resposta ao usuário
 ```
+
+### Indexação e chunking contextual
+
+Durante a indexação dos `.md` em `resources/`, os documentos passam por chunking com contexto de seção:
+
+- Chunk base com sobreposição: `chunk_size=800` e `overlap=150`.
+- Detecção de cabeçalhos Markdown (`#`, `##`, `###`, `####`) para capturar a seção corrente.
+- Prefixo contextual por chunk: `[Documento: X | Seção: Y]`.
+- Armazenamento de metadados de seção no LanceDB para melhorar recuperação por contexto hierárquico.
+
+Esse desenho reduz perda de contexto e melhora perguntas que dependem de seção/período letivo.
+
+### Recursos de precisão e robustez
+
+- **Busca híbrida**: `SearchType.hybrid` (semântica + keyword), com fusão de ranking (RRF).
+- **Keyword search complementar**: reforço pós-semântico para termos exatos relevantes.
+- **Filtro de domínio**: score combinado entre melhor similaridade e média dos top resultados.
+- **Ambiguidade temporal**: detecta gatilhos de prazo/período sem período explícito e solicita esclarecimento antes da geração.
+- **Cache semântico com feedback**:
+  - threshold de hit: `0.90`
+  - promoção para trusted: média `>= 4.4` com `>= 2` avaliações
+  - TTL: trusted `30 dias`, candidate `14 dias`
+  - invalidação por hash dos documentos (`documents_hash`)
 
 ### Documentos Indexados
 
@@ -171,7 +207,8 @@ O Diretor Virtual expõe um endpoint REST documentado em `https://www.fasitech.c
 ```env
 OLLAMA_HOST=http://172.18.0.1:11434   # Ollama no host (Docker bridge)
 GOOGLE_API_KEY=...                     # Gemini API key
-GEMINI_MODEL=gemini-2.0-flash          # Modelo padrão (override opcional)
+GEMINI_MODEL=gemini-2.5-flash          # Modelo padrão do Diretor Virtual
+OLLAMA_LLM_MODEL=qwen2.5:3b            # Fallback local sem API key
 RAG_DOCUMENTS_DIR=/app/resources       # Caminho dos documentos no container
 ```
 
@@ -285,7 +322,7 @@ flowchart TB
     end
 
     subgraph AI["IA"]
-        Gemini["✨ Gemini 2.0 Flash\n(LLM)"]
+        Gemini["✨ Gemini 2.5 Flash\n(LLM)"]
     end
 
     Email["📧 SMTP\nNotificações"]
@@ -343,7 +380,8 @@ DESTINATARIOS=coord@ufpa.br
 # RAG / IA
 OLLAMA_HOST=http://172.18.0.1:11434
 RAG_DOCUMENTS_DIR=/app/resources
-GEMINI_MODEL=gemini-2.0-flash
+GEMINI_MODEL=gemini-2.5-flash
+OLLAMA_LLM_MODEL=qwen2.5:3b
 
 # App
 ENVIRONMENT=production
