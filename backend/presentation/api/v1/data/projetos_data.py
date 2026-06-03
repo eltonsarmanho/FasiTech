@@ -58,3 +58,21 @@ async def update_projeto_status(
         raise
     except Exception as e:
         raise HTTPException(http_status.HTTP_500_INTERNAL_SERVER_ERROR, str(e))
+
+
+@router.delete("/projetos/{projeto_id}", tags=["Consultas"])
+async def delete_projeto(
+    projeto_id: int,
+    _: str = Depends(get_admin_dependency),
+):
+    try:
+        from backend.infrastructure.database.repository import delete_projeto as _delete
+        deleted = _delete(projeto_id)
+        if not deleted:
+            raise HTTPException(http_status.HTTP_404_NOT_FOUND, "Projeto não encontrado")
+        return {"ok": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(http_status.HTTP_500_INTERNAL_SERVER_ERROR, str(e))
+

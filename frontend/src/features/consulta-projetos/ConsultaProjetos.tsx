@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Loader2, Download } from 'lucide-react'
+import { Loader2, Download, Trash2 } from 'lucide-react'
 import { PageShell } from '@/shared/components/PageShell'
 import { apiAuth } from '@/shared/lib/api'
 import { formatDate } from '@/shared/lib/utils' // usado no exportCSV
@@ -87,6 +87,8 @@ export function ConsultaProjetos() {
   const [filterNatureza, setFilterNatureza] = useState('Todas')
   const [filterAno, setFilterAno] = useState('Todos')
   const [filterStatus, setFilterStatus] = useState('Todos')
+  const [selected, setSelected] = useState<Set<number>>(new Set())
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   const { data, isLoading } = useQuery({
     queryKey: ['projetos-list'],
@@ -98,6 +100,29 @@ export function ConsultaProjetos() {
       apiAuth.patch(`/api/v1/projetos/${id}/status`, { status }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['projetos-list'] }),
   })
+
+  const deleteMutation = useMutation({
+    mutationFn: async (ids: number[]) =>
+      Promise.all(ids.map(id => apiAuth.delete(`/api/v1/projetos/${id}`))),
+    onSuccess: () => {
+      setSelected(new Set())
+      setConfirmDelete(false)
+      queryClient.invalidateQueries({ queryKey: ['projetos-list'] })
+    },
+  })
+
+  function toggleRow(id: number) {
+    setSelected(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  function toggleAll(ids: number[]) {
+    const allSelected = ids.every(id => selected.has(id))
+    setSelected(allSelected ? new Set() : new Set(ids))
+  }
 
   const allRows: Projeto[] = data?.items ?? []
 
@@ -189,9 +214,21 @@ export function ConsultaProjetos() {
           ) : (
             <div className="fasi-card overflow-hidden">
               <div className="p-4 border-b border-border flex items-center justify-between">
-                <span className="text-sm font-semibold text-foreground">
-                  {rows.length} projeto{rows.length !== 1 ? 's' : ''}
-                </span>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-semibold text-foreground">
+                    {rows.length} projeto{rows.length !== 1 ? 's' : ''}
+                  </span>
+                  {selected.size > 0 && (
+                    <button
+                      onClick={() => setConfirmDelete(true)}
+                      className="flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5
+                                 text-xs font-medium text-white hover:bg-red-700 transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Excluir {selected.size} selecionado{selected.size !== 1 ? 's' : ''}
+                    </button>
+                  )}
+                </div>
                 <div className="flex items-center gap-3">
                   {hasFilters && (
                     <span className="text-xs text-muted-foreground">de {allRows.length} no total</span>
@@ -210,6 +247,15 @@ export function ConsultaProjetos() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-fasi-500 text-white">
+                      <th className="px-3 py-2.5 w-8">
+                        <input
+                          type="checkbox"
+                          className="rounded cursor-pointer accent-fasi-500"
+                          checked={rows.length > 0 && rows.every(r => selected.has(r.id))}
+                          onChange={() => toggleAll(rows.map(r => r.id))}
+                          title="Selecionar todos"
+                        />
+                      </th>
                       {['Docente', 'Projeto', 'Natureza', 'Edital', 'Ano', 'Solicitação', 'Status'].map(h => (
                         <th key={h} className="px-3 py-2.5 text-left font-medium whitespace-nowrap">{h}</th>
                       ))}
@@ -217,7 +263,15 @@ export function ConsultaProjetos() {
                   </thead>
                   <tbody>
                     {rows.map((r, i) => (
-                      <tr key={r.id} className={i % 2 === 0 ? 'bg-white' : 'bg-fasi-50/30'}>
+                      <tr key={r.id} className={`${i % 2 === 0 ? 'bg-white' : 'bg-fasi-50/30'} ${selected.has(r.id) ? 'ring-1 ring-inset ring-red-300 bg-red-50/40' : ''}`}>
+                        <td className="px-3 py-2 w-8">
+                          <input
+                            type="checkbox"
+                            className="rounded cursor-pointer accent-fasi-500"
+                            checked={selected.has(r.id)}
+                            onChange={() => toggleRow(r.id)}
+                          />
+                        </td>
                         <td className="px-3 py-2 whitespace-nowrap">{r.docente}</td>
                         <td className="px-3 py-2 max-w-[220px] truncate" title={r.nome_projeto}>{r.nome_projeto}</td>
                         <td className="px-3 py-2 whitespace-nowrap">{r.natureza}</td>
@@ -250,6 +304,49 @@ export function ConsultaProjetos() {
 
       {!isLoading && allRows.length === 0 && (
         <div className="fasi-info-box">Nenhum projeto encontrado no banco de dados.</div>
+      )}
+
+      {/* Modal de confirmação de exclusão */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full mx-4">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+                <Trash2 className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900">Confirmar exclusão</h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  Tem certeza que deseja excluir{' '}
+                  <span className="font-medium text-red-700">
+                    {selected.size} projeto{selected.size !== 1 ? 's' : ''}
+                  </span>
+                  ? Esta ação não pode ser desfeita.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setConfirmDelete(false)}
+                disabled={deleteMutation.isPending}
+                className="px-4 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => deleteMutation.mutate([...selected])}
+                disabled={deleteMutation.isPending}
+                className="flex items-center gap-1.5 px-4 py-2 text-sm rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50"
+              >
+                {deleteMutation.isPending
+                  ? <Loader2 className="w-4 h-4 animate-spin" />
+                  : <Trash2 className="w-4 h-4" />
+                }
+                {deleteMutation.isPending ? 'Excluindo...' : 'Excluir'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </PageShell>
   )

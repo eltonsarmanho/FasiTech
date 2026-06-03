@@ -218,6 +218,16 @@ def update_projeto_status(projeto_id: int, novo_status: str) -> bool:
         return True
 
 
+def delete_projeto(projeto_id: int) -> bool:
+    with get_db_session() as session:
+        projeto = session.get(ProjetosSubmission, projeto_id)
+        if projeto is None:
+            return False
+        session.delete(projeto)
+        session.commit()
+        return True
+
+
 def list_projetos_submissions(
     pagina: int = 1,
     por_pagina: int = 20,
