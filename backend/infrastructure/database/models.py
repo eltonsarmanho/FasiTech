@@ -357,6 +357,14 @@ class AvaliacaoGestaoSubmission(SubmissionBase, table=True):
     # Perguntas abertas
     q10_melhorias: Optional[str] = Field(default=None)
     q11_outras_questoes: Optional[str] = Field(default=None)
+
+    # Período letivo (calculado automaticamente no backend)
+    periodo: Optional[str] = Field(default=None, max_length=20)
+
+    # Perguntas sobre FasiTech
+    q12_fasitech_impacto: Optional[str] = Field(default=None, max_length=100)
+    q12_valor: Optional[int] = Field(default=None)
+    q13_fasitech_funcionalidades: Optional[str] = Field(default=None)  # JSON array
     
     class Config:
         json_schema_extra = {

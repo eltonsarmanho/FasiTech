@@ -1128,6 +1128,11 @@ def process_social_submission(**kwargs: Any) -> Dict[str, Any]:
 def process_avaliacao_gestao_submission(**kwargs: Any) -> Dict[str, Any]:
     """Salva avaliação de gestão (anônima) no banco de dados."""
     from backend.infrastructure.database.repository import save_avaliacao_gestao_submission  # noqa: PLC0415
+    from datetime import datetime  # noqa: PLC0415
+
+    # Determina o período letivo automaticamente pela data corrente
+    now = datetime.utcnow()
+    periodo = f"{now.year}.1_2" if now.month <= 7 else f"{now.year}.3_4"
 
     # Mapeia nomes snake_case do schema para os nomes capitalizados esperados pelo repository
     key_map = {
@@ -1142,8 +1147,11 @@ def process_avaliacao_gestao_submission(**kwargs: Any) -> Dict[str, Any]:
         "q9_extracurricular": "Q9_Extracurricular", "q9_valor": "Q9_Valor",
         "q10_melhorias": "Q10_Melhorias",
         "q11_outras_questoes": "Q11_Outras_Questoes",
+        "q12_fasitech_impacto": "Q12_Fasitech_Impacto", "q12_valor": "Q12_Valor",
+        "q13_fasitech_funcionalidades": "Q13_Fasitech_Funcionalidades",
     }
     data = {key_map.get(k, k): v for k, v in kwargs.items()}
+    data["Periodo"] = periodo
     submission_id = save_avaliacao_gestao_submission(data)
     return {"id": submission_id}
 

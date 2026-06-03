@@ -465,6 +465,7 @@ def save_avaliacao_gestao_submission(data: Dict[str, Any]) -> int:
         ID da submissão criada
     """
     submission = AvaliacaoGestaoSubmission(
+        periodo=data.get("Periodo"),
         q1_transparencia=data.get("Q1_Transparencia"),
         q1_valor=data.get("Q1_Valor"),
         q2_comunicacao=data.get("Q2_Comunicacao"),
@@ -485,6 +486,13 @@ def save_avaliacao_gestao_submission(data: Dict[str, Any]) -> int:
         q9_valor=data.get("Q9_Valor"),
         q10_melhorias=data.get("Q10_Melhorias"),
         q11_outras_questoes=data.get("Q11_Outras_Questoes"),
+        q12_fasitech_impacto=data.get("Q12_Fasitech_Impacto"),
+        q12_valor=data.get("Q12_Valor"),
+        q13_fasitech_funcionalidades=(
+            json.dumps(data["Q13_Fasitech_Funcionalidades"], ensure_ascii=False)
+            if data.get("Q13_Fasitech_Funcionalidades") is not None
+            else None
+        ),
     )
     
     with get_db_session() as session:

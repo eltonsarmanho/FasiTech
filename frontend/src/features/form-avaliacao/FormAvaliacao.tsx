@@ -1,6 +1,7 @@
 import { useForm } from 'react-hook-form'
 import { useMutation } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
+import { useState } from 'react'
 
 import { PageShell } from '@/shared/components/PageShell'
 import { FormSection, Field } from '@/shared/components/FormSection'
@@ -35,6 +36,25 @@ const QUESTIONS = [
   { key: 'q9_extracurricular', escala: CONCORDANCIA, label: '9. A gestão da faculdade promove atividades extracurriculares e de desenvolvimento profissional que atendem às necessidades dos alunos?' },
 ] as const
 
+const FASITECH_IMPACTO: readonly string[] = [
+  'Discordo totalmente',
+  'Discordo',
+  'Neutro',
+  'Concordo',
+  'Concordo totalmente',
+]
+
+const FASITECH_FUNCIONALIDADES = [
+  'Formulário de ACC',
+  'Formulário de TCC',
+  'Formulário de Estágio',
+  'Requerimento de TCC',
+  'Emissão de Documentos',
+  'Formulário Social',
+  'FAQ / Assistente IA (Diretor Virtual)',
+  'Nenhuma',
+] as const
+
 function RadioGroup({ name, options, register }: {
   name: string
   options: readonly string[]
@@ -54,10 +74,25 @@ function RadioGroup({ name, options, register }: {
 
 export function FormAvaliacao() {
   const { register, handleSubmit, reset } = useForm()
+  const [funcionalidades, setFuncionalidades] = useState<string[]>([])
+
+  function toggleFuncionalidade(opt: string) {
+    setFuncionalidades(prev =>
+      prev.includes(opt) ? prev.filter(v => v !== opt) : [...prev, opt]
+    )
+  }
 
   const mutation = useMutation({
-    mutationFn: (data: object) => submitJson('/api/v1/forms/avaliacao-gestao', data),
-    onSuccess: () => { toast.success('Avaliação registrada! Obrigado pelo feedback.'); reset() },
+    mutationFn: (data: object) =>
+      submitJson('/api/v1/forms/avaliacao-gestao', {
+        ...data,
+        q13_fasitech_funcionalidades: funcionalidades,
+      }),
+    onSuccess: () => {
+      toast.success('Avaliação registrada! Obrigado pelo feedback.')
+      reset()
+      setFuncionalidades([])
+    },
     onError: () => toast.error('Erro ao registrar.'),
   })
 
@@ -115,6 +150,29 @@ export function FormAvaliacao() {
                 placeholder="Digite outros comentários ou observações aqui..."
                 {...register('q11_outras_questoes')}
               />
+            </Field>
+          </div>
+        </FormSection>
+
+        <FormSection title="🖥️ Seção 5: FasiTech — Portal Acadêmico">
+          <div className="space-y-6">
+            <Field label="12. O FasiTech facilitou o envio e acompanhamento dos seus processos acadêmicos (ACC, TCC, Estágio etc.)?">
+              <RadioGroup name="q12_fasitech_impacto" options={FASITECH_IMPACTO} register={register} />
+            </Field>
+            <Field label="13. Quais funcionalidades do FasiTech você já utilizou? (Selecione todas que se aplicam)">
+              <div className="flex flex-col sm:flex-row flex-wrap gap-2 mt-2">
+                {FASITECH_FUNCIONALIDADES.map(opt => (
+                  <label key={opt} className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="accent-fasi-500"
+                      checked={funcionalidades.includes(opt)}
+                      onChange={() => toggleFuncionalidade(opt)}
+                    />
+                    <span className="text-sm text-muted-foreground">{opt}</span>
+                  </label>
+                ))}
+              </div>
             </Field>
           </div>
         </FormSection>

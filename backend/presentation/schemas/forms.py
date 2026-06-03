@@ -129,6 +129,9 @@ class AvaliacaoGestaoFormRequest(BaseModel):
     q9_valor: Optional[int] = None
     q10_melhorias: Optional[str] = None
     q11_outras_questoes: Optional[str] = None
+    q12_fasitech_impacto: Optional[str] = None
+    q12_valor: Optional[int] = None
+    q13_fasitech_funcionalidades: Optional[list[str]] = None
 
 
 class EmissaoDocumentosFormRequest(BaseModel):
