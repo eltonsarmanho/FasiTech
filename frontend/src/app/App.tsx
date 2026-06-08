@@ -19,6 +19,7 @@ import { ConsultaRequerimentoTCC } from '@/features/consulta-requerimento-tcc/Co
 import { ConsultaProjetos } from '@/features/consulta-projetos/ConsultaProjetos'
 import { ConsultaGestao } from '@/features/consulta-gestao/ConsultaGestao'
 import { ConfiguracaoPage } from '@/features/configuracao/ConfiguracaoPage'
+import { GestorPeriodos } from '@/features/gestor-periodos/GestorPeriodos'
 import { DocumentosPage } from '@/features/documentos/DocumentosPage'
 import { CalendariosPage } from '@/features/calendarios/CalendariosPage'
 
@@ -57,6 +58,7 @@ export default function App() {
 
         {/* Configuração */}
         <Route path="configuracao" element={<ConfiguracaoPage />} />
+        <Route path="admin/periodos" element={<GestorPeriodos />} />
       </Route>
     </Routes>
   )

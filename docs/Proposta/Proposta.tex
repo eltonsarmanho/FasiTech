@@ -21,6 +21,9 @@
 
 % ------ Gráficos e cores ------
 \usepackage{graphicx}
+\usepackage{float}
+\usepackage{caption}
+\graphicspath{{Img/}}
 \usepackage{xcolor}
 \definecolor{ufpablue}{RGB}{0,55,115}
 \definecolor{ufpared}{RGB}{175,28,28}
@@ -200,6 +203,12 @@ tramitação entre estudantes, docentes e secretaria, organizados em dez módulo
 \end{tikzpicture}
 \end{center}
 
+\begin{center}
+  \includegraphics[width=0.49\linewidth]{PagePrincipal_View1}\hfill%
+  \includegraphics[width=0.49\linewidth]{PagePrincipal_View2}\\[2pt]
+  {\scriptsize\textit{Portal FasiTech: formulários para discentes (esq.) e para docentes / área geral (dir.)}}
+\end{center}
+
 \vspace{4pt}
 Dois módulos utilizam \textbf{automação inteligente} que diferencia o sistema de soluções
 convencionais:
@@ -214,6 +223,53 @@ convencionais:
     documentos institucionais (PPC, regulamentos) com geração de respostas em linguagem
     natural. Disponível 24 horas, em todos os polos, sem intervenção humana.
 \end{itemize}
+
+\begin{center}
+  \includegraphics[width=0.30\linewidth]{DiretorVirtual_view1}\hspace{0.06\linewidth}%
+  \includegraphics[width=0.30\linewidth]{DiretorVirtual_view2}\\[2pt]
+  {\scriptsize\textit{Diretor Virtual: detecção automática de ambiguidade temporal e resposta
+  precisa com data do período letivo consultado.}}
+\end{center}
+
+\vspace{4pt}
+\begin{tcolorbox}[warnbox,
+  title={\faCogs\; Pipeline RPA para Projetos de Ensino, Pesquisa e Extensão},
+  fonttitle=\bfseries\small\color{accentor!80!black}]
+
+\noindent Ao submeter um projeto, o FasiTech executa automaticamente um
+\textbf{pipeline de automação documental de ponta a ponta}, sem intervenção manual
+da secretaria:
+
+\vspace{4pt}
+\noindent\resizebox{\linewidth}{!}{%
+\begin{tikzpicture}[
+  node distance=0.30cm,
+  flownode/.style={rectangle, rounded corners=4pt, fill=accentor!14, draw=accentor!55,
+               minimum width=2.6cm, minimum height=1.1cm, align=center, font=\small\bfseries},
+  arr/.style={-{Stealth[length=5pt]}, thick, color=accentor!65}
+]
+\node[flownode] (form)  {Submissão\\via Portal Web};
+\node[flownode, right=of form]  (drive) {Artefatos no\\Google Drive\\{\tiny (por edital/docente)}};
+\node[flownode, right=of drive] (pdf)   {Parecer PDF\\gerado\\{\tiny (automático)}};
+\node[flownode, right=of pdf]   (email) {E-mail aos\\Pareceristas\\{\tiny (link + PDF)}};
+\node[flownode, right=of email] (bd)    {Registro\\no Banco\\{\tiny (auditável)}};
+\draw[arr] (form.east)  -- (drive.west);
+\draw[arr] (drive.east) -- (pdf.west);
+\draw[arr] (pdf.east)   -- (email.west);
+\draw[arr] (email.east) -- (bd.west);
+\end{tikzpicture}}
+
+\vspace{5pt}
+\begin{itemize}[itemsep=1pt, topsep=0pt, leftmargin=1.2em]
+  \item \textbf{Armazenamento estruturado no Google Drive:} pasta hierárquica por edital
+    e docente, acervo disponível imediatamente para inspeção do MEC e auditorias internas,
+    sem busca manual em e-mails ou drives pessoais.
+  \item \textbf{Geração automática do parecer:} PDF com identificação do projeto,
+    pareceristas designados e campo de assinatura com nenhuma digitação pela secretaria.
+  \item \textbf{Notificação instantânea:} pareceristas recebem, no mesmo instante da
+    submissão, link para os artefatos no Drive e o PDF do parecer para leitura e assinatura.
+\end{itemize}
+\end{tcolorbox}
 
 % ============================================================
 \section{3\;–\;Quais são os objetivos da ação?}
@@ -242,11 +298,11 @@ convencionais:
 
 \noindent\textbf{Público direto:} aproximadamente 200 estudantes ativos nos três polos
 (polo sede, polo remoto A e polo remoto B), o corpo docente e a equipe técnico-administrativa
-da unidade.
+da subunidade.
 
 \noindent\textbf{Público indireto:} coordenação da faculdade, famílias dos estudantes,
 demais campi da UFPA (como potencial de replicação) e a gestão institucional da UFPA,
-que se beneficia de indicadores estruturados de uma unidade multicampi no interior.
+que se beneficia de indicadores estruturados de uma subunidade multicampi no interior.
 
 \medskip
 O perfil socioeconômico levantado pelo próprio FasiTech (n=148) revela um público de
@@ -318,7 +374,7 @@ críticos do calendário acadêmico.
 
 \textbf{Fase 5 -- Expansão e métricas (mar--jun/2026):} Implantação da Avaliação de
 Gestão e do Requerimento de Banca. Extração estruturada de indicadores de impacto.
-Consolidação de \textbf{452 registros em 10 tabelas transacionais}.
+Consolidação de \textbf{468 registros em 10 tabelas transacionais}.
 
 % ============================================================
 \section{6\;–\;Por que a ação é inovadora?}
@@ -330,7 +386,7 @@ Consolidação de \textbf{452 registros em 10 tabelas transacionais}.
 \begin{enumerate}[label={\color{darkgreen}\textbf{\arabic*.}}, itemsep=5pt]
   \item \textbf{Primeira plataforma integrada da subunidade:} Antes do FasiTech, não existia
     qualquer sistema digital unificado para tramitação acadêmica na subunidade. A inovação não
-    é incremental -- é a \textit{substituição completa} de um modelo papel-dependente por
+    é incremental, é a \textit{substituição completa} de um modelo papel-dependente por
     um fluxo 100\% digital, cobrindo simultaneamente dez tipos de processo.
 
   \item \textbf{IA aplicada a burocracia acadêmica:} O uso de Inteligência Artificial para
@@ -367,18 +423,26 @@ Consolidação de \textbf{452 registros em 10 tabelas transacionais}.
 \toprule
 \textbf{Indicador} & \textbf{Resultado} & \textbf{Status} \\
 \midrule
-Trâmites acadêmicos 100\% digitalizados      & \textbf{218 processos} & \textcolor{darkgreen}{\faCheckCircle} \\
+Trâmites acadêmicos 100\% digitalizados      & \textbf{222 processos} & \textcolor{darkgreen}{\faCheckCircle} \\
 Polos atendidos simultaneamente              & \textbf{3 polos}       & \textcolor{darkgreen}{\faCheckCircle} \\
 Pico de adoção mensal (março/2026)           & \textbf{173 envios}    & \textcolor{darkgreen}{\faCheckCircle} \\
 Dois polos mais distantes da sede     & \textbf{75,7\% dos envios} & \textcolor{darkgreen}{\faCheckCircle} \\
 Alertas acadêmicos disparados no prazo       & \textbf{6/6 (100\%)}   & \textcolor{darkgreen}{\faCheckCircle} \\
 Certificados ACC processados por IA          & \textbf{53 PDFs}       & \textcolor{darkgreen}{\faCheckCircle} \\
 Taxa de consolidação de conceitos            & \textbf{87,3\%}        & \textcolor{darkgreen}{\faCheckCircle} \\
-Satisfação com transparência da gestão       & \textbf{4,43\,/\,5,0} & \textcolor{accentor}{\faExclamationCircle}~baseline \\
+Satisfação: transparência da gestão (n=21)   & \textbf{4,05\,/\,5,0} & \textcolor{darkgreen}{\faCheckCircle} \\
+Impacto positivo percebido pelos usuários (Q12)& \textbf{82\%}          & \textcolor{darkgreen}{\faCheckCircle} \\
 Perfis socioeconômicos estruturados          & \textbf{148 alunos}    & \textcolor{darkgreen}{\faCheckCircle} \\
 Alunos com renda $\leq$ 1 SM documentados   & \textbf{78,4\%}        & \textcolor{darkgreen}{\faCheckCircle} \\
 \bottomrule
 \end{tabular}
+\end{center}
+
+\begin{center}
+  \includegraphics[width=0.49\linewidth]{GestorAlertas}\hfill%
+  \includegraphics[width=0.49\linewidth]{ConsultaProjetos}\\[2pt]
+  {\scriptsize\textit{Gestor de alertas: 6 disparos com 100\% de cumprimento de prazo (esq.).
+  Consulta de 60 projetos docentes com filtros e exportação CSV (dir.).}}
 \end{center}
 
 \subsection*{7.2\;Impacto na equidade}
@@ -410,10 +474,20 @@ anterior. O FasiTech atende mais intensamente quem mais precisava de um canal re
 
 \subsection*{7.3\;Avaliação de satisfação (baseline)}
 
-Avaliação de gestão (n=9, março/2026): \textbf{transparência = 4,43/5} (ponto mais forte),
-suporte = 4,17/5, comunicação = 4,00/5. As respostas abertas revelam percepção positiva
-do canal digital e demandas por maior equidade no acesso a oportunidades -- insumo
-direto para planejamento da coordenação.
+Avaliação de gestão (n\,=\,21, junho/2026): média geral \textbf{3,80\,/\,5,0};
+\textbf{transparência = 4,05/5} (dimensão mais bem avaliada), planejamento = 3,89/5,
+suporte = 3,84/5, comunicação = 3,84/5. A pergunta direta de impacto (Q12 --
+\textit{``O FasiTech facilitou o envio e acompanhamento dos seus processos acadêmicos?''})
+registrou \textbf{82\% de impacto positivo} (9 de 11 respostas válidas). As respostas abertas
+apontam percepção positiva do canal digital e demandas por maior equidade no acesso
+a oportunidades, insumo direto para planejamento da coordenação.
+
+\begin{center}
+  \includegraphics[width=0.90\linewidth]{DashboardGestao_View1}\\[4pt]
+  \includegraphics[width=0.90\linewidth]{DashboardGestaio_View2}\\[2pt]
+  {\scriptsize\textit{Dashboard da Avaliação de Gestão: distribuição por dimensão (acima)
+  e impacto percebido do FasiTech $\rightarrow$ 82\% positivo (abaixo).}}
+\end{center}
 
 % ============================================================
 \section{8\;–\;Como os recursos foram utilizados?}
@@ -625,6 +699,12 @@ disponíveis para verificação pela Comissão de Avaliação mediante solicita�
     da plataforma, evidenciando a viabilidade de replicação em outros campi com
     custo e esforço mínimos.
 \end{itemize}
+
+\begin{center}
+  \includegraphics[width=0.75\linewidth]{ConsultaRequerimento}\\[2pt]
+  {\scriptsize\textit{Consulta de requerimentos de banca TCC com filtros por orientador,
+  modalidade e data de defesa -- exportação CSV disponível.}}
+\end{center}
 
 \begin{tcolorbox}[successbox]
   \textbf{\faClone\;Replicabilidade:} A arquitetura modular do FasiTech permite que

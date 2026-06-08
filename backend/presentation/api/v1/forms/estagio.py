@@ -33,6 +33,22 @@ async def submit_estagio(
     componente: Annotated[str, Form(description="'Plano de Estágio' ou 'Relatório Final'")],
     arquivos: Annotated[List[UploadFile], File()],
 ):
+    # Valida que o envio ocorre dentro de um período de submissão de Estágio
+    from datetime import date as _date
+    from backend.infrastructure.database.repository import get_periodos_ativos_para_data, list_periodos_submissao
+    hoje = _date.today().isoformat()
+    if not get_periodos_ativos_para_data("estagio", hoje):
+        todos_periodos = list_periodos_submissao(tipo="estagio")
+        if todos_periodos:
+            detalhes = "; ".join(
+                f"Período {p['numero']}: {p['data_inicio']} a {p['data_fim']}"
+                for p in todos_periodos
+            )
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                f"O envio de Estágio só é permitido durante os períodos de submissão. Períodos: {detalhes}",
+            )
+
     file_objs: list[_FileLike] = []
     for f in arquivos:
         content = await f.read()

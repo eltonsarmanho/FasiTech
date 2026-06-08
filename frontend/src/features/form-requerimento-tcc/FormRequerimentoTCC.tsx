@@ -11,6 +11,7 @@ import { SubmitButton } from '@/shared/components/SubmitButton'
 import { PROFESSORES, MODALIDADES_TCC } from '@/shared/lib/constants'
 import { submitJson } from '@/shared/lib/api'
 import { numericProps, MATRICULA_REGEX, MATRICULA_MSG, ANO_REGEX, ANO_MSG, EMAIL_MSG } from '@/shared/lib/masks'
+import { usePeriodosSubmissao, isPeriodoAtivo, formatPeriodo } from '@/shared/hooks/usePeriodosSubmissao'
 
 const MEMBROS_BANCA = [...PROFESSORES, 'Outro'] as const
 
@@ -33,7 +34,7 @@ const schema = z.object({
   membro_banca3:    z.string().optional(),
   membro_banca3_outro: z.string().optional(),
   data_defesa:      z.string().min(1, 'Data de defesa obrigatória'),
-  horario_defesa:   z.string().optional(),
+  horario_defesa:   z.string().min(1, 'Horário de defesa obrigatório'),
   local_defesa:     z.string().optional(),
 })
 type FormData = z.infer<typeof schema>
@@ -43,12 +44,21 @@ export function FormRequerimentoTCC() {
   const [membro2, setMembro2] = useState('')
   const [membro3, setMembro3] = useState('')
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
+  const { data: periodosDefesa = [] } = usePeriodosSubmissao('tcc')
+
+  const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
   })
 
+  const dataDefesaValue = watch('data_defesa')
+
   const mutation = useMutation({
     mutationFn: (data: FormData) => {
+      // Validação de período no frontend (dupla validação com backend)
+      if (periodosDefesa.length > 0 && data.data_defesa && !isPeriodoAtivo(periodosDefesa, data.data_defesa)) {
+        const detalhes = periodosDefesa.map(p => `Período ${p.numero}: ${formatPeriodo(p)}`).join(' | ')
+        throw new Error(`A data de defesa está fora dos períodos permitidos. Períodos: ${detalhes}`)
+      }
       const payload = {
         ...data,
         membro_banca1: data.membro_banca1 === 'Outro' ? (data.membro_banca1_outro ?? '') : data.membro_banca1,
@@ -59,7 +69,7 @@ export function FormRequerimentoTCC() {
       return submitJson('/api/v1/forms/requerimento-tcc', payload)
     },
     onSuccess: () => { toast.success('Requerimento de TCC registrado com sucesso!'); reset(); setMembro1(''); setMembro2(''); setMembro3('') },
-    onError: () => toast.error('Erro ao registrar. Tente novamente.'),
+    onError: (e: Error) => toast.error(e.message || 'Erro ao registrar. Tente novamente.'),
   })
 
   return (
@@ -168,11 +178,26 @@ export function FormRequerimentoTCC() {
         </FormSection>
 
         <FormSection title="Data e Local da Defesa">
+          {periodosDefesa.length > 0 && (
+            <div className="mb-4 text-sm rounded-lg border border-blue-200 bg-blue-50 p-3">
+              <p className="font-semibold text-blue-700 mb-1">Períodos de defesa disponíveis:</p>
+              <ul className="space-y-0.5 text-blue-600">
+                {periodosDefesa.map(p => (
+                  <li key={p.id}>• Período {p.numero}: {formatPeriodo(p)}{p.semestre ? ` (${p.semestre})` : ''}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {periodosDefesa.length > 0 && dataDefesaValue && !isPeriodoAtivo(periodosDefesa, dataDefesaValue) && (
+            <div className="mb-4 text-sm rounded-lg border border-red-200 bg-red-50 p-3 text-red-700">
+              A data selecionada está fora dos períodos de defesa permitidos.
+            </div>
+          )}
           <FieldGroup cols={3}>
             <Field label="Data da defesa" required error={errors.data_defesa?.message}>
               <input className="fasi-input" type="date" {...register('data_defesa')} />
             </Field>
-            <Field label="Horário">
+            <Field label="Horário" required error={errors.horario_defesa?.message}>
               <input className="fasi-input" type="time" {...register('horario_defesa')} />
             </Field>
             <Field label="Local">

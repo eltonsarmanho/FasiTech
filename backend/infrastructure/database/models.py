@@ -376,6 +376,20 @@ class AvaliacaoGestaoSubmission(SubmissionBase, table=True):
             }
         }
 
+class PeriodoSubmissao(SQLModel, table=True):
+    """Períodos de submissão configuráveis para TCC, ACC e Estágio."""
+
+    __tablename__ = "periodos_submissao"
+    __table_args__ = {"extend_existing": True}
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tipo: str = Field(max_length=20, index=True)   # 'tcc' | 'acc' | 'estagio'
+    numero: int                                     # 1-4
+    data_inicio: str = Field(max_length=10)         # YYYY-MM-DD
+    data_fim: str = Field(max_length=10)            # YYYY-MM-DD
+    semestre: Optional[str] = Field(default=None, max_length=20)  # ex.: "2026.1"
+
+
 class AlertaAcademico(SQLModel, table=True):
     """Model for academic alert triggers (email scheduler)."""
 

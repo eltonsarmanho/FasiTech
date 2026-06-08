@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ClipboardList, FlaskConical, Bell, BookOpen, BarChart2 } from 'lucide-react'
+import { ClipboardList, FlaskConical, Bell, BookOpen, BarChart2, CalendarRange } from 'lucide-react'
 
 import { PageShell } from '@/shared/components/PageShell'
 import { TokenGate } from '@/shared/components/TokenGate'
@@ -39,6 +39,13 @@ const items = [
     description: 'Dashboard com insights quantitativos da avaliação da gestão FASI — médias, distribuições e uso do FasiTech.',
     to: '/consulta/gestao',
     color: 'text-fasi-500',
+  },
+  {
+    icon: CalendarRange,
+    title: 'Períodos de Submissão',
+    description: 'Configure os períodos em que alunos podem enviar ACC, Estágio e Requerimento de TCC.',
+    to: '/admin/periodos',
+    color: 'text-amber-500',
   },
 ]
 

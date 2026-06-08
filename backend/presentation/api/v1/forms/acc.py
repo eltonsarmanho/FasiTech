@@ -29,6 +29,22 @@ async def submit_acc(
     periodo: Annotated[str, Form()],
     arquivo_pdf: Annotated[UploadFile, File(description="PDF consolidado das ACCs (máx 50MB)")],
 ):
+    # Valida que o envio ocorre dentro de um período de submissão de ACC
+    from datetime import date as _date
+    from backend.infrastructure.database.repository import get_periodos_ativos_para_data, list_periodos_submissao
+    hoje = _date.today().isoformat()
+    if not get_periodos_ativos_para_data("acc", hoje):
+        todos_periodos = list_periodos_submissao(tipo="acc")
+        if todos_periodos:
+            detalhes = "; ".join(
+                f"Período {p['numero']}: {p['data_inicio']} a {p['data_fim']}"
+                for p in todos_periodos
+            )
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                f"O envio de ACC só é permitido durante os períodos de submissão. Períodos: {detalhes}",
+            )
+
     content = await arquivo_pdf.read()
     if len(content) > MAX_FILE_SIZE:
         raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "Arquivo excede 50MB")

@@ -11,6 +11,7 @@ import { FileUpload } from '@/shared/components/FileUpload'
 import { SubmitButton } from '@/shared/components/SubmitButton'
 import { POLOS, COMPONENTES_ESTAGIO } from '@/shared/lib/constants'
 import { usePeriodosLetivos } from '@/shared/hooks/usePeriodosLetivos'
+import { usePeriodosSubmissao, isPeriodoAtivo, formatPeriodo } from '@/shared/hooks/usePeriodosSubmissao'
 import { submitForm } from '@/shared/lib/api'
 import { numericProps, MATRICULA_REGEX, MATRICULA_MSG, ANO_REGEX, ANO_MSG, EMAIL_MSG } from '@/shared/lib/masks'
 
@@ -31,6 +32,11 @@ export function FormEstagio() {
   const [files, setFiles] = useState<File[]>([])
   const [fileKey, setFileKey] = useState(0)
   const { data: periodos = [] } = usePeriodosLetivos()
+  const { data: periodosSubmissao = [] } = usePeriodosSubmissao('estagio')
+
+  const hoje = new Date().toISOString().slice(0, 10)
+  const periodoAberto = periodosSubmissao.length === 0 || isPeriodoAtivo(periodosSubmissao, hoje)
+
   const { register, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
   })
@@ -50,6 +56,31 @@ export function FormEstagio() {
   return (
     <PageShell icon="📋" title="Formulário de Estágio"
       subtitle="Envio de documentos de Estágio I e II">
+      {periodosSubmissao.length > 0 && (
+        <div className={`mb-4 text-sm rounded-lg border p-3 ${periodoAberto ? 'border-green-200 bg-green-50 text-green-700' : 'border-red-200 bg-red-50 text-red-700'}`}>
+          {periodoAberto ? (
+            <>
+              <p className="font-semibold mb-1">Submissão aberta</p>
+              <ul className="space-y-0.5">
+                {periodosSubmissao.filter(p => p.data_inicio <= hoje && hoje <= p.data_fim).map(p => (
+                  <li key={p.id}>• Período {p.numero}: {formatPeriodo(p)}</li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <>
+              <p className="font-semibold mb-1">Submissão encerrada no momento</p>
+              <p className="mb-1">Períodos de submissão disponíveis:</p>
+              <ul className="space-y-0.5">
+                {periodosSubmissao.map(p => (
+                  <li key={p.id}>• Período {p.numero}: {formatPeriodo(p)}{p.semestre ? ` (${p.semestre})` : ''}</li>
+                ))}
+              </ul>
+            </>
+          )}
+        </div>
+      )}
+
       <form onSubmit={handleSubmit(d => mutation.mutate(d))} noValidate>
         <FormSection title="Dados do Discente">
           <FieldGroup cols={2}>
@@ -110,7 +141,7 @@ export function FormEstagio() {
             label="Selecione os documentos de estágio (PDF)" onChange={setFiles} />
         </FormSection>
 
-        <SubmitButton loading={mutation.isPending} label="Enviar Estágio" loadingLabel="Enviando..." />
+        <SubmitButton loading={mutation.isPending} label="Enviar Estágio" loadingLabel="Enviando..." disabled={!periodoAberto || mutation.isPending} />
       </form>
     </PageShell>
   )
