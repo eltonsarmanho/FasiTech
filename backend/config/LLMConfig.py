@@ -2,13 +2,139 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
-# Modelo principal — RAG/PPC, Diretor Virtual (texto)
-# gemini-2.5-flash: contexto 1M tokens, free tier disponível
-GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+from dotenv import load_dotenv
 
-# Modelo para extração visual — ACC (PDF/imagem, menor custo)
-GEMINI_MODEL_VISION: str = os.getenv("GEMINI_MODEL_VISION", "gemini-2.5-flash-lite")
 
-# Modelo Ollama — fallback local quando GOOGLE_API_KEY não está configurada
-OLLAMA_LLM_MODEL: str = os.getenv("OLLAMA_LLM_MODEL", "qwen2.5:3b")
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+load_dotenv(PROJECT_ROOT / ".env", override=True)
+
+
+def _env(name: str, default: str = "") -> str:
+    return os.getenv(name, default).strip()
+
+
+# Google / Gemini
+GOOGLE_API_KEY: str = _env("GOOGLE_API_KEY") or _env("GEMINI_API_KEY")
+GOOGLE_API_BASE: str = _env(
+    "GOOGLE_API_BASE",
+    "https://generativelanguage.googleapis.com/v1beta",
+)
+GOOGLE_MODEL: str = _env("GOOGLE_MODEL", _env("GEMINI_MODEL", "gemini-2.5-flash"))
+
+GEMINI_API_KEY: str = _env("GEMINI_API_KEY") or GOOGLE_API_KEY
+GEMINI_API_BASE: str = _env("GEMINI_API_BASE", GOOGLE_API_BASE)
+GEMINI_MODEL: str = _env("GEMINI_MODEL", GOOGLE_MODEL)
+GEMINI_MODEL_VISION: str = _env("GEMINI_MODEL_VISION", "gemini-2.5-flash-lite")
+GEMINI_EMBEDDING_MODEL: str = _env("GEMINI_EMBEDDING_MODEL", "text-embedding-004")
+
+# Ollama
+OLLAMA_HOST: str = _env("OLLAMA_HOST", "http://localhost:11434")
+OLLAMA_BASE_URL: str = _env("OLLAMA_BASE_URL", OLLAMA_HOST)
+OLLAMA_LLM_MODEL: str = _env("OLLAMA_LLM_MODEL", "qwen2.5:3b")
+OLLAMA_EMBEDDING_MODEL: str = _env("OLLAMA_EMBEDDING_MODEL", "nomic-embed-text")
+OLLAMA_EMBEDDING_DIMENSIONS: int = int(_env("OLLAMA_EMBEDDING_DIMENSIONS", "768"))
+
+# Maritalk / Maritaca
+MARITALK_API_KEY: str = _env("MARITALK_API_KEY") or _env("MARITACA_API_KEY")
+MARITALK_API_BASE: str = _env(
+    "MARITALK_API_BASE",
+    _env("MARITALK_BASE_URL", _env("MARITACA_BASE_URL", "https://chat.maritaca.ai/api")),
+)
+MARITALK_BASE_URL: str = _env("MARITALK_BASE_URL", MARITALK_API_BASE)
+MARITALK_MODEL: str = _env("MARITALK_MODEL", _env("MARITACA_MODEL", "sabiazinho-4"))
+
+MARITACA_API_KEY: str = _env("MARITACA_API_KEY") or MARITALK_API_KEY
+MARITACA_API_BASE: str = _env("MARITACA_API_BASE", MARITALK_API_BASE)
+MARITACA_BASE_URL: str = _env("MARITACA_BASE_URL", MARITALK_BASE_URL)
+MARITACA_MODEL: str = _env("MARITACA_MODEL", MARITALK_MODEL)
+
+# OpenAI / OpenAI-compatible fallback
+OPENAI_API_KEY: str = _env("OPENAI_API_KEY")
+OPENAI_API_BASE: str = _env("OPENAI_API_BASE", _env("OPENAI_BASE_URL", "https://api.openai.com/v1"))
+OPENAI_BASE_URL: str = _env("OPENAI_BASE_URL", OPENAI_API_BASE)
+OPENAI_MODEL: str = _env("OPENAI_MODEL", "gpt-4o-mini")
+
+# Hugging Face
+HF_TOKEN: str = _env("HF_TOKEN") or _env("HUGGINGFACE_API_KEY")
+HUGGINGFACE_API_KEY: str = _env("HUGGINGFACE_API_KEY") or HF_TOKEN
+HUGGINGFACE_MODEL: str = _env(
+    "HUGGINGFACE_MODEL",
+    "meta-llama/Llama-3.1-8B-Instruct:featherless-ai",
+)
+HUGGINGFACE_PROVIDER: str = _env("HUGGINGFACE_PROVIDER", "featherless-ai")
+
+
+class LLMConfig:
+    """Compatibilidade para código que espera uma classe de configuração."""
+
+    GOOGLE_API_KEY = GOOGLE_API_KEY
+    GOOGLE_API_BASE = GOOGLE_API_BASE
+    GOOGLE_MODEL = GOOGLE_MODEL
+
+    GEMINI_API_KEY = GEMINI_API_KEY
+    GEMINI_API_BASE = GEMINI_API_BASE
+    GEMINI_MODEL = GEMINI_MODEL
+    GEMINI_MODEL_VISION = GEMINI_MODEL_VISION
+    GEMINI_EMBEDDING_MODEL = GEMINI_EMBEDDING_MODEL
+
+    OLLAMA_HOST = OLLAMA_HOST
+    OLLAMA_BASE_URL = OLLAMA_BASE_URL
+    OLLAMA_LLM_MODEL = OLLAMA_LLM_MODEL
+    OLLAMA_EMBEDDING_MODEL = OLLAMA_EMBEDDING_MODEL
+    OLLAMA_EMBEDDING_DIMENSIONS = OLLAMA_EMBEDDING_DIMENSIONS
+
+    MARITALK_API_KEY = MARITALK_API_KEY
+    MARITALK_API_BASE = MARITALK_API_BASE
+    MARITALK_BASE_URL = MARITALK_BASE_URL
+    MARITALK_MODEL = MARITALK_MODEL
+
+    MARITACA_API_KEY = MARITACA_API_KEY
+    MARITACA_API_BASE = MARITACA_API_BASE
+    MARITACA_BASE_URL = MARITACA_BASE_URL
+    MARITACA_MODEL = MARITACA_MODEL
+
+    OPENAI_API_KEY = OPENAI_API_KEY
+    OPENAI_API_BASE = OPENAI_API_BASE
+    OPENAI_BASE_URL = OPENAI_BASE_URL
+    OPENAI_MODEL = OPENAI_MODEL
+
+    HF_TOKEN = HF_TOKEN
+    HUGGINGFACE_API_KEY = HUGGINGFACE_API_KEY
+    HUGGINGFACE_MODEL = HUGGINGFACE_MODEL
+    HUGGINGFACE_PROVIDER = HUGGINGFACE_PROVIDER
+
+
+__all__ = [
+    "GOOGLE_API_KEY",
+    "GOOGLE_API_BASE",
+    "GOOGLE_MODEL",
+    "GEMINI_API_KEY",
+    "GEMINI_API_BASE",
+    "GEMINI_MODEL",
+    "GEMINI_MODEL_VISION",
+    "GEMINI_EMBEDDING_MODEL",
+    "OLLAMA_HOST",
+    "OLLAMA_BASE_URL",
+    "OLLAMA_LLM_MODEL",
+    "OLLAMA_EMBEDDING_MODEL",
+    "OLLAMA_EMBEDDING_DIMENSIONS",
+    "MARITALK_API_KEY",
+    "MARITALK_API_BASE",
+    "MARITALK_BASE_URL",
+    "MARITALK_MODEL",
+    "MARITACA_API_KEY",
+    "MARITACA_API_BASE",
+    "MARITACA_BASE_URL",
+    "MARITACA_MODEL",
+    "OPENAI_API_KEY",
+    "OPENAI_API_BASE",
+    "OPENAI_BASE_URL",
+    "OPENAI_MODEL",
+    "HF_TOKEN",
+    "HUGGINGFACE_API_KEY",
+    "HUGGINGFACE_MODEL",
+    "HUGGINGFACE_PROVIDER",
+    "LLMConfig",
+]
