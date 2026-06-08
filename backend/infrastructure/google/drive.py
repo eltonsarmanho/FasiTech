@@ -2,7 +2,7 @@
 
 import os
 from io import BytesIO
-from typing import Any, Iterable, Dict
+from typing import Any, Iterable, Dict, List, Optional
 
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
@@ -14,28 +14,28 @@ from backend.utils.CredentialsEncoder import convertBase64ToJson
 def _get_credentials():
     """Obtém as credenciais do Google Cloud a partir da variável de ambiente."""
     credentials_base64 = os.getenv("GOOGLE_CLOUD_CREDENTIALS_FASI_BASE64")
-    
+
     if not credentials_base64:
         credentials_base64 = os.getenv("GOOGLE_CLOUD_CREDENTIALS_BASE64")
-    
+
     if not credentials_base64:
         raise ValueError(
             "Credenciais não encontradas! Configure GOOGLE_CLOUD_CREDENTIALS_FASI_BASE64 "
             "ou GOOGLE_CLOUD_CREDENTIALS_BASE64 no arquivo .env"
         )
-    
+
     credentials_dict = convertBase64ToJson(credentials_base64)
-    
+
     scopes = [
         'https://www.googleapis.com/auth/drive.file',
         'https://www.googleapis.com/auth/drive'
     ]
-    
+
     credentials = Credentials.from_service_account_info(
-        credentials_dict, 
+        credentials_dict,
         scopes=scopes
     )
-    
+
     return credentials
 
 
@@ -356,9 +356,8 @@ def get_file_metadata(file_id: str) -> Dict[str, Any]:
     """Busca os metadados de um arquivo no Google Drive."""
     credentials = _get_credentials()
     service = build('drive', 'v3', credentials=credentials)
-    
+
     try:
-        # Usar fields='id, name, mimeType, webViewLink' para obter os metadados essenciais
         file_metadata = service.files().get(
             fileId=file_id,
             fields='id, name, mimeType, webViewLink'
@@ -367,3 +366,50 @@ def get_file_metadata(file_id: str) -> Dict[str, Any]:
     except Exception as e:
         print(f"❌ Erro ao buscar metadados do arquivo {file_id}: {str(e)}")
         raise ValueError(f"Não foi possível encontrar ou acessar o arquivo com ID: {file_id}")
+
+
+def _find_child_folder(service, name: str, parent_id: str) -> Optional[str]:
+    """Retorna o ID da subpasta com o nome dado dentro de parent_id, ou None se não existir."""
+    escaped = name.replace("'", "\\'")
+    query = (
+        f"name='{escaped}' and '{parent_id}' in parents "
+        "and mimeType='application/vnd.google-apps.folder' and trashed=false"
+    )
+    results = service.files().list(q=query, spaces='drive', fields='files(id)').execute()
+    folders = results.get('files', [])
+    return folders[0]['id'] if folders else None
+
+
+def trash_item(item_id: str) -> bool:
+    """Move um arquivo ou pasta para a lixeira do Drive. Retorna True se bem-sucedido."""
+    try:
+        credentials = _get_credentials()
+        service = build('drive', 'v3', credentials=credentials)
+        service.files().update(fileId=item_id, body={'trashed': True}).execute()
+        return True
+    except Exception as e:
+        print(f"❌ Erro ao mover item {item_id} para lixeira: {str(e)}")
+        return False
+
+
+def trash_folder_by_path(root_folder_id: str, path_parts: List[str]) -> bool:
+    """
+    Navega root_folder_id/path_parts[0]/.../path_parts[-1] e move a pasta mais funda
+    para a lixeira. Retorna True se encontrou e moveu; False caso contrário.
+    """
+    try:
+        credentials = _get_credentials()
+        service = build('drive', 'v3', credentials=credentials)
+        current_id = root_folder_id
+        for part in path_parts:
+            folder_id = _find_child_folder(service, part, current_id)
+            if folder_id is None:
+                print(f"⚠️ Pasta '{part}' não encontrada em {current_id}")
+                return False
+            current_id = folder_id
+        service.files().update(fileId=current_id, body={'trashed': True}).execute()
+        return True
+    except Exception as e:
+        print(f"❌ Erro ao excluir pasta por caminho {path_parts}: {str(e)}")
+        return False
+

@@ -3,10 +3,13 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from pydantic import BaseModel
 from typing import Optional
+import logging
 
 from backend.presentation.dependencies import get_admin_dependency
 
 router = APIRouter()
+
+logger = logging.getLogger(__name__)
 
 
 class LancamentoRequest(BaseModel):
@@ -25,6 +28,15 @@ class AtualizarStatusRequest(BaseModel):
     componente: str
     matriculado: Optional[bool] = None
     consolidado: Optional[bool] = None
+
+
+class DeleteLancamentoRequest(BaseModel):
+    id: Optional[int] = None
+    tipo_formulario: str
+    matricula: str
+    periodo: str
+    polo: str
+    componente: str
 
 
 @router.get("/lancamentos/componentes-validos")
@@ -251,3 +263,54 @@ async def atualizar_status_lancamento(
             status.HTTP_500_INTERNAL_SERVER_ERROR,
             f"Erro ao atualizar status: {str(e)}"
         )
+
+
+@router.delete("/lancamentos", status_code=200)
+async def delete_lancamento(
+    data: DeleteLancamentoRequest,
+    _: str = Depends(get_admin_dependency),
+):
+    """Remove o lançamento, a submissão-fonte e move a pasta do Drive para a lixeira."""
+    try:
+        from backend.infrastructure.database.repository import (
+            delete_lancamento_conceitos_with_source,
+            get_lancamento_source_drive_info,
+        )
+
+        drive_info = get_lancamento_source_drive_info(
+            tipo_formulario=data.tipo_formulario,
+            matricula=data.matricula,
+            periodo=data.periodo,
+            polo=data.polo,
+            componente=data.componente,
+        )
+
+        deleted, _ = delete_lancamento_conceitos_with_source([{
+            "id": data.id,
+            "tipo_formulario": data.tipo_formulario,
+            "matricula": data.matricula,
+            "periodo": data.periodo,
+            "polo": data.polo,
+            "componente": data.componente,
+        }])
+
+        drive_deleted = False
+        if drive_info:
+            from backend.infrastructure.google.drive import trash_folder_by_path, trash_item
+            if drive_info["type"] == "folder":
+                drive_deleted = trash_folder_by_path(drive_info["root"], drive_info["path"])
+            elif drive_info["type"] == "file":
+                drive_deleted = trash_item(drive_info["item_id"])
+
+        logger.info(
+            f"[DELETE] {data.tipo_formulario} | {data.matricula} | {data.componente} | "
+            f"db_deleted={deleted} | drive_deleted={drive_deleted}"
+        )
+
+        return {"ok": True, "deleted": deleted, "drive_deleted": drive_deleted}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"[DELETE] Erro: {type(e).__name__}: {str(e)}")
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, str(e))

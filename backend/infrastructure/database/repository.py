@@ -915,6 +915,73 @@ def delete_lancamento_conceitos(ids: List[int]) -> tuple[int, int]:
     return deleted_count, ignored_count
 
 
+def get_lancamento_source_drive_info(
+    tipo_formulario: str,
+    matricula: str,
+    periodo: str,
+    polo: str,
+    componente: str,
+) -> Optional[Dict[str, Any]]:
+    """Retorna info de Drive da submissão-fonte sem deletar nada.
+
+    Retorno:
+        {"type": "folder", "root": str, "path": [str, ...]}  para TCC/Estágio
+        {"type": "file",   "item_id": str}                   para ACC
+        None se não encontrado
+    """
+    tipo = _normalize_text(tipo_formulario).upper()
+    mat = _normalize_text(matricula)
+    per = _normalize_text(periodo)
+    pol = _normalize_text(polo)
+    comp = _normalize_text(componente)
+
+    with get_db_session() as session:
+        if tipo == "ACC":
+            source = session.exec(
+                select(AccSubmission).where(
+                    AccSubmission.matricula == mat,
+                    AccSubmission.periodo == per,
+                    AccSubmission.polo == pol,
+                )
+            ).first()
+            if source and source.drive_file_id:
+                return {"type": "file", "item_id": source.drive_file_id}
+
+        elif tipo == "TCC":
+            source_rows = session.exec(
+                select(TccSubmission).where(
+                    TccSubmission.matricula == mat,
+                    TccSubmission.periodo == per,
+                    TccSubmission.polo == pol,
+                )
+            ).all()
+            for source in source_rows:
+                if _is_tcc1_submission(source.componente) and source.drive_folder_id:
+                    return {
+                        "type": "folder",
+                        "root": source.drive_folder_id,
+                        "path": [source.componente, source.turma, source.nome],
+                    }
+
+        elif tipo in {"ESTAGIO", "ESTÁGIO"}:
+            source_rows = session.exec(
+                select(EstagioSubmission).where(
+                    EstagioSubmission.matricula == mat,
+                    EstagioSubmission.periodo == per,
+                    EstagioSubmission.polo == pol,
+                )
+            ).all()
+            for source in source_rows:
+                if _normalize_estagio_component(source.componente) == comp and source.drive_folder_id:
+                    return {
+                        "type": "folder",
+                        "root": source.drive_folder_id,
+                        "path": [source.componente, source.turma, source.matricula],
+                    }
+
+    return None
+
+
 def delete_lancamento_conceitos_with_source(records: List[Dict[str, Any]]) -> tuple[int, int]:
     """
     Remove o registro do lançamento e a submissão-fonte correspondente.

@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { useState, useMemo } from 'react'
-import { Loader2, Play, Check, X } from 'lucide-react'
+import { Loader2, Play, Check, X, Trash2 } from 'lucide-react'
 
 import { PageShell } from '@/shared/components/PageShell'
 import { FormSection, FieldGroup, Field } from '@/shared/components/FormSection'
@@ -92,6 +92,18 @@ export function LancamentoConceitos() {
       window.location.reload()
     },
     onError: () => toast.error('Erro ao atualizar status'),
+  })
+
+  const deletarMutation = useMutation({
+    mutationFn: (row: { id: number | null; matricula: string; periodo: string; polo: string; componente: string }) =>
+      apiAuth.delete('/api/admin/lancamentos', {
+        data: { ...row, tipo_formulario: tipo },
+      }),
+    onSuccess: (_, row) => {
+      toast.success(`Registro de ${row.matricula} excluído com sucesso`)
+      queryClient.invalidateQueries({ queryKey: ['lancamentos', tipo] })
+    },
+    onError: () => toast.error('Erro ao excluir registro'),
   })
 
   return (
@@ -295,6 +307,26 @@ export function LancamentoConceitos() {
                               <Play className="w-3 h-3" />
                             )}
                             {consolidarMutation.isPending ? 'Aguarde...' : 'Consolidar'}
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (window.confirm(`Excluir registro de ${row.matricula} (${row.componente})?\n\nIsso removerá o lançamento, a submissão do formulário e a pasta no Google Drive.`)) {
+                                deletarMutation.mutate({
+                                  id: row.id ?? null,
+                                  matricula: row.matricula,
+                                  periodo: row.periodo,
+                                  polo: row.polo,
+                                  componente: row.componente,
+                                })
+                              }
+                            }}
+                            disabled={deletarMutation.isPending}
+                            className="fasi-btn-outline py-1 px-2 text-xs text-red-600 border-red-300 hover:bg-red-50"
+                            title="Excluir registro e pasta no Drive"
+                          >
+                            {deletarMutation.isPending
+                              ? <Loader2 className="w-3 h-3 animate-spin" />
+                              : <Trash2 className="w-3 h-3" />}
                           </button>
                         </div>
                         {(matricularMutation.isPending || consolidarMutation.isPending) && (
