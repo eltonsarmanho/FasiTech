@@ -16,6 +16,7 @@ from backend.infrastructure.database.models import (
     AlertaAcademico,
     EstagioSubmission,
     PlanoEnsinoSubmission,
+    PeriodoSubmissao,
     ProjetosSubmission,
     SocialSubmission,
     TccSubmission,
@@ -1194,3 +1195,87 @@ def delete_alerta(alerta_id: int) -> bool:
         session.delete(alerta)
         session.commit()
         return True
+
+
+# ---------------------------------------------------------------------------
+# Períodos de Submissão (TCC / ACC / Estágio)
+# ---------------------------------------------------------------------------
+
+def list_periodos_submissao(tipo: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Retorna todos os períodos cadastrados, opcionalmente filtrados por tipo."""
+    with get_db_session() as session:
+        query = select(PeriodoSubmissao)
+        if tipo:
+            query = query.where(PeriodoSubmissao.tipo == tipo.lower())
+        query = query.order_by(PeriodoSubmissao.tipo, PeriodoSubmissao.numero)
+        rows = session.exec(query).all()
+        return [
+            {
+                "id": r.id,
+                "tipo": r.tipo,
+                "numero": r.numero,
+                "data_inicio": r.data_inicio,
+                "data_fim": r.data_fim,
+                "semestre": r.semestre,
+            }
+            for r in rows
+        ]
+
+
+def get_periodos_ativos_para_data(tipo: str, data: str) -> List[Dict[str, Any]]:
+    """Retorna períodos do tipo dado onde data_inicio <= data <= data_fim."""
+    periodos = list_periodos_submissao(tipo=tipo)
+    return [p for p in periodos if p["data_inicio"] <= data <= p["data_fim"]]
+
+
+def save_periodo_submissao(data: Dict[str, Any]) -> int:
+    """Cria um novo período de submissão. Retorna o ID criado."""
+    periodo = PeriodoSubmissao(
+        tipo=data["tipo"].lower(),
+        numero=int(data["numero"]),
+        data_inicio=data["data_inicio"],
+        data_fim=data["data_fim"],
+        semestre=data.get("semestre"),
+    )
+    with get_db_session() as session:
+        session.add(periodo)
+        session.commit()
+        session.refresh(periodo)
+        return periodo.id
+
+
+def update_periodo_submissao(periodo_id: int, data: Dict[str, Any]) -> bool:
+    """Atualiza campos de um período existente. Retorna True se encontrado."""
+    with get_db_session() as session:
+        row = session.exec(
+            select(PeriodoSubmissao).where(PeriodoSubmissao.id == periodo_id)
+        ).first()
+        if row is None:
+            return False
+        if "tipo" in data:
+            row.tipo = data["tipo"].lower()
+        if "numero" in data:
+            row.numero = int(data["numero"])
+        if "data_inicio" in data:
+            row.data_inicio = data["data_inicio"]
+        if "data_fim" in data:
+            row.data_fim = data["data_fim"]
+        if "semestre" in data:
+            row.semestre = data["semestre"]
+        session.add(row)
+        session.commit()
+        return True
+
+
+def delete_periodo_submissao(periodo_id: int) -> bool:
+    """Remove um período de submissão. Retorna True se encontrado."""
+    with get_db_session() as session:
+        row = session.exec(
+            select(PeriodoSubmissao).where(PeriodoSubmissao.id == periodo_id)
+        ).first()
+        if row is None:
+            return False
+        session.delete(row)
+        session.commit()
+        return True
+
