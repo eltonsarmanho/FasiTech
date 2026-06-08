@@ -100,26 +100,26 @@
     FasiTech: Plataforma Digital Integrada para Gestão Acadêmica\\[3pt]
     em Campus Multicampi no Interior da Amazônia}\\[6pt]
   {\small Data de implementação: 01/10/2025 \quad|\quad
-   Unidade: Faculdade de Sistemas de Informação -- Campus Tocantins-Cametá / UFPA}
+   Unidade: [identificação omitida para julgamento cego]}
 \end{center}
 
-\vspace{4pt}
-\begin{tcolorbox}[metricbox]
-  \textbf{\faBook\;Objetivos do PDI 2016-2025 impactados:}
-  (1)~\textit{Melhorar e fortalecer a governança dos processos internos};
-  (2)~\textit{Expandir e aperfeiçoar a gestão institucional na perspectiva multicampi};
-  (3)~\textit{Assegurar a disponibilidade de sistemas essenciais de Tecnologia da Informação};
-  (4)~\textit{Aprimorar a comunicação institucional}.
-\end{tcolorbox}
-\vspace{6pt}
+% \vspace{4pt}
+% \begin{tcolorbox}[metricbox]
+%   \textbf{\faBook\;Objetivos do PDI 2016-2025 impactados:}
+%   (1)~\textit{Melhorar e fortalecer a governança dos processos internos};
+%   (2)~\textit{Expandir e aperfeiçoar a gestão institucional na perspectiva multicampi};
+%   (3)~\textit{Assegurar a disponibilidade de sistemas essenciais de Tecnologia da Informação};
+%   (4)~\textit{Aprimorar a comunicação institucional}.
+% \end{tcolorbox}
+% \vspace{6pt}
 
 % ============================================================
 \section{1\;–\;Qual era a situação-problema a ser enfrentada?}
 % ============================================================
 
-A Faculdade de Sistemas de Informação (FASI) da UFPA, Campus Tocantins-Cametá, atende
-estudantes distribuídos em três polos geograficamente dispersos: Cametá, Limoeiro do Ajuru
-e Oeiras do Pará. Essa configuração \textit{multicampi} impunha desafios que o modelo de
+A unidade acadêmica, localizada em um campus no interior da Amazônia, atende
+estudantes distribuídos em três polos geograficamente dispersos: polo sede, polo remoto A
+e polo remoto B. Essa configuração \textit{multicampi} impunha desafios que o modelo de
 gestão vigente não conseguia superar:
 
 \begin{itemize}[label={\color{ufpared}\faExclamationCircle}]
@@ -128,11 +128,11 @@ gestão vigente não conseguia superar:
 
   \item \textbf{Deslocamento obrigatório em contexto de alta vulnerabilidade:} Levantamento
     socioeconômico revelou que \textbf{75\% dos estudantes se deslocam a pé ou de bicicleta};
-    os polos mais distantes da sede (Limoeiro do Ajuru e Oeiras do Pará) concentram 75,7\%
+    os dois polos mais distantes da sede concentram em torno 30\%
     dos estudantes e ficam a horas de viagem do polo sede.
 
   \item \textbf{Cálculo manual de carga horária de ACC:} A secretaria somava manualmente
-    as cargas horárias de cada certificado físico -- processo suscetível a erros e
+    as cargas horárias de cada certificado físico, processo suscetível a erros e
     representando gargalo operacional significativo.
 
   \item \textbf{Ausência de dados socioeconômicos estruturados:} A coordenação não dispunha
@@ -151,14 +151,14 @@ Esse cenário contrariava o objetivo estratégico do PDI/UFPA de \textit{``aperf
 processos e procedimentos que impulsionem a fluidez na gestão''} e de \textit{``consolidar
 a atuação institucional em sistema multicampi''}. Para um público em que \textbf{78,4\%
 vivem com renda familiar de até 1 salário mínimo}, cada deslocamento ao campus tem custo
-real -- e o sistema pré-existente transferia esse custo ao estudante.
+real e o sistema pré-existente transferia esse custo ao estudante.
 
 % ============================================================
 \section{2\;–\;Qual foi a ação de inovação em processos implementada?}
 % ============================================================
 
 O \textbf{FasiTech} é uma plataforma digital integrada de gestão acadêmica e administrativa
-desenvolvida para a FASI/UFPA. Reúne em um único ambiente web os principais processos de
+desenvolvida para a subunidade acadêmica. Reúne em um único ambiente web os principais processos de
 tramitação entre estudantes, docentes e secretaria, organizados em dez módulos funcionais:
 
 \begin{center}
@@ -175,7 +175,7 @@ tramitação entre estudantes, docentes e secretaria, organizados em dez módulo
 \node[core] (core) at (0,0) {\faDatabase\; Portal FasiTech\\[1pt]{\tiny Backend + Banco de Dados}};
 
 % Módulos do aluno (esquerda e cima)
-\node[mstud] (acc)  at (-3.6, 2.2)  {\faFileAlt\; ACC};
+\node[mstud] (acc)  at (-3.6, 2.2)  {\faFilePdf\; ACC};
 \node[mstud] (tcc)  at (0,    2.2)  {\faGraduationCap\; TCC};
 \node[mstud] (est)  at ( 3.6, 2.2)  {\faBriefcase\; Estágio};
 \node[mstud] (soc)  at (-3.6,-2.2)  {\faUsers\; Perfil Social};
@@ -191,7 +191,7 @@ tramitação entre estudantes, docentes e secretaria, organizados em dez módulo
 \node[mai]   (not)  at (-4.8,-0.7)  {\faCogs\; Lançamento\\[-1pt]{\tiny de Conceitos}};
 
 % Alertas (topo direito do core)
-\node[mstud] (ale)  at ( 3.6, 0)    {\faBell\; Alertas\\[-1pt]Acadêmicos};
+\node[mstud] (ale)  at ( 8.6, 0)    {\faBell\; Alertas\\[-1pt]Acadêmicos};
 
 % Arrows
 \foreach \n in {acc,tcc,est,soc,req,aval,proj,plan,dir,not,ale}
@@ -207,11 +207,10 @@ convencionais:
 \begin{itemize}[label={\color{accentor}\faRobot}]
   \item \textbf{Módulo ACC com IA:} Os certificados são enviados como arquivos PDF.
     Um modelo de Inteligência Artificial extrai automaticamente as cargas horárias de cada
-    documento, elimina o cálculo manual e retorna ao estudante um resumo validado --
-    processo que antes consumia horas da secretaria.
+    documento, elimina o cálculo manual e retorna ao estudante um resumo validado. Processo que antes consumia horas da secretaria.
 
   \item \textbf{Diretor Virtual (IA/RAG):} Assistente conversacional que utiliza a
-    técnica de \textit{Retrieval-Augmented Generation} (RAG) -- combinando busca em
+    técnica de \textit{Retrieval-Augmented Generation} (RAG), combinando busca em
     documentos institucionais (PPC, regulamentos) com geração de respostas em linguagem
     natural. Disponível 24 horas, em todos os polos, sem intervenção humana.
 \end{itemize}
@@ -242,8 +241,8 @@ convencionais:
 % ============================================================
 
 \noindent\textbf{Público direto:} aproximadamente 200 estudantes ativos nos três polos
-(Cametá, Limoeiro do Ajuru, Oeiras do Pará), o corpo docente e a equipe técnico-administrativa
-da FASI/UFPA Campus Tocantins-Cametá.
+(polo sede, polo remoto A e polo remoto B), o corpo docente e a equipe técnico-administrativa
+da unidade.
 
 \noindent\textbf{Público indireto:} coordenação da faculdade, famílias dos estudantes,
 demais campi da UFPA (como potencial de replicação) e a gestão institucional da UFPA,
@@ -276,7 +275,7 @@ Sem computador próprio                      & 25,0\% \\
 
 \begin{center}
 \begin{tikzpicture}[
-  ph/.style={rectangle, rounded corners=4pt, text width=2.6cm, minimum height=1.7cm,
+  ph/.style={rectangle,scale=0.8, rounded corners=4pt, text width=2.6cm, minimum height=1.7cm,
              align=center, font=\footnotesize, drop shadow},
   arr/.style={-{Stealth[length=5pt]}, thick, color=ufpablue!60}
 ]
@@ -308,13 +307,13 @@ Arquitetura baseada em servidor web com banco de dados relacional e interface ac
 por qualquer navegador ou smartphone.
 
 \textbf{Fase 3 -- Lançamento em produção (out/2025):} Implantação com usuários reais.
-Primeiro mês: \textbf{66 submissões} -- evidência imediata de adoção espontânea.
+Primeiro mês: \textbf{66 submissões} $\rightarrow$ evidência imediata de adoção espontânea.
 Módulo de alertas acadêmicos ativado.
 
 \textbf{Fase 4 -- Integração de IA e consolidação (nov/2025--fev/2026):} Integração
 do processamento de certificados ACC com modelo de IA; desenvolvimento do Diretor
 Virtual com RAG; evolução dos módulos de lançamento de conceitos. Março de 2026
-registrou \textbf{173 submissões} -- pico absoluto, coincidente com período de prazos
+registrou \textbf{173 submissões} $\rightarrow$ pico absoluto, coincidente com período de prazos
 críticos do calendário acadêmico.
 
 \textbf{Fase 5 -- Expansão e métricas (mar--jun/2026):} Implantação da Avaliação de
@@ -329,21 +328,21 @@ Consolidação de \textbf{452 registros em 10 tabelas transacionais}.
   fonttitle=\bfseries\small\color{darkgreen!80!black}]
 
 \begin{enumerate}[label={\color{darkgreen}\textbf{\arabic*.}}, itemsep=5pt]
-  \item \textbf{Primeira plataforma integrada da unidade:} Antes do FasiTech, não existia
-    qualquer sistema digital unificado para tramitação acadêmica na FASI. A inovação não
+  \item \textbf{Primeira plataforma integrada da subunidade:} Antes do FasiTech, não existia
+    qualquer sistema digital unificado para tramitação acadêmica na subunidade. A inovação não
     é incremental -- é a \textit{substituição completa} de um modelo papel-dependente por
     um fluxo 100\% digital, cobrindo simultaneamente dez tipos de processo.
 
-  \item \textbf{IA aplicada à burocracia acadêmica:} O uso de Inteligência Artificial para
+  \item \textbf{IA aplicada a burocracia acadêmica:} O uso de Inteligência Artificial para
     leitura e extração de dados de certificados PDF (módulo ACC) é aplicação concreta de
     tecnologia a uma tarefa antes puramente manual. O modelo interpreta documentos
     heterogêneos e calcula automaticamente a carga horária válida por categoria
-    curricular -- com resultado auditável.
+    curricular com resultado auditável.
 
   \item \textbf{Assistente Virtual com RAG:} O Diretor Virtual combina busca semântica
     em documentos institucionais com geração de respostas em linguagem natural (RAG),
     democratizando o acesso a informações do PPC e regulamentos em todos os polos,
-    a qualquer hora -- sem depender da disponibilidade da secretaria.
+    a qualquer hora sem depender da disponibilidade da secretaria.
 
   \item \textbf{Produção inédita de dados socioeconômicos longitudinais:} Pela primeira
     vez a unidade dispõe de 148 perfis estruturados com mais de 20 variáveis por aluno,
@@ -351,7 +350,7 @@ Consolidação de \textbf{452 registros em 10 tabelas transacionais}.
 
   \item \textbf{Custo marginal zero para a instituição:} Desenvolvido com ferramentas de
     código aberto e APIs em camadas gratuitas, sem aquisição de licenças ou contratação
-    de serviços externos -- demonstrando que inovação pública efetiva não depende de
+    de serviços externos, demonstrando que inovação pública efetiva não depende de
     novos recursos, mas de competência organizacional e orientação pelo bem público.
 \end{enumerate}
 \end{tcolorbox}
@@ -371,7 +370,7 @@ Consolidação de \textbf{452 registros em 10 tabelas transacionais}.
 Trâmites acadêmicos 100\% digitalizados      & \textbf{218 processos} & \textcolor{darkgreen}{\faCheckCircle} \\
 Polos atendidos simultaneamente              & \textbf{3 polos}       & \textcolor{darkgreen}{\faCheckCircle} \\
 Pico de adoção mensal (março/2026)           & \textbf{173 envios}    & \textcolor{darkgreen}{\faCheckCircle} \\
-Polos mais distantes (Limoeiro + Oeiras)     & \textbf{75,7\% dos envios} & \textcolor{darkgreen}{\faCheckCircle} \\
+Dois polos mais distantes da sede     & \textbf{75,7\% dos envios} & \textcolor{darkgreen}{\faCheckCircle} \\
 Alertas acadêmicos disparados no prazo       & \textbf{6/6 (100\%)}   & \textcolor{darkgreen}{\faCheckCircle} \\
 Certificados ACC processados por IA          & \textbf{53 PDFs}       & \textcolor{darkgreen}{\faCheckCircle} \\
 Taxa de consolidação de conceitos            & \textbf{87,3\%}        & \textcolor{darkgreen}{\faCheckCircle} \\
@@ -382,19 +381,19 @@ Alunos com renda $\leq$ 1 SM documentados   & \textbf{78,4\%}        & \textcolo
 \end{tabular}
 \end{center}
 
-\subsection*{7.2\;Impacto na equidade -- interiorização real}
+\subsection*{7.2\;Impacto na equidade}
 
 O resultado mais revelador é a distribuição geográfica: os dois polos \textit{mais
 distantes} da sede administrativa concentram \textbf{75,7\% das submissões de ACC,
-TCC e Estágio} -- exatamente o grupo que mais sofria com o modelo presencial/papel
+TCC e Estágio} $\rightarrow$ exatamente o grupo que mais sofria com o modelo presencial/papel
 anterior. O FasiTech atende mais intensamente quem mais precisava de um canal remoto.
 
 \begin{center}
 \begin{tikzpicture}
 \foreach \polo/\val/\col/\y in {
-  {Limoeiro do Ajuru}/40.3/ufpablue!80/1.5,
-  {Oeiras do Pará}/35.4/ufpablue!55/0.75,
-  {Cametá}/22.9/ufpablue!28/0.0
+  {Polo Remoto A}/40.3/ufpablue!80/1.5,
+  {Polo Remoto B}/35.4/ufpablue!55/0.75,
+  {Polo Sede}/22.9/ufpablue!28/0.0
 }{
   \fill[\col] (0,\y) rectangle (\val*0.12, \y+0.55);
   \node[left, font=\footnotesize, text width=3.5cm, align=right] at (-0.05, \y+0.27) {\polo};
@@ -439,7 +438,7 @@ direto para planejamento da coordenação.
   Substituiu horas de secretaria em tarefas manuais; ROI imediato e positivo \\
 \addlinespace
 \textbf{Infraestrutura} &
-  Laboratórios de informática e conectividade já disponíveis na FASI &
+  Laboratórios de informática e conectividade já disponíveis na unidade &
   Não exigiu aquisição de equipamentos adicionais \\
 \bottomrule
 \end{tabular}
@@ -449,7 +448,7 @@ direto para planejamento da coordenação.
   \textbf{\faLightbulb\;Eficiência mensurável:} O processo de análise manual de uma
   submissão de ACC consumia em média 15--20 minutos de secretaria. Com 53 submissões
   processadas por IA, estima-se uma economia de \textbf{mais de 13 horas-servidor} apenas
-  neste módulo -- sem contabilizar os ganhos dos outros 9 módulos digitalizados.
+  neste módulo $\rightarrow$ sem contabilizar os ganhos dos outros 9 módulos digitalizados.
 \end{tcolorbox}
 
 % ============================================================
@@ -461,7 +460,7 @@ com múltiplos instrumentos de escuta ativa:
 
 \begin{enumerate}[label={\color{ufpablue}\faBullseye}, leftmargin=2.2em, itemsep=4pt]
   \item \textbf{Observação direta dos processos de secretaria:} O mapeamento inicial
-    partiu da observação do fluxo de trabalho cotidiano -- identificando os gargalos de
+    partiu da observação do fluxo de trabalho cotidiano, identificando os gargalos de
     maior impacto (ACC manual, tramitação em papel, comunicação não rastreável).
 
   \item \textbf{Formulário socioeconômico como instrumento diagnóstico:} O módulo de
@@ -470,7 +469,7 @@ com múltiplos instrumentos de escuta ativa:
     deslocamento, condição de trabalho e saúde mental.
 
   \item \textbf{Canal de voz qualitativo na Avaliação de Gestão:} O módulo inclui
-    perguntas abertas que trouxeram demandas concretas não antecipadas -- como a
+    perguntas abertas que trouxeram demandas concretas não antecipadas, como a
     necessidade de protocolos de equidade em estágios de laboratório e maior
     transparência em processos de transferência de polo.
 
@@ -480,7 +479,7 @@ com múltiplos instrumentos de escuta ativa:
 
   \item \textbf{Perguntas ao Diretor Virtual como mapeamento de lacunas:} As dúvidas
     mais frequentes ao assistente virtual revelam lacunas de informação nos materiais
-    institucionais -- sinalizando onde o PPC e os regulamentos precisam ser melhor
+    institucionais, sinalizando onde o PPC e os regulamentos precisam ser melhor
     comunicados.
 \end{enumerate}
 
@@ -495,12 +494,12 @@ todos os suportes, plataformas e meios de comunicação disponíveis''}.
 \begin{itemize}[label={\color{ufpablue}\faLock}, itemsep=4pt]
   \item \textbf{Avaliação de Gestão com publicidade interna:} Estudantes e docentes
     avaliam a coordenação em 9 dimensões com escala 1--5 e campo aberto. Os resultados
-    são consolidados e apresentados à coordenação, criando ciclo institucional de
-    melhoria contínua. Resultado atual: \textbf{transparência = 4,43/5 -- dimensão de
+    são consolidados e apresentados a coordenação, criando ciclo institucional de
+    melhoria contínua. Resultado atual: \textbf{transparência = 4,43/5 $\rightarrow$ dimensão de
     maior pontuação na avaliação}.
 
   \item \textbf{Alertas acadêmicos com histórico auditável:} Cada notificação é
-    armazenada com data de criação, data de disparo e público destinatário -- histórico
+    armazenada com data de criação, data de disparo e público destinatário $\rightarrow$ histórico
     auditável de comunicações institucionais, com taxa de 100\% de cumprimento de prazo
     (6/6 alertas).
 
@@ -510,11 +509,11 @@ todos os suportes, plataformas e meios de comunicação disponíveis''}.
 
   \item \textbf{Dados socioeconômicos para políticas públicas internas:} Os 148 perfis
     estruturados, com mais de 20 variáveis, constituem a primeira base de dados sistemática
-    para fundamentar solicitações ao PROAIS/UFPA e à assistência estudantil -- tornando
+    para fundamentar solicitações ao PROAIS/UFPA e à assistência estudantil, tornando
     públicas, para a gestão, as condições reais de vida do corpo discente.
 
   \item \textbf{Acesso igualitário entre polos:} A plataforma elimina a assimetria
-    informacional do modelo presencial: estudantes de Limoeiro do Ajuru e Oeiras do Pará
+    informacional do modelo presencial: estudantes dos polos mais distantes
     têm o mesmo acesso a informações e processos que estudantes do polo sede.
 \end{itemize}
 
@@ -530,7 +529,7 @@ todos os suportes, plataformas e meios de comunicação disponíveis''}.
 \midrule
 Exclusão digital (14,2\% sem internet estável; 25\% sem computador próprio) &
   \textcolor{ufpared}{\textbf{Alto}} &
-  Interface responsiva para smartphone; orientação para uso dos laboratórios da FASI \\
+  Interface responsiva para smartphone; orientação para uso dos laboratórios da unidade \\
 \addlinespace
 Integração com SIGAA para automação plena de notas &
   \textcolor{ufpared}{\textbf{Alto}} &
@@ -567,7 +566,7 @@ Desenvolvimento paralelo às obrigações docentes &
 
   \item \textbf{Perfil do executor na interseção técnica-acadêmica:} Um docente com
     competência em desenvolvimento de sistemas e vivência dos processos acadêmicos pôde
-    traduzir necessidades institucionais em soluções digitais funcionais -- sem
+    traduzir necessidades institucionais em soluções digitais funcionais, sem
     intermediários que gerassem perda de requisitos ou atraso de entrega.
 
   \item \textbf{Desenvolvimento incremental e orientado a evidências:} Cada módulo
@@ -576,29 +575,29 @@ Desenvolvimento paralelo às obrigações docentes &
     entregou valor suficiente para gerar adesão espontânea.
 
   \item \textbf{Alinhamento explícito com o PDI da UFPA:} O FasiTech responde
-    diretamente a objetivos do PDI 2016-2025 -- especialmente \textit{``melhorar e
+    diretamente a objetivos do PDI 2016-2025, especialmente \textit{``melhorar e
     fortalecer a governança dos processos internos''}, \textit{``aprimorar a gestão
     acadêmica''} e \textit{``expandir a gestão na perspectiva multicampi''}. Esse
     alinhamento conferiu legitimidade institucional à iniciativa desde o início.
 
   \item \textbf{Sensibilidade ao contexto de vulnerabilidade:} O design da plataforma
     considerou desde o início as restrições reais do público (conectividade limitada,
-    ausência de computador, necessidade de interface simples) -- resultando em uma
+    ausência de computador, necessidade de interface simples), resultando em uma
     ferramenta acessível na prática, não apenas no papel.
 
   \item \textbf{Instrumentalização da própria plataforma para gerar evidências:} A
     decisão de estruturar banco de dados com campos históricos e polo de origem desde o
-    início permitiu extrair indicadores concretos de impacto -- retroalimentando o
+    início permitiu extrair indicadores concretos de impacto $\rightarrow$ retroalimentando o
     desenvolvimento e fundamentando a expansão do sistema.
 \end{itemize}
 
 \begin{tcolorbox}[metricbox]
   \textbf{\faBullseye\;Síntese:} O sucesso do FasiTech demonstra que inovação
   organizacional efetiva no contexto universitário público resulta da combinação entre
-  \textbf{vontade institucional} (legitimidade junto à coordenação e à comunidade),
+  \textbf{vontade institucional} (legitimidade junto a coordenação e a comunidade),
   \textbf{competência técnica comprometida com o bem público} e \textbf{escuta ativa
   das necessidades dos usuários}. O sistema que os usuários \textit{efetivamente
-  adotaram} -- como os dados de uso comprovam -- é a melhor evidência de que o
+  adotaram}, como os dados de uso comprovam, é a melhor evidência de que o
   problema certo foi resolvido da forma certa.
 \end{tcolorbox}
 
@@ -629,10 +628,10 @@ disponíveis para verificação pela Comissão de Avaliação mediante solicita�
 
 \begin{tcolorbox}[successbox]
   \textbf{\faClone\;Replicabilidade:} A arquitetura modular do FasiTech permite que
-  qualquer unidade multicampi da UFPA ative apenas os módulos pertinentes ao seu
+  qualquer subunidade multicampi da UFPA ative apenas os módulos pertinentes ao seu
   contexto. O custo estimado de implantação em nova unidade é inferior a 40 horas de
   configuração e treinamento, sem aquisição de licenças ou infraestrutura adicional.
-  A experiência da FASI/UFPA Campus Tocantins-Cametá pode ser replicada em qualquer
+  A experiência desta subunidade pode ser replicada em qualquer
   faculdade ou instituto com polos geograficamente dispersos, respondendo ao objetivo
   estratégico do PDI de \textit{``fomentar ações integradas entre os campi''}.
 \end{tcolorbox}
