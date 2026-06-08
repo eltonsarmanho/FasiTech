@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ClipboardList, FlaskConical, Bell, BookOpen } from 'lucide-react'
+import { ClipboardList, FlaskConical, Bell, BookOpen, BarChart2 } from 'lucide-react'
 
 import { PageShell } from '@/shared/components/PageShell'
 import { TokenGate } from '@/shared/components/TokenGate'
@@ -32,6 +32,13 @@ const items = [
     description: 'Painel para listar alunos por ACC, TCC e Estágio com filtros por turma, polo e período.',
     to: '/admin/lancamentos',
     color: 'text-amber-500',
+  },
+  {
+    icon: BarChart2,
+    title: 'Consulta dados da Gestão',
+    description: 'Dashboard com insights quantitativos da avaliação da gestão FASI — médias, distribuições e uso do FasiTech.',
+    to: '/consulta/gestao',
+    color: 'text-fasi-500',
   },
 ]
 

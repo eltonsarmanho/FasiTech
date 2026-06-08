@@ -17,6 +17,7 @@ import { GestorAlertas } from '@/features/gestor-alertas/GestorAlertas'
 import { LancamentoConceitos } from '@/features/lancamento-conceitos/LancamentoConceitos'
 import { ConsultaRequerimentoTCC } from '@/features/consulta-requerimento-tcc/ConsultaRequerimentoTCC'
 import { ConsultaProjetos } from '@/features/consulta-projetos/ConsultaProjetos'
+import { ConsultaGestao } from '@/features/consulta-gestao/ConsultaGestao'
 import { ConfiguracaoPage } from '@/features/configuracao/ConfiguracaoPage'
 import { DocumentosPage } from '@/features/documentos/DocumentosPage'
 import { CalendariosPage } from '@/features/calendarios/CalendariosPage'
@@ -52,6 +53,7 @@ export default function App() {
         {/* Consultas */}
         <Route path="consulta/requerimento-tcc" element={<ConsultaRequerimentoTCC />} />
         <Route path="consulta/projetos" element={<ConsultaProjetos />} />
+        <Route path="consulta/gestao" element={<ConsultaGestao />} />
 
         {/* Configuração */}
         <Route path="configuracao" element={<ConfiguracaoPage />} />

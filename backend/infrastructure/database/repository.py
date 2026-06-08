@@ -454,6 +454,18 @@ def list_requerimento_tcc_submissions(
         }
 
 
+def delete_requerimento_tcc_submission(submission_id: int) -> bool:
+    with get_db_session() as session:
+        row = session.exec(
+            select(RequerimentoTccSubmission).where(RequerimentoTccSubmission.id == submission_id)
+        ).first()
+        if row is None:
+            return False
+        session.delete(row)
+        session.commit()
+        return True
+
+
 def save_avaliacao_gestao_submission(data: Dict[str, Any]) -> int:
     """
     Salva submissão da Avaliação da Gestão FASI no banco de dados.
@@ -500,6 +512,79 @@ def save_avaliacao_gestao_submission(data: Dict[str, Any]) -> int:
         session.commit()
         session.refresh(submission)
         return submission.id
+
+
+_ESCALA_PARA_VALOR: Dict[str, int] = {
+    # Satisfação
+    "muito insatisfeito": 1,
+    "insatisfeito": 2,
+    "neutro": 3,
+    "satisfeito": 4,
+    "muito satisfeito": 5,
+    # Concordância
+    "discordo totalmente": 1,
+    "discordo": 2,
+    "concordo": 4,
+    "concordo totalmente": 5,
+}
+
+
+def _text_to_valor(text: Optional[str], stored_valor: Optional[int]) -> Optional[int]:
+    """Retorna o valor numérico armazenado; se NULL, deriva do texto da resposta."""
+    if stored_valor is not None:
+        return stored_valor
+    if not text:
+        return None
+    return _ESCALA_PARA_VALOR.get(text.strip().lower())
+
+
+def list_avaliacao_gestao_submissions(
+    pagina: int = 1,
+    por_pagina: int = 500,
+    periodo: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Retorna submissões da Avaliação da Gestão FASI (dados objetivos apenas)."""
+    from sqlalchemy import func
+
+    with get_db_session() as session:
+        stmt = select(AvaliacaoGestaoSubmission)
+        if periodo:
+            stmt = stmt.where(AvaliacaoGestaoSubmission.periodo == periodo)
+        stmt = stmt.order_by(AvaliacaoGestaoSubmission.id.desc())
+
+        total: int = session.exec(
+            select(func.count()).select_from(stmt.subquery())
+        ).one()
+
+        offset = (pagina - 1) * por_pagina
+        rows = session.exec(stmt.offset(offset).limit(por_pagina)).all()
+
+        items = []
+        for r in rows:
+            funcionalidades = []
+            if r.q13_fasitech_funcionalidades:
+                try:
+                    funcionalidades = json.loads(r.q13_fasitech_funcionalidades)
+                except (json.JSONDecodeError, TypeError):
+                    funcionalidades = []
+            items.append({
+                "id": r.id,
+                "periodo": r.periodo,
+                "q1_valor":  _text_to_valor(r.q1_transparencia,   r.q1_valor),
+                "q2_valor":  _text_to_valor(r.q2_comunicacao,     r.q2_valor),
+                "q3_valor":  _text_to_valor(r.q3_acessibilidade,  r.q3_valor),
+                "q4_valor":  _text_to_valor(r.q4_inclusao,        r.q4_valor),
+                "q5_valor":  _text_to_valor(r.q5_planejamento,    r.q5_valor),
+                "q6_valor":  _text_to_valor(r.q6_recursos,        r.q6_valor),
+                "q7_valor":  _text_to_valor(r.q7_eficiencia,      r.q7_valor),
+                "q8_valor":  _text_to_valor(r.q8_suporte,         r.q8_valor),
+                "q9_valor":  _text_to_valor(r.q9_extracurricular, r.q9_valor),
+                "q12_valor": _text_to_valor(r.q12_fasitech_impacto, r.q12_valor),
+                "q13_fasitech_funcionalidades": funcionalidades,
+                "submission_date": r.submission_date.isoformat() if r.submission_date else None,
+            })
+
+        return {"total": total, "pagina": pagina, "por_pagina": por_pagina, "items": items}
 
 
 # ---------------------------------------------------------------------------

@@ -70,7 +70,7 @@ from backend.presentation.api.v1.forms import (
     emissao_documentos, social, plano_ensino,
     projetos, avaliacao_gestao,
 )
-from backend.presentation.api.v1.data import social_data, requerimento_tcc_data, projetos_data
+from backend.presentation.api.v1.data import social_data, requerimento_tcc_data, projetos_data, avaliacao_gestao_data
 from backend.presentation.api.v1.rag import diretor_virtual
 from backend.presentation.api.v1.ofertas import disciplinas
 from backend.presentation.api.v1 import config as config_router
@@ -94,6 +94,7 @@ app.include_router(config_router.router, prefix="/api/v1", tags=["Config"])
 app.include_router(social_data.router, prefix="/api/v1", tags=["Dados Sociais"])
 app.include_router(requerimento_tcc_data.router, prefix="/api/v1", tags=["Consultas"])
 app.include_router(projetos_data.router, prefix="/api/v1", tags=["Consultas"])
+app.include_router(avaliacao_gestao_data.router, prefix="/api/v1", tags=["Consultas"])
 
 # RAG
 app.include_router(diretor_virtual.router, prefix="/api/v1", tags=["Diretor Virtual"])

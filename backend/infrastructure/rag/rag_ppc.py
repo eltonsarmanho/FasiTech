@@ -15,7 +15,13 @@ from datetime import datetime, timedelta, timezone
 from agno.models.google import Gemini
 
 from agno.agent import Agent
-from backend.config.LLMConfig import GEMINI_MODEL, OLLAMA_LLM_MODEL
+from backend.config.LLMConfig import (
+    GEMINI_MODEL,
+    OLLAMA_LLM_MODEL,
+    MARITALK_API_KEY,
+    MARITALK_BASE_URL,
+    MARITALK_MODEL,
+)
 from agno.db.sqlite import SqliteDb
 from agno.knowledge.embedder.ollama import OllamaEmbedder
 from agno.knowledge.knowledge import Knowledge
@@ -117,7 +123,8 @@ class ChatbotService:
         """
         if not self._initialized:
             # Atributos de estado
-            self.model: Optional[HuggingFace] = None
+            self.model: Optional[Any] = None            # modelo primário (MariTalk)
+            self.model_fallback: Optional[Any] = None   # modelo fallback (Gemini)
             self.embedder: Optional[OllamaEmbedder] = None
             self.vector_db: Optional[LanceDb] = None
             self.knowledge: Optional[Knowledge] = None
@@ -282,19 +289,39 @@ class ChatbotService:
         print("=== CONFIGURANDO AGENTE RAG ===")
         print("1. Configurando modelo de linguagem...")
 
-        google_api_key = os.getenv("GOOGLE_API_KEY")
+        maritalk_key = MARITALK_API_KEY or os.getenv("MARITALK_API_KEY") or os.getenv("MARITACA_API_KEY")
+        google_api_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
 
-        if google_api_key:
-            print(f"   Usando Gemini: {GEMINI_MODEL}")
-            self.model = Gemini(id=GEMINI_MODEL, api_key=google_api_key)
-            print(f"✅ Modelo Gemini '{GEMINI_MODEL}' configurado com sucesso!")
+        # ── Primary: MariTalk / sabiazinho ────────────────────────────────────
+        if maritalk_key:
+            maritalk_base = MARITALK_BASE_URL or "https://chat.maritaca.ai/api"
+            print(f"   [primary]  MariTalk ({MARITALK_MODEL}) → {maritalk_base}")
+            self.model = OpenAILike(
+                id=MARITALK_MODEL,
+                api_key=maritalk_key,
+                base_url=maritalk_base,
+            )
+            print(f"✅ Modelo primário '{MARITALK_MODEL}' configurado.")
         else:
+            self.model = None
+            print("⚠️  MARITALK_API_KEY não encontrada — modelo primário desativado.")
+
+        # ── Fallback: Google Gemini ───────────────────────────────────────────
+        if google_api_key:
+            print(f"   [fallback] Gemini ({GEMINI_MODEL})")
+            self.model_fallback = Gemini(id=GEMINI_MODEL, api_key=google_api_key)
+            print(f"✅ Modelo fallback '{GEMINI_MODEL}' configurado.")
+        else:
+            self.model_fallback = None
+            print("⚠️  GOOGLE_API_KEY não encontrada — fallback Gemini desativado.")
+
+        # ── Último recurso: Ollama local ──────────────────────────────────────
+        if self.model is None and self.model_fallback is None:
             from agno.models.ollama import Ollama
             ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
-            ollama_model = OLLAMA_LLM_MODEL
-            print(f"   Usando Ollama local: {ollama_model} (host: {ollama_host})")
-            self.model = Ollama(id=ollama_model, host=ollama_host)
-            print(f"✅ Modelo Ollama '{ollama_model}' configurado com sucesso!")
+            print(f"   [fallback-2] Ollama local ({OLLAMA_LLM_MODEL}) → {ollama_host}")
+            self.model = Ollama(id=OLLAMA_LLM_MODEL, host=ollama_host)
+            print(f"✅ Modelo Ollama '{OLLAMA_LLM_MODEL}' configurado como último recurso.")
 
         # Create Ollama embedder
         print("2. Configurando embedder...")
@@ -914,6 +941,25 @@ class ChatbotService:
             model=self.model,
             db=self.db,
         )
+
+    def _get_fallback_agent(self, session_id: str) -> Agent:
+        """Cria agente usando o modelo de fallback (Gemini)."""
+        if not session_id:
+            session_id = "default_session"
+        prompt_instructions = [
+            "Você é um assistente virtual especializado em fornecer informações precisas sobre o Projeto Pedagógico do Curso (PPC) de Sistemas de Informação.",
+            "As respostas devem ser baseadas nas informações fornecidas pelo PPC oficial e outros documentos oficiais.",
+            "Se nao encontrar informacao especifica, diga claramente que nao encontrou. Não invente informações.",
+            "Seja preciso e cite detalhes relevantes do PPC quando possivel.",
+            "IMPORTANTE: Responda APENAS perguntas relacionadas ao curso de Sistemas de Informação, PPC, TCC, ACC/ACG, estágio, regulamentos e demais documentos acadêmicos oficiais disponíveis.",
+        ]
+        return Agent(
+            session_id=f"{session_id}_fallback",
+            user_id="user",
+            instructions=prompt_instructions,
+            model=self.model_fallback,
+            db=self.db,
+        )
     
     def _post_process_answer(self, answer_text: str) -> str:
         """
@@ -1519,9 +1565,41 @@ class ChatbotService:
                     f"PERGUNTA: {normalized_question}"
                 )
 
-            agent = self._get_agent(session_id)
-            response = agent.run(augmented_prompt, stream=stream)
+            response = None
+            model_used = "desconhecido"
+
+            # ── Tenta o modelo primário (sabiazinho) ──────────────────────────
+            if self.model is not None:
+                try:
+                    agent = self._get_agent(session_id)
+                    response = agent.run(augmented_prompt, stream=stream)
+                    model_used = MARITALK_MODEL
+                except Exception as primary_err:
+                    logger.warning(
+                        "⚠️  Modelo primário '%s' falhou: %s. Tentando fallback Gemini...",
+                        MARITALK_MODEL, primary_err,
+                    )
+                    response = None
+
+            # ── Fallback: Gemini ──────────────────────────────────────────────
+            if response is None and self.model_fallback is not None:
+                try:
+                    fallback_agent = self._get_fallback_agent(session_id)
+                    response = fallback_agent.run(augmented_prompt, stream=stream)
+                    model_used = GEMINI_MODEL
+                    logger.info("✅ Resposta obtida via fallback Gemini.")
+                except Exception as fallback_err:
+                    raise RuntimeError(
+                        f"Ambos os modelos falharam. "
+                        f"Primário ({MARITALK_MODEL}): ver log. "
+                        f"Fallback ({GEMINI_MODEL}): {fallback_err}"
+                    ) from fallback_err
+
+            if response is None:
+                raise RuntimeError("Nenhum modelo disponível para processar a pergunta.")
+
             latency = time.perf_counter() - start
+            logger.info("Modelo utilizado: %s", model_used)
 
             # Extrair resposta de texto
             answer_text = None
