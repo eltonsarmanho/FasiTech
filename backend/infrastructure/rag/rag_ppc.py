@@ -38,13 +38,31 @@ import numpy as np
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Versão do pipeline de indexação/embedding. Incremente sempre que a estratégia de
+# chunking ou a forma de gerar embeddings mudar (ex.: prefixos de tarefa do nomic),
+# para forçar reindexação automática mesmo sem alteração nos arquivos fonte.
+INDEX_PIPELINE_VERSION = 2
+
+# Configuração do reranker (cross-encoder) aplicado após a fusão RRF.
+# bge-reranker-base (278M, ~1.1GB) é multilíngue, roda bem em CPU e resolve a
+# desambiguação I/II tão bem quanto o v2-m3, com metade da RAM — adequado ao VPS
+# de produção (2 vCPU / 8GB). Pode ser sobrescrito por RERANKER_MODEL.
+RERANKER_MODEL_DEFAULT = "BAAI/bge-reranker-base"
+# Quantidade de candidatos enviados ao reranker antes de cortar para o top-N final.
+# Precisa ser amplo o bastante para incluir acertos que só a busca esparsa (keyword)
+# encontra — a busca densa não distingue bem discriminadores fracos como "I" vs "II",
+# então disciplinas como "Estrutura de Dados II" chegam ao pool via keyword.
+RERANK_CANDIDATE_POOL = 40
+# Quantos candidatos cada recuperador (denso e esparso) contribui antes da fusão RRF.
+RETRIEVER_FANOUT = 30
+
 # Configuração do cache semântico
 # Apenas entradas "trusted" podem ser servidas para o usuário.
-SEMANTIC_CACHE_SIMILARITY_THRESHOLD = 0.90
+SEMANTIC_CACHE_SIMILARITY_THRESHOLD = 0.80
 SEMANTIC_CACHE_TABLE_NAME = "semantic_cache"
 SEMANTIC_CACHE_TRUSTED_MIN_AVG_RATING = 4.4
 SEMANTIC_CACHE_MIN_RATINGS_FOR_PROMOTION = 2
-SEMANTIC_CACHE_TTL_DAYS_TRUSTED = 30
+SEMANTIC_CACHE_TTL_DAYS_TRUSTED = 60
 SEMANTIC_CACHE_TTL_DAYS_CANDIDATE = 14
 
 # Similaridade mínima (cosseno) para considerar a pergunta dentro do domínio dos documentos.
@@ -188,12 +206,14 @@ class ChatbotService:
         Calcula hash dos documentos para detectar mudanças.
         Hash baseado em: nome do arquivo + tamanho + data de modificação
         """
-        hash_data = []
+        # Inclui a versão do pipeline para que mudanças de chunking/embedding
+        # invalidem o índice mesmo quando os arquivos fonte não mudaram.
+        hash_data = [f"pipeline_version:{INDEX_PIPELINE_VERSION}"]
         for doc_file in sorted(document_files, key=lambda x: x.name):
             if doc_file.exists():
                 stat = doc_file.stat()
                 hash_data.append(f"{doc_file.name}:{stat.st_size}:{stat.st_mtime}")
-        
+
         combined = "|".join(hash_data)
         return hashlib.sha256(combined.encode()).hexdigest()
     
@@ -353,8 +373,21 @@ class ChatbotService:
             except Exception as cleanup_err:
                 logger.warning(f"⚠️  Falha ao limpar arquivos da tabela vetorial: {cleanup_err}")
 
+        def _drop_semantic_cache_table() -> None:
+            """Remove o cache semântico ao reindexar: embeddings antigos (sem prefixo de
+            tarefa) seriam incompatíveis com o novo índice e não devem ser servidos."""
+            try:
+                import lancedb
+                cache_db = lancedb.connect(self.db_url)
+                if SEMANTIC_CACHE_TABLE_NAME in cache_db.table_names():
+                    cache_db.drop_table(SEMANTIC_CACHE_TABLE_NAME)
+                    print("🗑️ Cache semântico removido para reindexação limpa.")
+            except Exception as cache_err:
+                logger.warning(f"⚠️  Falha ao limpar cache semântico: {cache_err}")
+
         if should_reindex:
             _cleanup_vector_table_files()
+            _drop_semantic_cache_table()
 
         def _build_vector_components() -> tuple[LanceDb, Knowledge]:
             """Cria componentes vetoriais com handles novos."""
@@ -532,20 +565,41 @@ class ChatbotService:
             self._cache_db = None
             self._cache_table = None
 
-    def _get_question_embedding(self, question: str) -> Optional[List[float]]:
+    def _apply_embedding_prefix(self, text: str, input_type: str) -> str:
+        """Aplica o prefixo de tarefa exigido pelo nomic-embed-text.
+
+        nomic-embed-text requer ``search_document:`` ao indexar e ``search_query:``
+        ao consultar. Para outros embedders (ex.: Gemini) o texto é retornado intacto.
         """
-        Gera embedding para uma pergunta usando o embedder configurado.
+        embedder_id = str(getattr(self.embedder, "id", "")).lower()
+        if "nomic" not in embedder_id:
+            return text
+        prefix = "search_document: " if input_type == "document" else "search_query: "
+        return prefix + text
+
+    def _get_question_embedding(
+        self, question: str, input_type: str = "query"
+    ) -> Optional[List[float]]:
+        """
+        Gera embedding para um texto usando o embedder configurado.
         Os embeddings são normalizados para garantir consistência na busca por cosseno.
+
+        ``input_type`` controla o prefixo de tarefa exigido pelo nomic-embed-text:
+        ``"query"`` → ``search_query:`` (consultas) e ``"document"`` →
+        ``search_document:`` (chunks indexados). Os prefixos são obrigatórios para
+        recuperação assimétrica e só são aplicados quando o embedder é o nomic.
         """
         try:
             if self.embedder is None:
                 return None
-            
+
+            text = self._apply_embedding_prefix(question, input_type)
+
             # GeminiEmbedder usa método get_embedding
             if hasattr(self.embedder, 'get_embedding'):
-                embedding = self.embedder.get_embedding(question)
+                embedding = self.embedder.get_embedding(text)
             elif hasattr(self.embedder, 'embed'):
-                embedding = self.embedder.embed(question)
+                embedding = self.embedder.embed(text)
             else:
                 logger.warning("Embedder não possui método de embedding conhecido.")
                 return None
@@ -1031,6 +1085,29 @@ class ChatbotService:
             chunks.append(current.strip())
         return [c for c in chunks if len(c) > 50]
 
+    # Cabeçalhos genéricos que NÃO devem substituir o contexto da seção/disciplina pai.
+    # Ex.: em PCC.md, "## Ementa:" aparece logo abaixo de "## 6.1.19. ESTRUTURA DE DADOS II".
+    _GENERIC_SUBHEADERS: frozenset = frozenset({
+        "ementa", "bibliografia básica", "bibliografia complementar",
+        "objetivos", "objetivo", "conteúdo programático", "conteudo programatico",
+        "competências", "competencias", "habilidades", "metodologia",
+        "avaliação", "avaliacao",
+    })
+
+    @staticmethod
+    def _is_subsection_header(text: str) -> bool:
+        """Indica se um heading é uma subseção genérica (ex.: 'Ementa:') que deve ser
+        anexada ao cabeçalho pai em vez de iniciar uma nova seção.
+
+        Cabeçalhos numerados (ex.: '6.1.19. ESTRUTURA DE DADOS II') sempre iniciam
+        uma nova seção e nunca são tratados como subseção.
+        """
+        t = text.strip()
+        if not t or t[0].isdigit():
+            return False
+        norm = t.lower().rstrip(":").strip()
+        return t.endswith(":") or norm in ChatbotService._GENERIC_SUBHEADERS
+
     @staticmethod
     def _split_with_section_context(
         text: str,
@@ -1047,6 +1124,12 @@ class ChatbotService:
         a busca vetorial encontre o chunk mesmo quando a query não menciona
         explicitamente o identificador da seção (ex.: '2026.2').
 
+        Cabeçalhos genéricos (ex.: 'Ementa:', 'Bibliografia básica:') são anexados
+        como breadcrumb ao cabeçalho pai (ex.: '6.1.19. ESTRUTURA DE DADOS II > Ementa:')
+        para que o nome da disciplina permaneça junto ao texto da ementa — sem isso, todas
+        as ementas ficariam sob a seção 'Ementa:' e disciplinas cujo corpo não repete o
+        próprio nome se tornariam não-recuperáveis.
+
         Referência: Anthropic Contextual Retrieval (2024).
         """
         import re
@@ -1054,9 +1137,10 @@ class ChatbotService:
         lines = text.split("\n")
         heading_re = re.compile(r"^(#{1,4})\s+(.+)")
 
-        # Constrói lista de (section_header, block_of_lines)
+        # Constrói lista de (section_header_breadcrumb, block_of_lines)
         sections: List[tuple[str, List[str]]] = []
-        current_header = ""
+        parent_header = ""        # último cabeçalho "forte" (ex.: disciplina numerada)
+        current_header = ""       # breadcrumb corrente (pai > subseção)
         current_lines: List[str] = []
 
         for line in lines:
@@ -1064,7 +1148,12 @@ class ChatbotService:
             if m:
                 if current_lines:
                     sections.append((current_header, current_lines))
-                current_header = m.group(2).strip()
+                heading_text = m.group(2).strip()
+                if ChatbotService._is_subsection_header(heading_text) and parent_header:
+                    current_header = f"{parent_header} > {heading_text}"
+                else:
+                    parent_header = heading_text
+                    current_header = heading_text
                 current_lines = []
             else:
                 current_lines.append(line)
@@ -1121,7 +1210,7 @@ class ChatbotService:
             print(f"   📄 {doc_file.name}: {len(section_chunks)} chunks contextuais (chunk_size={chunk_size})")
 
             for i, (sec_header, chunk) in enumerate(section_chunks):
-                embedding = self._get_question_embedding(chunk)
+                embedding = self._get_question_embedding(chunk, input_type="document")
                 if not embedding:
                     continue
                 # Normalizar
@@ -1168,9 +1257,8 @@ class ChatbotService:
     _ACRONYM_MAP: Dict[str, str] = {
         "ACC":  "Atividade Curricular Complementar atividades complementares ACG extracurricular",
         "ACG":  "Atividade Curricular Complementar atividades complementares ACC extracurricular",
-        "TCC":  "Trabalho de Conclusão de Curso monografia",
-        "PPC":  "Projeto Pedagógico do Curso currículo",
         "TCC":  "Trabalho de Conclusão de Curso monografia pesquisa científica",
+        "PPC":  "Projeto Pedagógico do Curso currículo",
         "UFPA": "Universidade Federal do Pará",
         "FASI": "Faculdade de Sistemas de Informação",
         "CH":   "carga horária horas",
@@ -1217,8 +1305,77 @@ class ChatbotService:
         except Exception:
             return []
 
+    @staticmethod
+    def _rrf_fuse(rankings: List[List[str]], k: int = 60) -> List[str]:
+        """Funde múltiplas listas ordenadas via Reciprocal Rank Fusion.
+
+        RRF(d) = Σ_r 1/(k + rank_r(d)). Combina rankings denso (semântico) e esparso
+        (keyword) sem precisar calibrar scores: recompensa documentos bem posicionados
+        em mais de um ranking e evita que um único método domine. (Cormack et al., 2009)
+        """
+        scores: Dict[str, float] = {}
+        for ranking in rankings:
+            for rank, text in enumerate(ranking):
+                if not text:
+                    continue
+                scores[text] = scores.get(text, 0.0) + 1.0 / (k + rank + 1)
+        return [t for t, _ in sorted(scores.items(), key=lambda kv: kv[1], reverse=True)]
+
+    def _get_reranker(self):
+        """Carrega o cross-encoder de reranking sob demanda (singleton, fail-open).
+
+        Retorna ``None`` se o reranker estiver desabilitado ou indisponível — nesse
+        caso o pipeline mantém a ordenação da fusão RRF.
+        """
+        if getattr(self, "_reranker_loaded", False):
+            return self._reranker
+
+        self._reranker_loaded = True
+        self._reranker = None
+
+        if os.getenv("RERANKER_ENABLED", "true").strip().lower() in ("0", "false", "no"):
+            logger.info("ℹ️ Reranker desabilitado (RERANKER_ENABLED).")
+            return None
+
+        model_name = os.getenv("RERANKER_MODEL", RERANKER_MODEL_DEFAULT)
+        try:
+            from sentence_transformers import CrossEncoder
+            logger.info("🔁 Carregando reranker cross-encoder: %s ...", model_name)
+            self._reranker = CrossEncoder(model_name)
+            logger.info("✅ Reranker carregado.")
+        except Exception as e:
+            logger.warning(
+                "⚠️ Reranker indisponível (%s). Mantendo ordenação por RRF.", e
+            )
+            self._reranker = None
+        return self._reranker
+
+    def _rerank(self, question: str, candidates: List[str], top_n: int) -> List[str]:
+        """Reordena candidatos com o cross-encoder e devolve os ``top_n`` melhores.
+
+        Se o reranker não estiver disponível, devolve os candidatos na ordem recebida.
+        """
+        if not candidates:
+            return candidates
+        reranker = self._get_reranker()
+        if reranker is None:
+            return candidates[:top_n]
+        try:
+            pairs = [(question, c) for c in candidates]
+            scores = reranker.predict(pairs)
+            ranked = [
+                c for _, c in sorted(
+                    zip(scores, candidates), key=lambda x: float(x[0]), reverse=True
+                )
+            ]
+            return ranked[:top_n]
+        except Exception as e:
+            logger.warning("⚠️ Falha no reranking (%s). Mantendo ordem RRF.", e)
+            return candidates[:top_n]
+
     def _retrieve_context(self, question: str, top_k: int = 10) -> List[str]:
-        """Busca semântica + keyword, com expansão de siglas académicas."""
+        """Recuperação híbrida: semântica + keyword fundidas por RRF e reordenadas
+        por cross-encoder (com expansão de siglas acadêmicas)."""
         try:
             if not self._knowledge_loaded or self.vector_db is None:
                 return []
@@ -1232,21 +1389,20 @@ class ChatbotService:
             db = lancedb.connect(self.db_url)
             table = db.open_table("recipes")
 
-            # Busca semântica
+            # Fan-out por recuperador (alimenta a fusão e o reranker)
+            fanout = max(top_k, RETRIEVER_FANOUT)
+
+            # Ranking denso (semântico)
             semantic_results = []
             for kwargs in [{"metric": "cosine"}, {}]:
                 try:
                     search = table.search(question_embedding)
                     if "metric" in kwargs:
                         search = search.metric(kwargs["metric"])
-                    semantic_results = search.limit(top_k).to_list()
+                    semantic_results = search.limit(fanout).to_list()
                     break
                 except Exception:
                     continue
-
-            # Extrair conteúdo dos resultados semânticos
-            seen: set = set()
-            chunks: List[str] = []
 
             def _extract(r: dict) -> str:
                 content = r.get("content") or r.get("text") or ""
@@ -1256,21 +1412,25 @@ class ChatbotService:
                     content = p.get("content", "")
                 return content.strip()
 
+            semantic_ranking: List[str] = []
+            seen: set = set()
             for r in semantic_results:
                 c = _extract(r)
                 if c and c not in seen:
                     seen.add(c)
-                    chunks.append(c)
+                    semantic_ranking.append(c)
 
-            # Sempre complementar com keyword search (os melhores vão para o início)
-            keyword_chunks = self._keyword_search(question, table, top_k=5)
-            keyword_new = [c for c in keyword_chunks if c and c not in seen]
-            # Inserir keyword chunks no início para priorizar correspondências exatas
-            for c in reversed(keyword_new):
-                seen.add(c)
-                chunks.insert(0, c)
+            # Ranking esparso (keyword)
+            keyword_ranking = self._keyword_search(question, table, top_k=fanout)
 
-            return chunks[:top_k + 5]
+            # Fusão por Reciprocal Rank Fusion
+            fused = self._rrf_fuse([semantic_ranking, keyword_ranking])
+            if not fused:
+                return []
+
+            # Reordenação por cross-encoder; corta para o top-N final
+            candidates = fused[:RERANK_CANDIDATE_POOL]
+            return self._rerank(question, candidates, top_n=top_k)
         except Exception as e:
             logger.warning("⚠️ Erro ao recuperar contexto: %s", e)
             return []

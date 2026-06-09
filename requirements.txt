@@ -26,6 +26,7 @@ sqlalchemy
 alembic
 pypdf
 tantivy
+sentence-transformers
 openai
 sqlmodel
 psycopg2-binary

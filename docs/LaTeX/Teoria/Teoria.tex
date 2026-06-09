@@ -71,6 +71,16 @@
   fonttitle=\bfseries, title=Decisão de Projeto,#1
 }
 
+\newtcolorbox{problema}[1][]{
+  colback=red!5!white,colframe=red!50!black,
+  fonttitle=\bfseries, title=Problema Observado,#1
+}
+
+\newtcolorbox{historico}[1][]{
+  colback=gray!8!white,colframe=gray!55!black,
+  fonttitle=\bfseries, title=Estratégia Anterior (preservada para benchmarking),#1
+}
+
 % ─────────────────────────────────────────────────────────────────────────────
 \begin{document}
 
@@ -167,7 +177,33 @@ serviço (norma L2 = 1) antes de serem armazenados no LanceDB,
 permitindo que a similaridade cosseno seja computada como produto
 escalar simples — $\text{sim}(q,d) = E(q) \cdot E(d)$.
 
+\subsubsection{Prefixos de Tarefa (Melhoria 5)}
+\label{sec:melhoria5}
+
+\begin{historico}
+A versão inicial gerava embeddings chamando o mesmo método
+(\texttt{\_get\_question\_embedding}) tanto para os chunks indexados quanto
+para a consulta, \emph{sem nenhum prefixo de tarefa}.
+\end{historico}
+
+\begin{problema}
+O \texttt{nomic-embed-text} é treinado para \emph{recuperação assimétrica} e
+\textbf{exige} prefixos de instrução: \texttt{search\_document:} para o texto
+indexado e \texttt{search\_query:} para a consulta \autocite{nussbaum2024nomic}.
+Omiti-los faz consulta e documento serem projetados como se fossem do mesmo
+tipo, degradando mensuravelmente o \textit{recall} — efeito agravado em
+consultas curtas e factuais como ``ementa da disciplina X''.
+\end{problema}
+
+A versão atual aplica o prefixo correto conforme o papel do texto
+(\texttt{input\_type} $\in \{$\texttt{query},\texttt{document}$\}$), apenas quando o
+embedder é o nomic. Os documentos são reindexados como
+\texttt{search\_document: <chunk>} e a consulta é embeddada como
+\texttt{search\_query: <pergunta>}, restaurando o regime assimétrico para o
+qual o modelo foi treinado.
+
 \subsection{Busca Híbrida: Semântica + BM25}
+\label{sec:rrf-hist}
 
 Busca híbrida combina recuperação densa (semântica) com recuperação esparsa
 baseada em frequência de termos \autocite{robertson1994okapi}.
@@ -192,8 +228,41 @@ O banco vetorial \textbf{LanceDB} utilizado no FasiTech configura
 \end{equation}
 
 onde $r(d)$ é a posição do documento no ranking $r$ e $k=60$ é constante.
-Além disso, o módulo \texttt{\_keyword\_search} realiza busca adicional por
-palavras-chave como complemento pós-semântico.
+
+\begin{historico}
+Apesar de a documentação referenciar RRF, a primeira implementação de
+\texttt{\_retrieve\_context} \emph{não} aplicava a Equação~\eqref{eq:rrf}.
+Ela executava a busca semântica, recuperava \texttt{top\_k}$=10$ chunks e, em
+seguida, simplesmente \emph{inseria no início da lista} os acertos de
+\texttt{\_keyword\_search} (\textit{insert-at-front}), sem fundir as posições
+dos dois rankings.
+\end{historico}
+
+\begin{problema}
+Duas falhas decorriam dessa fusão ingênua:
+\begin{enumerate}
+  \item \textbf{Dominância de um recuperador} — correspondências exatas de
+        palavra-chave eram sempre promovidas ao topo, mesmo quando menos
+        relevantes que bons resultados semânticos (e vice-versa).
+  \item \textbf{Recall insuficiente para discriminadores fracos} — a busca
+        densa não distingue bem ``I'' de ``II''. Para a consulta
+        \textit{``ementa de Estrutura de Dados II''}, o chunk correto
+        \textbf{não aparecia no top-20 semântico}; era encontrado apenas pela
+        busca esparsa (posição~10). Como o \texttt{top\_k} era pequeno, o chunk
+        ficava de fora do conjunto entregue ao gerador, que então respondia
+        ``não encontrei'' para uma disciplina que \emph{existe} no PPC.
+\end{enumerate}
+\end{problema}
+
+A versão atual implementa o RRF de fato (\texttt{\_rrf\_fuse}, $k=60$), fundindo
+o ranking denso e o ranking esparso (\texttt{\_keyword\_search}) por suas
+\emph{posições}. Além disso, cada recuperador contribui com um \textit{fan-out}
+ampliado (\texttt{RETRIEVER\_FANOUT}$=30$) e a lista fundida alimenta um
+\textit{pool} de candidatos maior (\texttt{RERANK\_CANDIDATE\_POOL}$=40$) antes
+do \textit{reranking} (Seção~\ref{sec:reranking}). O \textit{pool} amplo é
+essencial: garante que acertos encontrados \emph{apenas} pela busca esparsa
+(como ``Estrutura de Dados~II'') cheguem ao reordenador, em vez de serem
+cortados prematuramente.
 
 \section{Estratégias de Chunking}
 
@@ -278,7 +347,7 @@ mesmo que o chunk em si não a mencione.
   \node[box,below=of doc] (parse) {Parse de Headings\\(\texttt{\#\#} etc.)};
   \node[box,below=of parse] (chunk) {Chunking por\\Parágrafo};
   \node[box,below=of chunk] (prefix) {Prefixo:\\{[Doc | Seção]}};
-  \node[box,below=of prefix] (embed) {Embedding\\(Gemini 768-d)};
+  \node[box,below=of prefix] (embed) {Embedding\\(nomic 768-d)};
   \node[box,below=of embed] (lance) {LanceDB\\(Hybrid Index)};
   \draw[arrow] (doc) -- (parse);
   \draw[arrow] (parse) -- (chunk);
@@ -289,6 +358,80 @@ mesmo que o chunk em si não a mencione.
 \caption{Pipeline de indexação com chunking contextual de seção.}
 \label{fig:chunking}
 \end{figure}
+
+\subsection{Chunking Hierárquico com \textit{Breadcrumb} de Seção (Melhoria 3)}
+\label{sec:melhoria3}
+
+\begin{historico}
+A Melhoria~1 (Seção~\ref{sec:melhoria1}) detectava \emph{qualquer} cabeçalho
+Markdown via \texttt{\^{}(\#\{1,4\})\textbackslash s+(.+)} e o tomava como a
+seção corrente do chunk. O cabeçalho mais recente substituía o anterior,
+independentemente de seu nível ou natureza.
+\end{historico}
+
+\begin{problema}
+No \texttt{PCC.md}, cada disciplina segue o padrão:
+\begin{center}\small
+\texttt{\#\# 6.1.19. ESTRUTURA DE DADOS II (60 horas-aula)}\\
+\texttt{\#\# Ementa:}\\
+\texttt{Árvores e percursos\ldots\ Tabela de Hash.}
+\end{center}
+Como \texttt{\#\# Ementa:} é um cabeçalho \emph{do mesmo nível} da disciplina,
+ele \textbf{substituía} o cabeçalho da disciplina. Resultado: o texto da ementa
+era indexado sob a seção genérica ``Ementa:'' e o \emph{nome da disciplina era
+descartado do chunk}. Todas as ementas do curso compartilhavam o mesmo prefixo
+\texttt{[\ldots\ |\ Seção: Ementa:]}.
+
+A consequência prática: \textit{Estrutura de Dados~I} ainda era recuperável
+por acaso — seu corpo repete as palavras ``estrutura'' e ``dados''. Já a ementa
+de \textit{Estrutura de Dados~II} (apenas 147 caracteres, sobre
+``árvores/grafos/hash'') não contém nenhum desses termos; sem o nome da
+disciplina no chunk, tornava-se \textbf{não-recuperável}, e o sistema afirmava
+que a disciplina ``não existe''. O defeito afetava \emph{toda} disciplina cujo
+corpo da ementa não repetisse o próprio nome (ex.: \textit{Cálculo
+Computacional II}).
+\end{problema}
+
+A versão atual constrói um \textit{breadcrumb} hierárquico de cabeçalho. Um
+cabeçalho \emph{numerado} (que inicia com dígito, ex.: \texttt{6.1.19.})
+inaugura uma nova seção \emph{forte} (a disciplina). Cabeçalhos
+\emph{genéricos} — terminados em ``:'' ou pertencentes a um conjunto conhecido
+(\texttt{Ementa}, \texttt{Bibliografia básica}, \texttt{Bibliografia
+complementar}, \texttt{Objetivos}, \ldots) — \textbf{não} substituem a
+disciplina: são anexados como subseção. O prefixo resultante preserva o nome da
+disciplina junto ao texto:
+\begin{center}\small
+\texttt{[Documento: PCC.md | Seção: 6.1.19. ESTRUTURA DE DADOS II (60 horas-aula) > Ementa:]}
+\end{center}
+
+\begin{lstlisting}[language=Python,
+  caption={Decisão de subseção genérica vs. seção forte (\texttt{rag\_ppc.py}).}]
+@staticmethod
+def _is_subsection_header(text: str) -> bool:
+    t = text.strip()
+    if not t or t[0].isdigit():   # "6.1.19. ..." => nova disciplina
+        return False
+    norm = t.lower().rstrip(":").strip()
+    return t.endswith(":") or norm in _GENERIC_SUBHEADERS
+
+# No laco de parsing:
+if _is_subsection_header(heading) and parent_header:
+    current_header = f"{parent_header} > {heading}"   # 6.1.19. ... > Ementa:
+else:
+    parent_header = heading                            # nova secao forte
+    current_header = heading
+\end{lstlisting}
+
+Com o nome da disciplina de volta ao chunk, ela passa a ser recuperável tanto
+pela busca esparsa (\texttt{\_keyword\_search}) quanto pelo \textit{reranker}.
+\textbf{Esta foi a correção da causa-raiz} do defeito relatado em produção.
+
+\begin{insight}[title=Por que não usar apenas o nível do cabeçalho?]
+A hierarquia por nível (\texttt{\#} $>$ \texttt{\#\#} $>$ \texttt{\#\#\#}) não
+resolve o caso: no \texttt{PCC.md} a disciplina e ``Ementa:'' estão \emph{ambas}
+em nível 2 (\texttt{\#\#}). Por isso a heurística distingue cabeçalhos
+\emph{numerados} (estruturais) de \emph{genéricos} (rótulos de conteúdo).
+\end{insight}
 
 \subsection{Chunking Pai-Filho (\textit{Small-to-Big})}
 
@@ -464,6 +607,60 @@ Esta técnica é variante do \textit{Query Expansion} estudado em
 antes do embedding, aumenta-se o recall da busca vetorial sem modificar
 o banco de vetores.
 
+\section{Reranking com Cross-Encoder (Melhoria 4)}
+\label{sec:reranking}
+
+\begin{historico}
+Nas versões anteriores não havia reordenação: os chunks fundidos seguiam
+diretamente para a montagem do prompt, na ordem produzida pela recuperação.
+O reranking constava apenas como ``trabalho futuro''.
+\end{historico}
+
+\begin{problema}
+Bi-encoders comprimem consulta e documento em vetores \emph{independentes}:
+a similaridade vetorial aproxima relevância, mas \emph{similaridade $\neq$
+relevância}. Em consultas com discriminadores fracos (``I'' vs.\ ``II''), o
+ranking denso confunde disciplinas afins. Mesmo com a busca esparsa trazendo o
+chunk correto ao \textit{pool}, sem um juiz de relevância par-a-par o chunk
+certo raramente alcançava o topo.
+\end{problema}
+
+Um \textit{cross-encoder} processa o par
+$(\text{consulta},\text{documento})$ \emph{conjuntamente} em uma única passagem
+do \textit{Transformer}, atribuindo um score de relevância direto
+\autocite{khattab2020colbert}:
+\begin{equation}
+  s(q,d) = \text{CrossEncoder}(q \,\Vert\, d)
+\end{equation}
+diferentemente do bi-encoder, que codifica $q$ e $d$ separadamente. O custo é
+maior (não há pré-cálculo de vetores), por isso o reranker é aplicado apenas
+sobre o \textit{pool} de candidatos da fusão RRF, e não sobre todo o índice.
+
+No FasiTech, o método \texttt{\_rerank} reordena os
+\texttt{RERANK\_CANDIDATE\_POOL}$=40$ candidatos e mantém os \texttt{top\_k}
+melhores. O modelo padrão é o \texttt{BAAI/bge-reranker-base} (278M de
+parâmetros, multilíngue), executado localmente via
+\texttt{sentence-transformers}. O carregamento é \emph{preguiçoso} (singleton)
+e \emph{fail-open}: se a dependência ou o modelo não estiverem disponíveis, o
+pipeline mantém a ordenação da fusão RRF, sem interromper o serviço. As
+variáveis \texttt{RERANKER\_ENABLED} e \texttt{RERANKER\_MODEL} controlam o
+comportamento em produção.
+
+\begin{insight}[title=Por que bge-reranker-base e não v2-m3?]
+O \texttt{bge-reranker-v2-m3} (568M) e o \texttt{bge-reranker-base} (278M)
+resolvem igualmente a desambiguação I/II no corpus do FasiTech, mas o
+\texttt{base} usa cerca de metade da RAM e é mais rápido em CPU — decisivo no
+VPS de produção (2~vCPU / 8~GB), onde a inferência ocorre sem GPU.
+\end{insight}
+
+\begin{insight}[title=Dependência do reranker para a correção do caso ``II'']
+Vale registrar para benchmarking: isoladamente, a fusão RRF \emph{não} coloca
+``Estrutura de Dados~II'' no top-8 (a busca esparsa a posiciona por volta da
+posição~21 no ranking fundido). É a combinação \emph{pool ampliado $+$
+reranking} que eleva o chunk correto ao topo. Desabilitar o reranker reintroduz
+o defeito.
+\end{insight}
+
 \section{Visão Geral do Pipeline RAG}
 
 \begin{figure}[H]
@@ -487,9 +684,10 @@ o banco de vetores.
   \node[dec,below=0.8cm of temp]   (dom)    {In-Domain?};
   \node[term,right=2.8cm of dom]   (ood)    {Fora de Escopo};
   \node[proc,below=0.8cm of dom]   (exp)    {Expansão de Siglas};
-  \node[proc,below=of exp]         (retr)   {Busca Híbrida\\(Semântica + BM25)};
-  \node[proc,below=of retr]        (prompt) {Injeção de Contexto\\no Prompt};
-  \node[proc,below=of prompt]      (llm)    {LLM (Gemini 2.5 Flash\\ou Ollama fallback)};
+  \node[proc,below=of exp]         (retr)   {Busca Híbrida\\(Densa + Esparsa, RRF)};
+  \node[proc,below=of retr]        (rrk)    {Reranking\\(Cross-Encoder)};
+  \node[proc,below=of rrk]         (prompt) {Injeção de Contexto\\no Prompt};
+  \node[proc,below=of prompt]      (llm)    {LLM (MariTalk Sabiá\\Gemini fallback)};
   \node[proc,below=of llm]         (ans)    {Resposta ao Usuário};
 
   \draw[arrow] (q) -- (cache);
@@ -500,7 +698,8 @@ o banco de vetores.
   \draw[arrow] (dom) -- node[right,font=\tiny]{Sim} (exp);
   \draw[arrow] (dom) -- node[above,font=\tiny]{Não} (ood);
   \draw[arrow] (exp) -- (retr);
-  \draw[arrow] (retr) -- (prompt);
+  \draw[arrow] (retr) -- (rrk);
+  \draw[arrow] (rrk) -- (prompt);
   \draw[arrow] (prompt) -- (llm);
   \draw[arrow] (llm) -- (ans);
 \end{tikzpicture}
@@ -727,6 +926,70 @@ independente armazenado em SQLite (\texttt{.db} no mesmo diretório de cache).
 Quando \texttt{persist\_history=False}, o histórico fica apenas em RAM.
 
 % ─────────────────────────────────────────────────────────────────────────────
+\chapter{Histórico de Estratégias e Benchmarking}
+% ─────────────────────────────────────────────────────────────────────────────
+
+Este capítulo consolida a evolução das estratégias de recuperação do Diretor
+Virtual. As versões anteriores são preservadas intencionalmente — tanto para
+rastreabilidade quanto para servir de \emph{baseline} em \textit{benchmarkings}
+futuros. Para cada componente, registra-se a estratégia anterior, o problema
+observado e a estratégia atual.
+
+\begin{table}[H]
+\centering
+\caption{Evolução das estratégias de recuperação (RAG) do FasiTech.}
+\label{tab:historico}
+\small
+\begin{tabularx}{\textwidth}{p{2.4cm}XXp{0.9cm}}
+\toprule
+\textbf{Componente} & \textbf{Estratégia anterior (baseline)} &
+\textbf{Problema observado} & \textbf{Ref.} \\
+\midrule
+Chunking &
+Cabeçalho corrente sobrescrito por qualquer heading; ``Ementa:'' virava a
+seção do chunk &
+Nome da disciplina descartado; ementas curtas (ED~II) não-recuperáveis &
+\ref{sec:melhoria3} \\
+\addlinespace
+Embedding &
+\texttt{nomic-embed-text} sem prefixo de tarefa (mesmo texto p/ query e doc) &
+Recuperação assimétrica degradada; queda de \textit{recall} &
+\ref{sec:melhoria5} \\
+\addlinespace
+Fusão híbrida &
+\textit{Insert-at-front}: keyword inserido no topo, sem RRF real; \textit{pool}
+pequeno &
+Dominância de um recuperador; acertos só-esparsos (ED~II, pos.~21) cortados &
+\ref{sec:rrf-hist} \\
+\addlinespace
+Reordenação &
+Nenhuma (ordem da recuperação ia direto ao prompt) &
+Similaridade $\neq$ relevância; sem desambiguar ``I'' vs.\ ``II'' &
+\ref{sec:reranking} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\noindent\textbf{Caso de regressão de referência (\textit{golden case}).}
+A consulta \textit{``Qual a ementa da disciplina Estrutura de Dados~II?''} é o
+caso canônico de teste: antes das melhorias retornava ``não encontrei''; após
+\emph{chunking com breadcrumb} (Seção~\ref{sec:melhoria3}) $+$ \emph{prefixos
+nomic} (Seção~\ref{sec:melhoria5}) $+$ \emph{RRF com pool ampliado}
+(Seção~\ref{sec:rrf-hist}) $+$ \emph{reranking} (Seção~\ref{sec:reranking}), o
+chunk correto passa a ocupar a posição~1 e a resposta cita a ementa real
+(``Árvores\ldots\ Grafos\ldots\ Tabela de Hash''). Recomenda-se manter este e
+os demais pares disciplina/ementa I/II como conjunto mínimo de regressão.
+
+\begin{insight}[title=Reprodutibilidade do índice]
+Mudanças de \emph{chunking} ou \emph{embedding} não alteram os arquivos fonte e,
+portanto, não eram detectadas pelo \textit{hash} de documentos. Introduziu-se a
+constante \texttt{INDEX\_PIPELINE\_VERSION}, incorporada ao \textit{hash}: ao
+incrementá-la, força-se reindexação limpa e a limpeza do cache semântico,
+garantindo que cada \textit{benchmark} rode sobre um índice consistente com o
+código.
+\end{insight}
+
+% ─────────────────────────────────────────────────────────────────────────────
 \chapter{Trabalhos Futuros}
 % ─────────────────────────────────────────────────────────────────────────────
 
@@ -739,9 +1002,13 @@ Quando \texttt{persist\_history=False}, o histórico fica apenas em RAM.
         para maior precisão semântica \autocite{gao2022hyde}.
   \item \textbf{Parent-Child Chunking} — indexar chunks pequenos para
         busca, retornar chunk pai para geração \autocite{llamaindex2023}.
-  \item \textbf{Cross-Encoder Reranking} — aplicar um reranker
-        (\texttt{BAAI/bge-reranker-base}) sobre os chunks recuperados
-        antes de montar o prompt \autocite{khattab2020colbert}.
+  \item \textbf{Migração de Embedding para \texttt{bge-m3}} — modelo
+        multilíngue (denso + esparso) com melhor desempenho em português
+        segundo o MTEB; avaliar empiricamente contra o
+        \texttt{nomic-embed-text} com prefixos via \textit{harness}.
+  \item \textbf{Harness de Avaliação} — conjunto de perguntas-gabarito
+        (ex.: todas as ementas I/II) com métricas \textit{hit-rate}/MRR para
+        medir regressões a cada mudança de pipeline.
   \item \textbf{Interface de Feedback} — expor botões de avaliação
         (1--5 estrelas) no ChatWidget para alimentar o cache semântico
         com dados reais de usuários.

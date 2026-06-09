@@ -2449,30 +2449,31 @@
     <bcf:citekey order="4" intorder="1">karpukhin2020dpr</bcf:citekey>
     <bcf:citekey order="5" intorder="1">nussbaum2024nomic</bcf:citekey>
     <bcf:citekey order="6" intorder="1">ollama2023</bcf:citekey>
-    <bcf:citekey order="7" intorder="1">robertson1994okapi</bcf:citekey>
-    <bcf:citekey order="8" intorder="1">cormack2009rrf</bcf:citekey>
-    <bcf:citekey order="9" intorder="1">anthropic2024contextual</bcf:citekey>
-    <bcf:citekey order="10" intorder="1">shi2023large</bcf:citekey>
+    <bcf:citekey order="7" intorder="1">nussbaum2024nomic</bcf:citekey>
+    <bcf:citekey order="8" intorder="1">robertson1994okapi</bcf:citekey>
+    <bcf:citekey order="9" intorder="1">cormack2009rrf</bcf:citekey>
+    <bcf:citekey order="10" intorder="1">anthropic2024contextual</bcf:citekey>
     <bcf:citekey order="11" intorder="1">shi2023large</bcf:citekey>
-    <bcf:citekey order="12" intorder="1">llamaindex2023</bcf:citekey>
-    <bcf:citekey order="13" intorder="1">bang2023gptcache</bcf:citekey>
+    <bcf:citekey order="12" intorder="1">shi2023large</bcf:citekey>
+    <bcf:citekey order="13" intorder="1">llamaindex2023</bcf:citekey>
     <bcf:citekey order="14" intorder="1">bang2023gptcache</bcf:citekey>
-    <bcf:citekey order="15" intorder="1">zhu2023semsimilaritycache</bcf:citekey>
+    <bcf:citekey order="15" intorder="1">bang2023gptcache</bcf:citekey>
     <bcf:citekey order="16" intorder="1">zhu2023semsimilaritycache</bcf:citekey>
-    <bcf:citekey order="17" intorder="1">aliannejadi2021clariq</bcf:citekey>
-    <bcf:citekey order="18" intorder="1">carpineto2012survey</bcf:citekey>
+    <bcf:citekey order="17" intorder="1">zhu2023semsimilaritycache</bcf:citekey>
+    <bcf:citekey order="18" intorder="1">aliannejadi2021clariq</bcf:citekey>
     <bcf:citekey order="19" intorder="1">carpineto2012survey</bcf:citekey>
-    <bcf:citekey order="20" intorder="1">cui2021documentai</bcf:citekey>
-    <bcf:citekey order="21" intorder="1">team2023gemini</bcf:citekey>
-    <bcf:citekey order="22" intorder="1">blecher2023nougat</bcf:citekey>
-    <bcf:citekey order="23" intorder="1">brown2020gpt3</bcf:citekey>
-    <bcf:citekey order="24" intorder="1">lancedb2023</bcf:citekey>
-    <bcf:citekey order="25" intorder="1">ollama2023</bcf:citekey>
-    <bcf:citekey order="26" intorder="1">es2023ragas</bcf:citekey>
-    <bcf:citekey order="26" intorder="2">langchain2023multiquery</bcf:citekey>
-    <bcf:citekey order="27" intorder="1">gao2022hyde</bcf:citekey>
-    <bcf:citekey order="28" intorder="1">llamaindex2023</bcf:citekey>
-    <bcf:citekey order="29" intorder="1">khattab2020colbert</bcf:citekey>
+    <bcf:citekey order="20" intorder="1">carpineto2012survey</bcf:citekey>
+    <bcf:citekey order="21" intorder="1">khattab2020colbert</bcf:citekey>
+    <bcf:citekey order="22" intorder="1">cui2021documentai</bcf:citekey>
+    <bcf:citekey order="23" intorder="1">team2023gemini</bcf:citekey>
+    <bcf:citekey order="24" intorder="1">blecher2023nougat</bcf:citekey>
+    <bcf:citekey order="25" intorder="1">brown2020gpt3</bcf:citekey>
+    <bcf:citekey order="26" intorder="1">lancedb2023</bcf:citekey>
+    <bcf:citekey order="27" intorder="1">ollama2023</bcf:citekey>
+    <bcf:citekey order="28" intorder="1">es2023ragas</bcf:citekey>
+    <bcf:citekey order="28" intorder="2">langchain2023multiquery</bcf:citekey>
+    <bcf:citekey order="29" intorder="1">gao2022hyde</bcf:citekey>
+    <bcf:citekey order="30" intorder="1">llamaindex2023</bcf:citekey>
   </bcf:section>
   <!-- SORTING TEMPLATES -->
   <bcf:sortingtemplate name="nty">

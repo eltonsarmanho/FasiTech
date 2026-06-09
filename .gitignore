@@ -255,3 +255,4 @@ SECURITY_INCIDENT.md
 
 *.pfx
 docs/LaTeX/Teoria/Teoria.pdf
+*.bcf
