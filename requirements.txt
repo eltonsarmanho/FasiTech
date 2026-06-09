@@ -26,6 +26,8 @@ sqlalchemy
 alembic
 pypdf
 tantivy
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.3.1+cpu
 sentence-transformers
 openai
 sqlmodel
