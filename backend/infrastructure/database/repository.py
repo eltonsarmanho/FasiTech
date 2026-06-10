@@ -131,32 +131,43 @@ def _ensure_social_schema_columns() -> None:
 
 
 def save_tcc_submission(data: Dict[str, Any]) -> int:
-    """
-    Salva submissão de TCC no banco de dados.
-    
-    Args:
-        data: Dicionário com dados do formulário
-        
-    Returns:
-        ID da submissão criada
-    """
+    """Upsert de submissão TCC — atualiza se já existe (matricula+componente+polo+periodo)."""
     _ensure_forms_schema_columns()
-
-    submission = TccSubmission(
-        nome=data["name"],
-        matricula=data["registration"],
-        email=data["email"],
-        turma=data["class_group"],
-        polo=data.get("polo", ""),
-        periodo=data.get("periodo", ""),
-        orientador=data["orientador"],
-        titulo=data["titulo"],
-        componente=data["componente"],
-        anexos=data.get("anexos"),
-        drive_folder_id=data.get("drive_folder_id"),
-    )
-    
     with get_db_session() as session:
+        existing = session.exec(
+            select(TccSubmission).where(
+                TccSubmission.matricula == data["registration"],
+                TccSubmission.componente == data["componente"],
+                TccSubmission.polo == data.get("polo", ""),
+                TccSubmission.periodo == data.get("periodo", ""),
+            )
+        ).first()
+        if existing:
+            existing.nome = data["name"]
+            existing.email = data["email"]
+            existing.turma = data["class_group"]
+            existing.orientador = data["orientador"]
+            existing.titulo = data["titulo"]
+            if data.get("anexos"):
+                existing.anexos = data["anexos"]
+            if data.get("drive_folder_id"):
+                existing.drive_folder_id = data["drive_folder_id"]
+            session.add(existing)
+            session.commit()
+            return existing.id
+        submission = TccSubmission(
+            nome=data["name"],
+            matricula=data["registration"],
+            email=data["email"],
+            turma=data["class_group"],
+            polo=data.get("polo", ""),
+            periodo=data.get("periodo", ""),
+            orientador=data["orientador"],
+            titulo=data["titulo"],
+            componente=data["componente"],
+            anexos=data.get("anexos"),
+            drive_folder_id=data.get("drive_folder_id"),
+        )
         session.add(submission)
         session.commit()
         session.refresh(submission)
@@ -164,30 +175,39 @@ def save_tcc_submission(data: Dict[str, Any]) -> int:
 
 
 def save_acc_submission(data: Dict[str, Any]) -> int:
-    """
-    Salva submissão de ACC no banco de dados.
-    
-    Args:
-        data: Dicionário com dados do formulário
-        
-    Returns:
-        ID da submissão criada
-    """
+    """Upsert de submissão ACC — atualiza se já existe (matricula+polo+periodo)."""
     _ensure_forms_schema_columns()
-
-    submission = AccSubmission(
-        nome=data["name"],
-        matricula=data["registration"],
-        email=data["email"],
-        turma=data["class_group"],
-        polo=data.get("polo", ""),
-        periodo=data.get("periodo", ""),
-        semestre=data["semester"],
-        arquivo_pdf_link=data.get("file_link"),
-        drive_file_id=data.get("drive_file_id"),
-    )
-    
     with get_db_session() as session:
+        existing = session.exec(
+            select(AccSubmission).where(
+                AccSubmission.matricula == data["registration"],
+                AccSubmission.polo == data.get("polo", ""),
+                AccSubmission.periodo == data.get("periodo", ""),
+            )
+        ).first()
+        if existing:
+            existing.nome = data["name"]
+            existing.email = data["email"]
+            existing.turma = data["class_group"]
+            existing.semestre = data["semester"]
+            if data.get("file_link"):
+                existing.arquivo_pdf_link = data["file_link"]
+            if data.get("drive_file_id"):
+                existing.drive_file_id = data["drive_file_id"]
+            session.add(existing)
+            session.commit()
+            return existing.id
+        submission = AccSubmission(
+            nome=data["name"],
+            matricula=data["registration"],
+            email=data["email"],
+            turma=data["class_group"],
+            polo=data.get("polo", ""),
+            periodo=data.get("periodo", ""),
+            semestre=data["semester"],
+            arquivo_pdf_link=data.get("file_link"),
+            drive_file_id=data.get("drive_file_id"),
+        )
         session.add(submission)
         session.commit()
         session.refresh(submission)
@@ -321,32 +341,43 @@ def save_plano_ensino_submission(data: Dict[str, Any]) -> int:
 
 
 def save_estagio_submission(data: Dict[str, Any]) -> int:
-    """
-    Salva submissão de Estágio no banco de dados.
-    
-    Args:
-        data: Dicionário com dados do formulário
-        
-    Returns:
-        ID da submissão criada
-    """
+    """Upsert de submissão Estágio — atualiza se já existe (matricula+componente+polo+periodo)."""
     _ensure_forms_schema_columns()
-
-    submission = EstagioSubmission(
-        nome=data["nome"],
-        matricula=data["matricula"],
-        email=data["email"],
-        turma=data["turma"],
-        polo=data.get("polo", ""),
-        periodo=data.get("periodo", ""),
-        orientador=data["orientador"],
-        titulo=data["titulo"],
-        componente=data["componente"],
-        anexos=data.get("anexos"),
-        drive_folder_id=data.get("drive_folder_id"),
-    )
-    
     with get_db_session() as session:
+        existing = session.exec(
+            select(EstagioSubmission).where(
+                EstagioSubmission.matricula == data["matricula"],
+                EstagioSubmission.componente == data["componente"],
+                EstagioSubmission.polo == data.get("polo", ""),
+                EstagioSubmission.periodo == data.get("periodo", ""),
+            )
+        ).first()
+        if existing:
+            existing.nome = data["nome"]
+            existing.email = data["email"]
+            existing.turma = data["turma"]
+            existing.orientador = data["orientador"]
+            existing.titulo = data["titulo"]
+            if data.get("anexos"):
+                existing.anexos = data["anexos"]
+            if data.get("drive_folder_id"):
+                existing.drive_folder_id = data["drive_folder_id"]
+            session.add(existing)
+            session.commit()
+            return existing.id
+        submission = EstagioSubmission(
+            nome=data["nome"],
+            matricula=data["matricula"],
+            email=data["email"],
+            turma=data["turma"],
+            polo=data.get("polo", ""),
+            periodo=data.get("periodo", ""),
+            orientador=data["orientador"],
+            titulo=data["titulo"],
+            componente=data["componente"],
+            anexos=data.get("anexos"),
+            drive_folder_id=data.get("drive_folder_id"),
+        )
         session.add(submission)
         session.commit()
         session.refresh(submission)
@@ -973,8 +1004,12 @@ def get_lancamento_source_drive_info(
                     AccSubmission.polo == pol,
                 )
             ).first()
-            if source and source.drive_file_id:
-                return {"type": "file", "item_id": source.drive_file_id}
+            if source:
+                from backend.config.settings import settings as _settings
+                root = _settings.acc_folder_id
+                if root:
+                    # Estrutura: root / turma / matricula
+                    return {"type": "folder", "root": root, "path": [source.turma, source.matricula]}
 
         elif tipo == "TCC":
             source_rows = session.exec(

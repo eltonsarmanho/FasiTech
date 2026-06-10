@@ -1159,6 +1159,209 @@ notificação.
 \end{insight}
 
 % ─────────────────────────────────────────────────────────────────────────────
+\chapter{Geração Automática de Ata de Defesa de TCC}
+% ─────────────────────────────────────────────────────────────────────────────
+
+\begin{controle}
+\textbf{Data da implementação:} 10 de junho de 2026.\\
+\textbf{Escopo:} geração automatizada de Ata de Defesa em formato \texttt{.doc}
+a partir dos dados do Requerimento de TCC, com envio por e-mail ao orientador
+acompanhado de instruções para cadastro no SIPAC.\\
+\textbf{Motivação:} eliminar a produção manual de atas, reduzindo erros de
+digitação e acelerando o trâmite burocrático pós-defesa.\\
+\textbf{Componentes afetados:} módulo
+\texttt{backend/infrastructure/documents/ata\_defesa.py}; endpoint \texttt{POST
+/api/v1/requerimento-tcc/\{id\}/gerar-ata}; painel \emph{Consulta Requerimento
+TCC} (botão ``Gerar ATA'').
+\end{controle}
+
+\section{Contexto e Motivação}
+
+Após a defesa do TCC, o orientador deve produzir a \textbf{Ata de Defesa} para
+registro oficial no SIPAC. Até esta implementação, o documento era criado
+manualmente pelo orientador, copiando dados do aluno, da banca e da defesa em
+um modelo Word institucional. Esse processo apresentava três pontos de atrito:
+
+\begin{enumerate}
+  \item \textbf{Retrabalho de dados} — informações já submetidas pelo aluno no
+        \emph{Requerimento de TCC} (título, banca, data/hora da defesa) tinham
+        que ser redigitadas na ata.
+  \item \textbf{Inconsistência de formato} — a ausência de validação permitia
+        erros de ortografia, omissão de membros ou formatação divergente do
+        modelo oficial.
+  \item \textbf{Latência administrativa} — o atraso na produção da ata
+        postergava o registro no SIPAC, bloqueando a homologação.
+\end{enumerate}
+
+\begin{insight}[title=Geração a partir da fonte de verdade]
+O \emph{Requerimento de TCC} é submetido \textbf{antes} da defesa e contém
+todos os dados necessários para a ata: aluno, orientador, banca, título,
+data/hora, local. Gerar a ata a partir dessa fonte elimina retrabalho e garante
+correspondência exata entre o registro de intenção de defesa e o documento de
+homologação.
+\end{insight}
+
+\section{Arquitetura da Solução}
+
+A geração da ata é implementada como um \textit{pipeline} de três estágios:
+(1) recuperação dos dados no banco, (2) composição do documento
+\texttt{.docx} com a biblioteca \texttt{python-docx}, e (3) envio por e-mail ao
+orientador com o documento anexado e instruções textuais para cadastro no SIPAC.
+
+\subsection{Recuperação de Dados Enriquecidos}
+
+O \textit{endpoint} \texttt{POST /api/v1/requerimento-tcc/\{id\}/gerar-ata}
+recebe o identificador da submissão e recupera o registro completo da tabela
+\texttt{requerimento\_tcc\_submissions}, cruzando-o com a tabela
+\texttt{funcionarios} para obter a \textbf{titulação} e o \textbf{tipo}
+(Interno/Externo) de cada membro da banca. Esse cruzamento é feito por
+\emph{casamento de nome}, normalizado para minúsculas e sem acentuação. A
+lógica de resolução:
+
+\begin{lstlisting}[language=Python,caption=Busca de titulação e tipo por nome de funcionário.]
+func_map = {f["nome"].strip().lower(): f for f in funcionarios}
+
+def _get_func(nome: str | None) -> dict:
+    if not nome:
+        return {}
+    return func_map.get(nome.strip().lower(), {})
+
+ori_f = _get_func(orientador_nome)
+m1_f  = _get_func(membro_banca1_nome)
+m2_f  = _get_func(membro_banca2_nome)
+m3_f  = _get_func(membro_banca3_nome) if membro_banca3_nome else {}
+\end{lstlisting}
+
+Cada \texttt{dict} retornado contém \texttt{titulo} e \texttt{tipo}. O
+\texttt{titulo} é convertido para abreviação (``Doutorado'' $\to$ ``Dr.'',
+``Mestrado'' $\to$ ``M.Sc.'', ``Especialista'' $\to$ ``Esp.'', ``Graduação''
+$\to$ sem abreviação), e o \texttt{tipo} determina a filiação exibida na
+assinatura (``Interno'' $\to$ ``FASI'', ``Externo'' $\to$ ``Externo'').
+
+\subsection{Composição do Documento com \texttt{python-docx}}
+
+A ata segue o modelo oficial da UFPA, estruturado como:
+
+\begin{enumerate}
+  \item \textbf{Cabeçalho institucional}: brasão da UFPA (PNG), seguido das
+        linhas centralizadas ``SERVIÇO PÚBLICO FEDERAL / UNIVERSIDADE FEDERAL
+        DO PARÁ / CAMPUS UNIVERSITÁRIO DO TOCANTINS - CAMETÁ / FACULDADE DE
+        SISTEMAS DE INFORMAÇÃO -- FASI''.
+  \item \textbf{Título}: ``ATA DE DEFESA DE TRABALHO DE CONCLUSÃO DE CURSO''
+        (negrito, centralizado).
+  \item \textbf{Corpo}: parágrafo justificado iniciado por ``Aos [dia por
+        extenso] ([dia numérico]) dias do mês de [mês por extenso] de [ano por
+        extenso] ([ano numérico]), às [hora por extenso] ([hora numérica]h)
+        reuniu-se via [local da defesa]...'', incluindo composição da banca,
+        título do trabalho (em negrito), nome e matrícula do discente (em
+        maiúsculas e negrito), e os campos de resultado e conceito em
+        \textbf{vermelho e negrito}: \texttt{[APROVADO|REPROVADO]} e
+        \texttt{[INSUFICIENTE|REGULAR|BOM|EXCELENTE]}.
+  \item \textbf{Bloco de assinaturas}: uma linha centralizada para cada membro
+        da banca (``Prof.\ [abrev.] [nome] / [papel] -- [filiação]'') e o
+        aluno.
+\end{enumerate}
+
+A biblioteca \texttt{python-docx} permite controle fino sobre formatação de
+parágrafos (alinhamento, espaçamento before/after) e \textit{runs} (negrito,
+cor RGB, fonte). O documento é composto em memória e serializado para
+\texttt{bytes} com \texttt{doc.save(io.BytesIO())}.
+
+\begin{insight}[title=Campos editáveis destacados em vermelho]
+Os campos que o orientador deve preencher manualmente ---
+\texttt{[APROVADO|REPROVADO]} e \texttt{[INSUFICIENTE|REGULAR|BOM|EXCELENTE]}
+--- são renderizados em \textbf{vermelho e negrito}, orientando visualmente
+onde a edição é necessária antes da assinatura.
+\end{insight}
+
+\subsection{Normalização de Nomes no Arquivo}
+
+O nome do arquivo anexado é \texttt{ATA\_DEFESA\_<NOME\_DO\_ALUNO>.doc}, onde
+\texttt{<NOME\_DO\_ALUNO>} é convertido para maiúsculas, \textbf{sem acentos}
+(via \texttt{unicodedata.normalize('NFKD')}) e com espaços substituídos por
+\textit{underscores}. Essa normalização garante compatibilidade com clientes de
+e-mail e sistemas de arquivos que rejeitam caracteres não-ASCII em nomes de
+anexo. Exemplo:
+
+\begin{center}
+\texttt{Diego Corrêa de Moraes} $\to$ \texttt{ATA\_DEFESA\_DIEGO\_CORREA\_DE\_MORAES.doc}
+\end{center}
+
+\subsection{Envio por E-mail com Instruções SIPAC}
+
+Após a geração do \texttt{.docx}, o sistema consulta o e-mail do orientador na
+tabela \texttt{funcionarios} (via
+\texttt{get\_funcionario\_emails\_by\_nomes([orientador\_nome])}) e envia o
+documento como anexo. O corpo do e-mail contém um \textbf{roteiro passo a
+passo} para cadastro da ata no SIPAC:
+
+\begin{enumerate}
+  \item Entrar no SIPAC.
+  \item Cadastrar Documento.
+  \item Tipo de Documento: ``ATA DE DEFESA DE TRABALHO DE CONCLUSÃO DE CURSO
+        (TCC)''.
+  \item Natureza: ``Ostensivo''.
+  \item Assunto Detalhado: ``ATA DE DEFESA DE TRABALHO DE CONCLUSÃO DE CURSO
+        DO ALUNO [NOME]''.
+  \item Forma de Documento: ``Anexar documento''.
+  \item Marcar os envolvidos (UFPA ou externos via \texttt{sou.gov} / SIGAA).
+  \item Informar orientador e aluno como interessados.
+  \item Unidade de Destino: ``11.19.36'' (código da FASI).
+  \item Conferir e finalizar.
+\end{enumerate}
+
+Essa abordagem elimina a necessidade de documentação externa ou treinamento
+presencial sobre o fluxo do SIPAC, pois as instruções são entregues
+\textbf{contextualmente} no momento em que o orientador precisa delas.
+
+\section{Interface de Usuário}
+
+No painel \textbf{Consulta Requerimento TCC}
+(\texttt{/consulta/requerimento-tcc}), cada linha da tabela exibe um botão
+``\textbf{Gerar ATA}'' com ícone de documento. Ao clicar:
+
+\begin{enumerate}
+  \item O botão entra em estado de \textit{loading} (``Gerando...'').
+  \item O \textit{frontend} faz uma requisição \texttt{POST
+        /api/v1/requerimento-tcc/\{id\}/gerar-ata}.
+  \item O \textit{backend} gera a ata e envia o e-mail.
+  \item Um \textit{toast} de sucesso exibe a mensagem ``ATA gerada e enviada
+        ao orientador ([e-mail])'', ou um erro caso o orientador não tenha
+        e-mail cadastrado.
+\end{enumerate}
+
+Essa integração de um único clique reduz a latência entre a realização da
+defesa e a disponibilização do documento para registro oficial de
+\textbf{horas} para \textbf{segundos}.
+
+\begin{insight}[title=Geração sob demanda vs.\ automática]
+A geração da ata é disparada \textbf{manualmente} pela coordenação (via botão
+no painel administrativo), e não automaticamente ao final da defesa. Isso
+permite que eventuais correções de última hora nos dados da banca ou do título
+sejam feitas antes da geração do documento oficial. Uma vez gerada, a ata pode
+ser regerada quantas vezes necessário (o sistema não impede múltiplos disparos
+para o mesmo requerimento).
+\end{insight}
+
+\section{Tratamento de Erros e Validações}
+
+O pipeline contempla três pontos de falha e seus respectivos tratamentos:
+
+\begin{enumerate}
+  \item \textbf{Requerimento não encontrado} — retorna HTTP 404 com a mensagem
+        ``Requerimento não encontrado''.
+  \item \textbf{E-mail do orientador ausente} — lança
+        \texttt{ValueError(``E-mail do orientador '[nome]' não encontrado na
+        base de dados.'')} convertida para HTTP 422. A resposta orienta o
+        operador a cadastrar o e-mail no painel de Funcionários antes de tentar
+        novamente.
+  \item \textbf{Falha no envio do e-mail} — o serviço de e-mail
+        (\texttt{send\_email\_with\_attachments}) captura exceções do SMTP e
+        registra erro no log, mas \textbf{não bloqueia} a resposta da API (a
+        ata foi gerada com sucesso; apenas o envio falhou).
+\end{enumerate}
+
+% ─────────────────────────────────────────────────────────────────────────────
 \chapter{Trabalhos Futuros}
 % ─────────────────────────────────────────────────────────────────────────────
 

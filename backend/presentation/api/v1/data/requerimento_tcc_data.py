@@ -28,11 +28,23 @@ async def delete_requerimento_tcc(
     _: str = Depends(get_admin_dependency),
 ):
     try:
-        from backend.infrastructure.database.repository import delete_requerimento_tcc_submission
+        from backend.infrastructure.database.repository import (
+            delete_requerimento_tcc_submission,
+            get_requerimento_tcc_drive_info,
+        )
+
+        drive_info = get_requerimento_tcc_drive_info(submission_id)
+
         deleted = delete_requerimento_tcc_submission(submission_id)
         if not deleted:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Registro não encontrado")
-        return {"ok": True}
+
+        drive_deleted = False
+        if drive_info and drive_info.get("type") == "folder":
+            from backend.infrastructure.google.drive import trash_folder_by_path
+            drive_deleted = trash_folder_by_path(drive_info["root"], drive_info["path"])
+
+        return {"ok": True, "drive_deleted": drive_deleted}
     except HTTPException:
         raise
     except Exception as e:
