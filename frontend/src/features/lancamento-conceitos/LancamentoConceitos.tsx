@@ -108,7 +108,7 @@ export function LancamentoConceitos() {
 
   return (
     <PageShell icon="📝" title="Lançamento de Conceitos"
-      subtitle="Painel restrito — automação SIGAA para ACC, TCC e Estágio">
+      subtitle="Painel restrito automação SIGAA para ACC, TCC e Estágio">
       <div className="fasi-info-box mb-6 border-amber-200 bg-amber-50 text-amber-800">
         ⚠️ As ações de matrícula e consolidação acessam o SIGAA diretamente via automação. Use com cuidado.
       </div>

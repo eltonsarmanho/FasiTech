@@ -298,6 +298,7 @@ class RequerimentoTccSubmission(SubmissionBase, table=True):
     # Banca
     membro_banca1: Optional[str] = Field(default=None, max_length=255)
     membro_banca2: Optional[str] = Field(default=None, max_length=255)
+    membro_banca3: Optional[str] = Field(default=None, max_length=255)
     
     # Defesa
     data_defesa: Optional[str] = Field(default=None, max_length=50)
@@ -388,6 +389,24 @@ class PeriodoSubmissao(SQLModel, table=True):
     data_inicio: str = Field(max_length=10)         # YYYY-MM-DD
     data_fim: str = Field(max_length=10)            # YYYY-MM-DD
     semestre: Optional[str] = Field(default=None, max_length=20)  # ex.: "2026.1"
+
+
+class Funcionario(SQLModel, table=True):
+    """Cadastro de funcionários (docentes/colaboradores) da FASI."""
+
+    __tablename__ = "funcionarios"
+    __table_args__ = {"extend_existing": True}
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    nome: str = Field(max_length=255, index=True)
+    filiacao: Optional[str] = Field(default=None, max_length=255)
+    titulo: str = Field(max_length=20)          # Doutorado | Mestrado | Especialista | Graduação
+    tipo: str = Field(max_length=20)            # Interno | Externo
+    categoria: str = Field(default="Docente", max_length=20)  # Docente | Secretaria | Colaborador
+    email: Optional[str] = Field(default=None, max_length=255)
+    fone: Optional[str] = Field(default=None, max_length=30)   # WhatsApp
+    data_aniversario: Optional[str] = Field(default=None, max_length=10)  # YYYY-MM-DD
+    criado_em: datetime = Field(default_factory=datetime.utcnow)
 
 
 class AlertaAcademico(SQLModel, table=True):

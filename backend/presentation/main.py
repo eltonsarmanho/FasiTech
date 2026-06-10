@@ -74,7 +74,7 @@ from backend.presentation.api.v1.data import social_data, requerimento_tcc_data,
 from backend.presentation.api.v1.rag import diretor_virtual
 from backend.presentation.api.v1.ofertas import disciplinas
 from backend.presentation.api.v1 import config as config_router
-from backend.presentation.api.admin import alertas, lancamentos, periodos_submissao as periodos_admin
+from backend.presentation.api.admin import alertas, lancamentos, periodos_submissao as periodos_admin, funcionarios as funcionarios_admin
 
 # Formulários
 app.include_router(acc.router, prefix="/api/v1/forms", tags=["Formulários"])
@@ -106,6 +106,7 @@ app.include_router(disciplinas.router, prefix="/api/v1", tags=["Ofertas"])
 app.include_router(alertas.router, prefix="/api/admin", tags=["Admin"])
 app.include_router(lancamentos.router, prefix="/api/admin", tags=["Admin"])
 app.include_router(periodos_admin.router, prefix="/api/admin", tags=["Admin"])
+app.include_router(funcionarios_admin.router, prefix="/api/admin", tags=["Admin"])
 
 
 # ── Endpoints base ────────────────────────────────────────────────────────────

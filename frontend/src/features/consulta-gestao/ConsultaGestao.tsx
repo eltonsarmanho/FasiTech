@@ -341,7 +341,7 @@ export function ConsultaGestao() {
   return (
     <PageShell
       icon="📊"
-      title="Dashboard — Avaliação da Gestão"
+      title="Dashboard Avaliação da Gestão"
       subtitle="Insights quantitativos da pesquisa de avaliação da gestão FASI"
     >
       <TokenGate storageKey="fasi_config_auth">

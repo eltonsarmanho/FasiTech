@@ -50,6 +50,7 @@ def init_db() -> None:
         AvaliacaoGestaoSubmission,
         AlertaAcademico,
         LancamentoConceito,
+        Funcionario,
     )
     
     print("🔧 Inicializando banco de dados...")
@@ -81,6 +82,9 @@ def _ensure_additional_columns() -> None:
         "social_submissions": {
             "genero": "VARCHAR(50)",
             "polo": "VARCHAR(100)",
+        },
+        "funcionarios": {
+            "categoria": "VARCHAR(20) DEFAULT 'Docente'",
         },
     }
     existing_tables = set(inspector.get_table_names())

@@ -23,6 +23,7 @@ from backend.infrastructure.database.models import (
     RequerimentoTccSubmission,
     AvaliacaoGestaoSubmission,
     LancamentoConceito,
+    Funcionario,
 )
 
 _alerta_schema_lock = threading.Lock()
@@ -31,6 +32,8 @@ _forms_schema_lock = threading.Lock()
 _forms_schema_ready = False
 _social_schema_lock = threading.Lock()
 _social_schema_ready = False
+_req_tcc_schema_lock = threading.Lock()
+_req_tcc_schema_ready = False
 
 
 def _ensure_forms_schema_columns() -> None:
@@ -74,8 +77,25 @@ def _ensure_forms_schema_columns() -> None:
         _forms_schema_ready = True
 
 
+def _ensure_requerimento_tcc_schema_columns() -> None:
+    """Garante coluna membro_banca3 na tabela requerimento_tcc_submissions."""
+    global _req_tcc_schema_ready
+    with _req_tcc_schema_lock:
+        if _req_tcc_schema_ready:
+            return
+        inspector = inspect(engine)
+        if "requerimento_tcc_submissions" in set(inspector.get_table_names()):
+            current = {c["name"] for c in inspector.get_columns("requerimento_tcc_submissions")}
+            with engine.begin() as conn:
+                if "membro_banca3" not in current:
+                    conn.execute(text(
+                        "ALTER TABLE requerimento_tcc_submissions "
+                        "ADD COLUMN membro_banca3 VARCHAR(255)"
+                    ))
+        _req_tcc_schema_ready = True
+
+
 def _ensure_social_schema_columns() -> None:
-    """Garante colunas adicionais da tabela social_submissions."""
     global _social_schema_ready
     with _social_schema_lock:
         if _social_schema_ready:
@@ -380,13 +400,14 @@ def save_social_submission(data: Dict[str, Any]) -> int:
 def save_requerimento_tcc_submission(data: Dict[str, Any]) -> int:
     """
     Salva submissão do Requerimento de TCC (defesa) no banco de dados.
-    
+
     Args:
         data: Dicionário com dados do formulário
-        
+
     Returns:
         ID da submissão criada
     """
+    _ensure_requerimento_tcc_schema_columns()
     submission = RequerimentoTccSubmission(
         nome_aluno=data["nome_aluno"],
         matricula=data["matricula"],
@@ -401,11 +422,12 @@ def save_requerimento_tcc_submission(data: Dict[str, Any]) -> int:
         modalidade=data["modalidade"],
         membro_banca1=data.get("membro_banca1"),
         membro_banca2=data.get("membro_banca2"),
+        membro_banca3=data.get("membro_banca3"),
         data_defesa=data.get("data_defesa"),
         horario_defesa=data.get("horario_defesa"),
         local_defesa=data.get("local_defesa"),
     )
-    
+
     with get_db_session() as session:
         session.add(submission)
         session.commit()
@@ -418,6 +440,7 @@ def list_requerimento_tcc_submissions(
     por_pagina: int = 20,
     turma: Optional[str] = None,
 ) -> Dict[str, Any]:
+    _ensure_requerimento_tcc_schema_columns()
     with get_db_session() as session:
         query = select(RequerimentoTccSubmission)
         if turma:
@@ -438,15 +461,20 @@ def list_requerimento_tcc_submissions(
                     "nome_aluno": r.nome_aluno,
                     "matricula": r.matricula,
                     "email": r.email,
+                    "telefone": r.telefone,
                     "turma": r.turma,
                     "orientador": r.orientador,
+                    "coorientador": r.coorientador,
                     "titulo_trabalho": r.titulo_trabalho,
+                    "resumo": r.resumo,
+                    "palavra_chave": r.palavra_chave,
                     "modalidade": r.modalidade,
+                    "membro_banca1": r.membro_banca1,
+                    "membro_banca2": r.membro_banca2,
+                    "membro_banca3": getattr(r, "membro_banca3", None),
                     "data_defesa": r.data_defesa,
                     "horario_defesa": r.horario_defesa,
                     "local_defesa": r.local_defesa,
-                    "membro_banca1": r.membro_banca1,
-                    "membro_banca2": r.membro_banca2,
                     "status": r.status,
                     "submission_date": r.submission_date.isoformat() if r.submission_date else None,
                 }
@@ -1272,6 +1300,83 @@ def delete_periodo_submissao(periodo_id: int) -> bool:
     with get_db_session() as session:
         row = session.exec(
             select(PeriodoSubmissao).where(PeriodoSubmissao.id == periodo_id)
+        ).first()
+        if row is None:
+            return False
+        session.delete(row)
+        session.commit()
+        return True
+
+
+# ---------------------------------------------------------------------------
+# Funcionários (cadastro de docentes/colaboradores)
+# ---------------------------------------------------------------------------
+
+def _funcionario_to_dict(r: Funcionario) -> Dict[str, Any]:
+    return {
+        "id": r.id,
+        "nome": r.nome,
+        "filiacao": r.filiacao,
+        "titulo": r.titulo,
+        "tipo": r.tipo,
+        "categoria": r.categoria,
+        "email": r.email,
+        "fone": r.fone,
+        "data_aniversario": r.data_aniversario,
+    }
+
+
+def list_funcionarios(tipo: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Retorna todos os funcionários, opcionalmente filtrados por tipo."""
+    with get_db_session() as session:
+        query = select(Funcionario)
+        if tipo:
+            query = query.where(Funcionario.tipo == tipo)
+        query = query.order_by(Funcionario.nome)
+        rows = session.exec(query).all()
+        return [_funcionario_to_dict(r) for r in rows]
+
+
+def save_funcionario(data: Dict[str, Any]) -> int:
+    """Cria um novo funcionário. Retorna o ID criado."""
+    funcionario = Funcionario(
+        nome=data["nome"],
+        filiacao=data.get("filiacao"),
+        titulo=data["titulo"],
+        tipo=data["tipo"],
+        categoria=data.get("categoria", "Docente"),
+        email=data.get("email"),
+        fone=data.get("fone"),
+        data_aniversario=data.get("data_aniversario"),
+    )
+    with get_db_session() as session:
+        session.add(funcionario)
+        session.commit()
+        session.refresh(funcionario)
+        return funcionario.id
+
+
+def update_funcionario(funcionario_id: int, data: Dict[str, Any]) -> bool:
+    """Atualiza campos de um funcionário existente. Retorna True se encontrado."""
+    with get_db_session() as session:
+        row = session.exec(
+            select(Funcionario).where(Funcionario.id == funcionario_id)
+        ).first()
+        if row is None:
+            return False
+        for campo in ("nome", "filiacao", "titulo", "tipo", "categoria", "email", "fone", "data_aniversario"):
+            if campo in data:
+                setattr(row, campo, data[campo])
+        session.add(row)
+        session.commit()
+        return True
+
+
+def delete_funcionario(funcionario_id: int) -> bool:
+    """Remove um funcionário. Retorna True se encontrado."""
+    with get_db_session() as session:
+        row = session.exec(
+            select(Funcionario).where(Funcionario.id == funcionario_id)
         ).first()
         if row is None:
             return False

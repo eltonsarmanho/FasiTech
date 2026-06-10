@@ -160,7 +160,7 @@ export function ConsultaProjetos() {
     || filterAno !== 'Todos' || filterStatus !== 'Todos'
 
   return (
-    <PageShell icon="📊" title="Consulta — Projetos Docentes"
+    <PageShell icon="📊" title="Consulta Projetos Docentes"
       subtitle="Projetos de Ensino, Pesquisa e Extensão submetidos pelos docentes">
 
       {isLoading && (

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ClipboardList, FlaskConical, Bell, BookOpen, BarChart2, CalendarRange } from 'lucide-react'
+import { ClipboardList, FlaskConical, Bell, BookOpen, BarChart2, CalendarRange, Users } from 'lucide-react'
 
 import { PageShell } from '@/shared/components/PageShell'
 import { TokenGate } from '@/shared/components/TokenGate'
@@ -45,6 +45,13 @@ const items = [
     title: 'Períodos de Submissão',
     description: 'Configure os períodos em que alunos podem enviar ACC, Estágio e Requerimento de TCC.',
     to: '/admin/periodos',
+    color: 'text-amber-500',
+  },
+  {
+    icon: Users,
+    title: 'Gerenciamento de Funcionário',
+    description: 'Cadastro de docentes e colaboradores — nome, titulação, tipo, contato e aniversário.',
+    to: '/admin/funcionarios',
     color: 'text-amber-500',
   },
 ]

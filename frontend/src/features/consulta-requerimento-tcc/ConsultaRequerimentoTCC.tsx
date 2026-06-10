@@ -9,15 +9,23 @@ import { formatDate } from '@/shared/lib/utils'
 const CSV_COLUMNS: { key: string; label: string }[] = [
   { key: 'nome_aluno',      label: 'Aluno' },
   { key: 'matricula',       label: 'Matrícula' },
+  { key: 'email',           label: 'E-mail' },
+  { key: 'telefone',        label: 'Telefone' },
+  { key: 'turma',           label: 'Turma' },
   { key: 'orientador',      label: 'Orientador' },
-  { key: 'titulo_trabalho', label: 'Título' },
+  { key: 'coorientador',    label: 'Coorientador' },
+  { key: 'titulo_trabalho', label: 'Título do Trabalho' },
   { key: 'modalidade',      label: 'Modalidade' },
+  { key: 'resumo',          label: 'Resumo' },
+  { key: 'palavra_chave',   label: 'Palavras-chave' },
+  { key: 'membro_banca1',   label: 'Membro Banca 1' },
+  { key: 'membro_banca2',   label: 'Membro Banca 2' },
+  { key: 'membro_banca3',   label: 'Membro Banca 3' },
   { key: 'data_defesa',     label: 'Data de Defesa' },
   { key: 'horario_defesa',  label: 'Horário' },
   { key: 'local_defesa',    label: 'Local' },
-  { key: 'membro_banca1',   label: 'Membro Banca 1' },
-  { key: 'membro_banca2',   label: 'Membro Banca 2' },
   { key: 'status',          label: 'Status' },
+  { key: 'submission_date', label: 'Data de Envio' },
 ]
 
 function downloadCSV(rows: Row[]) {
@@ -108,7 +116,7 @@ export function ConsultaRequerimentoTCC() {
   }
 
   return (
-    <PageShell icon="📋" title="Consulta — Requerimento TCC"
+    <PageShell icon="📋" title="Consulta Requerimento TCC"
       subtitle="Dados submetidos no formulário de Requerimento TCC">
 
       <FormSection title="Filtros">

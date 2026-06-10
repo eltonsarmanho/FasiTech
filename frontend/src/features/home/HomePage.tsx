@@ -38,7 +38,7 @@ const studentForms = [
   {
     icon: '📊',
     title: 'Avaliação da Gestão',
-    description: 'Avalie a gestão da FASI — feedback anônimo sobre transparência, comunicação e suporte.',
+    description: 'Avalie a gestão da FASI. Feedback anônimo sobre transparência, comunicação e suporte.',
     to: '/avaliacao-gestao',
   },
 ]
