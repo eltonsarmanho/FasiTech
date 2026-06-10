@@ -29,19 +29,19 @@ def send_notification(subject: str, body: str, recipients: Iterable[str]) -> Non
 
 
 def send_email_with_attachments(
-    subject: str, 
-    body: str, 
+    subject: str,
+    body: str,
     recipients: Iterable[str],
-    attachments: Optional[List[str]] = None
+    attachments: Optional[List] = None
 ) -> None:
     """
     Envia e-mail com anexos usando SMTP do Gmail.
-    
+
     Args:
         subject: Assunto do e-mail
         body: Corpo do e-mail (texto)
         recipients: Lista de destinatários
-        attachments: Lista de caminhos de arquivos para anexar
+        attachments: Lista de caminhos (str) ou tuplas (filename, bytes[, mimetype])
     """
     email_sender = os.getenv("EMAIL_SENDER", "fasicuntins@ufpa.br")
     email_password = os.getenv("EMAIL_PASSWORD")
@@ -68,32 +68,35 @@ def send_email_with_attachments(
         
         # Adicionar anexos se fornecidos
         if attachments:
-            for attachment_path in attachments:
-                if not os.path.exists(attachment_path):
-                    # print(f"⚠️ Anexo não encontrado: {attachment_path}")
-                    continue
-                
+            for attachment in attachments:
                 try:
-                    with open(attachment_path, 'rb') as attachment_file:
-                        # Criar parte MIME para o anexo
-                        part = MIMEBase('application', 'octet-stream')
-                        part.set_payload(attachment_file.read())
-                    
-                    # Codificar em base64
+                    if isinstance(attachment, (str, os.PathLike)):
+                        # Caminho de arquivo
+                        attachment_path = str(attachment)
+                        if not os.path.exists(attachment_path):
+                            continue
+                        with open(attachment_path, 'rb') as f:
+                            payload = f.read()
+                        filename = os.path.basename(attachment_path)
+                    elif isinstance(attachment, tuple):
+                        # (filename, bytes) ou (filename, bytes, mimetype)
+                        filename = attachment[0]
+                        payload = attachment[1]
+                    else:
+                        continue
+
+                    part = MIMEBase('application', 'octet-stream')
+                    part.set_payload(payload)
                     encoders.encode_base64(part)
-                    
-                    # Adicionar cabeçalho com o nome do arquivo
-                    filename = os.path.basename(attachment_path)
                     part.add_header(
                         'Content-Disposition',
-                        f'attachment; filename= {filename}'
+                        'attachment',
+                        filename=filename,
                     )
-                    
+                    part.add_header('Content-Type', 'application/octet-stream', name=filename)
                     msg.attach(part)
-                    # print(f"📎 Anexo adicionado: {filename}")
-                    
                 except Exception as e:
-                    print(f"❌ Erro ao anexar arquivo {attachment_path}: {str(e)}")
+                    print(f"❌ Erro ao anexar arquivo: {str(e)}")
         
         # Conectar ao servidor SMTP do Gmail
         with smtplib.SMTP('smtp.gmail.com', 587) as server:

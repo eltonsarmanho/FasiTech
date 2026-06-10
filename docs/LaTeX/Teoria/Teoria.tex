@@ -81,6 +81,11 @@
   fonttitle=\bfseries, title=Estratégia Anterior (preservada para benchmarking),#1
 }
 
+\newtcolorbox{controle}[1][]{
+  colback=green!5!white,colframe=green!45!black,
+  fonttitle=\bfseries, title=Ponto de Controle Temporal,#1
+}
+
 % ─────────────────────────────────────────────────────────────────────────────
 \begin{document}
 
@@ -987,6 +992,170 @@ constante \texttt{INDEX\_PIPELINE\_VERSION}, incorporada ao \textit{hash}: ao
 incrementá-la, força-se reindexação limpa e a limpeza do cache semântico,
 garantindo que cada \textit{benchmark} rode sobre um índice consistente com o
 código.
+\end{insight}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\chapter{Gestão de Funcionários e Roteamento Dinâmico de Notificações}
+% ─────────────────────────────────────────────────────────────────────────────
+
+\begin{controle}
+\textbf{Data da mudança:} 10 de junho de 2026.\\
+\textbf{Escopo:} introdução do cadastro de funcionários como fonte única de
+verdade para (i) os seletores de orientadores, docentes, pareceristas e membros
+de banca nos formulários e (ii) o roteamento de notificações por e-mail.\\
+\textbf{Motivação:} eliminar a digitação manual de nomes e a configuração de
+destinatários em variáveis de ambiente (\texttt{.env}), substituindo-as por
+dados governados em banco de dados.\\
+\textbf{Componentes afetados:} tabela \texttt{funcionarios}; endpoint público
+\texttt{/api/v1/funcionarios}; formulários de TCC, Estágio, Requerimento de TCC,
+Plano de Ensino, Projetos e ACC; agendador de alertas acadêmicos.
+\end{controle}
+
+\section{Contexto e Motivação}
+
+Antes desta mudança, os formulários acadêmicos do FasiTech apresentavam o campo
+de orientador (e correlatos) como \emph{texto livre} ou listas
+\textit{hard-coded} no \textit{frontend}, e os destinatários das notificações
+por e-mail eram lidos de variáveis de ambiente
+(\texttt{TCC\_RECIPIENTS}, \texttt{DESTINATARIOS}, \texttt{PARECERISTAS} etc.).
+Esse arranjo apresentava três limitações:
+
+\begin{enumerate}
+  \item \textbf{Inconsistência de dados} — o mesmo docente podia ser grafado de
+        formas distintas em submissões diferentes, dificultando consultas e
+        cruzamentos.
+  \item \textbf{Acoplamento à infraestrutura} — alterar um destinatário exigia
+        editar o \texttt{.env} e reimplantar a aplicação.
+  \item \textbf{Ausência de papéis} — não havia forma de expressar que um
+        funcionário exerce uma função institucional (Diretor, Coordenador de
+        Estágio) para fins de roteamento automático.
+\end{enumerate}
+
+\begin{insight}[title=Banco de dados como fonte única de verdade]
+Centralizar pessoas e papéis em uma entidade persistente (\texttt{funcionarios})
+desacopla regra de negócio de configuração de ambiente. Seletores e
+destinatários passam a derivar de consultas, tornando a manutenção uma operação
+de dados (CRUD na interface administrativa) e não de reimplantação.
+\end{insight}
+
+\section{Modelo de Dados: a Entidade \texttt{Funcionario}}
+
+A entidade \texttt{Funcionario} registra docentes e colaboradores da FASI. Além
+dos atributos descritivos, três \emph{flags} booleanas modelam funções
+institucionais, e os campos categóricos \texttt{tipo} e \texttt{categoria}
+permitem segmentar a população para os seletores.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{l l X}
+\toprule
+\textbf{Campo} & \textbf{Domínio} & \textbf{Descrição} \\
+\midrule
+\texttt{nome}             & texto                & Nome completo (chave de casamento). \\
+\texttt{filiacao}         & texto                & Filiação (opcional). \\
+\texttt{titulo}           & \{Doutorado, Mestrado, Especialista, Graduação\} & Titulação acadêmica. \\
+\texttt{tipo}             & \{Interno, Externo\} & Vínculo com a faculdade. \\
+\texttt{categoria}        & \{Docente, Secretaria, Colaborador\} & Categoria funcional. \\
+\texttt{email}            & texto                & Endereço para notificações. \\
+\texttt{fone}             & texto                & Contato (WhatsApp). \\
+\texttt{data\_aniversario}& data                 & Data de aniversário. \\
+\texttt{diretor\_faculdade}     & booleano       & Marca o Diretor da Faculdade. \\
+\texttt{coordenador\_estagio}   & booleano       & Marca o Coordenador de Estágio. \\
+\texttt{representante\_docente} & booleano       & Marca o Representante Docente. \\
+\bottomrule
+\end{tabularx}
+\caption{Atributos da entidade \texttt{Funcionario}.}
+\label{tab:funcionario}
+\end{table}
+
+O gerenciamento (CRUD) é exposto na seção \emph{Configuração} da interface
+administrativa, sob autenticação por \textit{token}. A criação de colunas em
+bases já existentes é idempotente: a inicialização aplica \texttt{ALTER TABLE}
+condicional para os campos novos (categoria e \textit{flags} de cargo),
+preservando registros legados com valores-padrão.
+
+\section{Seletores Dinâmicos nos Formulários}
+
+Um \textit{endpoint} público de leitura, \texttt{GET /api/v1/funcionarios},
+fornece a lista de nomes para os seletores. Por privacidade, ele expõe apenas
+dados não sensíveis (\texttt{nome}, \texttt{titulo}, \texttt{tipo},
+\texttt{categoria}) --- \textbf{nunca} e-mail ou telefone. A filtragem por papel
+ocorre no cliente, permitindo combinações lógicas. A
+Tabela~\ref{tab:seletores} resume as regras de elegibilidade adotadas em cada
+formulário.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{l X}
+\toprule
+\textbf{Formulário / campo} & \textbf{Conjunto elegível (predicado sobre \texttt{funcionarios})} \\
+\midrule
+TCC --- Orientador                 & \texttt{categoria = Docente} $\wedge$ \texttt{tipo = Interno} \\
+Estágio --- Orientador/Supervisor  & \texttt{categoria = Docente} $\vee$ \texttt{categoria = Colaborador} \\
+Requerimento TCC --- Orientador    & \texttt{categoria = Docente} $\wedge$ \texttt{tipo = Interno} \\
+Requerimento TCC --- Banca         & \texttt{categoria = Docente} (Interno $\vee$ Externo) \\
+Plano de Ensino --- Docente        & \texttt{categoria = Docente} (Interno $\vee$ Externo) \\
+Projetos --- Docente e Pareceristas& \texttt{categoria = Docente} $\wedge$ \texttt{tipo = Interno} \\
+\bottomrule
+\end{tabularx}
+\caption{Regras de elegibilidade dos seletores derivadas do banco.}
+\label{tab:seletores}
+\end{table}
+
+\begin{insight}[title=Tratamento de ausência no cadastro]
+Quando o nome desejado não consta da lista, a interface orienta o solicitante a
+requisitar o cadastro à FASI por e-mail, informando \emph{Nome, Filiação,
+e-mail, Telefone e Titulação}. Assim, a lacuna de dados é resolvida na fonte
+(o cadastro) em vez de reintroduzir texto livre, preservando a integridade
+referencial entre submissões e funcionários.
+\end{insight}
+
+\section{Roteamento de Notificações por Papel}
+
+As notificações de submissão deixaram de usar destinatários do \texttt{.env}.
+O roteamento passa a combinar três fontes derivadas do banco:
+(i) \emph{funcionários selecionados} no próprio formulário (resolvidos por nome
+para o respectivo e-mail); (ii) \emph{cargos} (consultados pelas \textit{flags}
+\texttt{diretor\_faculdade} e \texttt{coordenador\_estagio}); e
+(iii) \emph{categorias} (ex.: \texttt{Secretaria} para o ``secretário'').
+Os e-mails de aluno e da biblioteca, quando aplicáveis, são acrescentados
+explicitamente. A união dos conjuntos é deduplicada de forma
+\textit{case-insensitive}.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{l X}
+\toprule
+\textbf{Formulário} & \textbf{Destinatários} \\
+\midrule
+Projetos          & Docente (coordenador do projeto) + Pareceristas 1 e 2 + Diretor \\
+ACC               & Diretor + Secretário + Aluno \\
+Plano de Ensino   & Docente (professor interessado) + Diretor \\
+TCC               & Orientador + Aluno + Secretário + Biblioteca (\texttt{bibcameta@ufpa.br}) \\
+Requerimento TCC  & Orientador + Diretor + Aluno \\
+Estágio           & Orientador + Aluno + Coordenador de Estágio + Diretor \\
+\bottomrule
+\end{tabularx}
+\caption{Política de roteamento de notificações por formulário.}
+\label{tab:roteamento}
+\end{table}
+
+Adicionalmente, o agendador de alertas acadêmicos, cujo destino
+``docentes'' antes lia \texttt{DESTINATARIOS}/\texttt{PARECERISTAS} do
+\texttt{.env}, passou a consultar os \textbf{docentes internos}
+(\texttt{categoria = Docente} $\wedge$ \texttt{tipo = Interno}) diretamente do
+banco.
+
+\begin{insight}[title=Composição e deduplicação de destinatários]
+O roteamento é expresso como a união de conjuntos
+$R = S \cup C \cup K \cup \{e_{\text{aluno}}, e_{\text{biblioteca}}\}$, onde $S$
+são os selecionados no formulário, $C$ os cargos e $K$ as categorias relevantes.
+A deduplicação normaliza por caixa baixa, de modo que um docente que também seja
+Diretor (ou Orientador que seja Coordenador) recebe uma única cópia da
+notificação.
 \end{insight}
 
 % ─────────────────────────────────────────────────────────────────────────────

@@ -61,12 +61,25 @@ async def submit_acc(
 
     try:
         from backend.infrastructure.form_service_legacy import process_acc_submission
+        # Destinatários (base de dados): Diretor + Secretário(a). O aluno é
+        # incluído internamente pelo serviço.
+        from backend.infrastructure.database.repository import (
+            get_funcionario_emails_by_cargo,
+            get_funcionario_emails,
+        )
+        recipients: list[str] = []
+        for email in [
+            *get_funcionario_emails_by_cargo("diretor_faculdade"),
+            *get_funcionario_emails(categoria="Secretaria"),
+        ]:
+            if email and email not in recipients:
+                recipients.append(email)
         result = process_acc_submission(
             form_data,
             uploaded_file,
             drive_folder_id=settings.acc_folder_id,
             sheet_id=settings.acc_sheet_id,
-            notification_recipients=settings.acc_recipients,
+            notification_recipients=recipients,
         )
         sub_id = result.id if hasattr(result, "id") else (result.get("id", 0) if isinstance(result, dict) else 0)
         link = result.arquivo_pdf_link if hasattr(result, "arquivo_pdf_link") else None

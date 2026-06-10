@@ -9,8 +9,9 @@ import { PageShell } from '@/shared/components/PageShell'
 import { FormSection, Field } from '@/shared/components/FormSection'
 import { FileUpload } from '@/shared/components/FileUpload'
 import { SubmitButton } from '@/shared/components/SubmitButton'
-import { PROFESSORES } from '@/shared/lib/constants'
 import { usePeriodosLetivos } from '@/shared/hooks/usePeriodosLetivos'
+import { useFuncionarios, nomesFiltrados } from '@/shared/hooks/useFuncionarios'
+import { FuncionarioNotFoundHint } from '@/shared/components/FuncionarioNotFoundHint'
 import { submitForm } from '@/shared/lib/api'
 
 const schema = z.object({
@@ -25,6 +26,8 @@ export function FormPlanoEnsino() {
   const [fileKey, setFileKey] = useState(0)
   const [docenteSel, setDocenteSel] = useState('')
   const { data: periodos = [] } = usePeriodosLetivos()
+  const { data: funcionarios = [] } = useFuncionarios()
+  const docentes = nomesFiltrados(funcionarios, f => f.categoria === 'Docente')
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -66,9 +69,10 @@ export function FormPlanoEnsino() {
               onChange={e => setDocenteSel(e.target.value)}
             >
               <option value="">Selecione o docente...</option>
-              {PROFESSORES.map(p => <option key={p} value={p}>{p}</option>)}
+              {docentes.map(p => <option key={p} value={p}>{p}</option>)}
               <option value="Outro:">Outro:</option>
             </select>
+            <FuncionarioNotFoundHint />
           </Field>
           {docenteSel === 'Outro:' && (
             <Field label="Nome completo do docente" required error={errors.docente_outro?.message}>

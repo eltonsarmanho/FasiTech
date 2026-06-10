@@ -32,6 +32,59 @@ def _coerce_recipients(recipients: Iterable[str] | str | None) -> list[str]:
     return [email.strip() for email in recipients if email.strip()]
 
 
+def _recipients_from_db(*nomes: str | None) -> list[str]:
+    """Resolve e-mails dos funcionários selecionados (por nome) na base de dados.
+
+    Substitui a antiga origem de destinatários em variáveis de ambiente: as
+    notificações de submissão passam a ser enviadas apenas aos funcionários
+    efetivamente escolhidos no formulário (orientador, pareceristas, docente,
+    membros da banca). Nomes sem correspondência ou sem e-mail são ignorados.
+    """
+    nomes_validos = [str(n).strip() for n in nomes if n and str(n).strip()]
+    if not nomes_validos:
+        return []
+    try:
+        from backend.infrastructure.database.repository import get_funcionario_emails_by_nomes
+        return get_funcionario_emails_by_nomes(nomes_validos)
+    except Exception as exc:  # pragma: no cover - falha de e-mail não bloqueia fluxo
+        print(f"⚠️ Erro ao resolver e-mails de funcionários: {exc}")
+        return []
+
+
+def _emails_por_cargo(cargo: str) -> list[str]:
+    """E-mails dos funcionários com o cargo indicado (diretor_faculdade,
+    coordenador_estagio, representante_docente)."""
+    try:
+        from backend.infrastructure.database.repository import get_funcionario_emails_by_cargo
+        return get_funcionario_emails_by_cargo(cargo)
+    except Exception as exc:  # pragma: no cover
+        print(f"⚠️ Erro ao resolver e-mails do cargo '{cargo}': {exc}")
+        return []
+
+
+def _emails_por_categoria(categoria: str) -> list[str]:
+    """E-mails dos funcionários de uma categoria (ex.: 'Secretaria')."""
+    try:
+        from backend.infrastructure.database.repository import get_funcionario_emails
+        return get_funcionario_emails(categoria=categoria)
+    except Exception as exc:  # pragma: no cover
+        print(f"⚠️ Erro ao resolver e-mails da categoria '{categoria}': {exc}")
+        return []
+
+
+def _merge_recipients(*grupos: Iterable[str] | None) -> list[str]:
+    """Combina vários grupos de e-mails removendo duplicatas (case-insensitive)."""
+    seen: set = set()
+    out: list[str] = []
+    for grupo in grupos:
+        for email in grupo or []:
+            email = (email or "").strip()
+            if email and email.lower() not in seen:
+                seen.add(email.lower())
+                out.append(email)
+    return out
+
+
 def _parse_name_email_map(raw_value: str | None) -> dict[str, str]:
     parsed: dict[str, str] = {}
     if not raw_value:
@@ -468,11 +521,10 @@ def process_tcc_submission(
 
         # Emoji para componente
         componente_emoji = "📘" if componente == "TCC 1" else "📗"
-        
-        # Adicionar biblioteca para TCC 2
-        if componente == "TCC 2":
-            recipients.append("bibcameta@ufpa.br")
-        
+
+        # A biblioteca (bibcameta@ufpa.br) já é incluída na lista de destinatários
+        # pela camada de apresentação para todas as submissões de TCC.
+
         # Adicionar email do aluno
         aluno_email = sanitized["email"]
         if aluno_email and aluno_email not in recipients:
@@ -552,7 +604,13 @@ def process_estagio_submission(
 
     drive_folder_id = settings.estagio_folder_id
     sheet_id = settings.estagio_sheet_id
-    notification_recipients = _coerce_recipients(settings.estagio_recipients or settings.destinatarios or [])
+    # Destinatários (base de dados): orientador + Coordenador de Estágio + Diretor.
+    # O e-mail do aluno é adicionado adiante.
+    notification_recipients = _merge_recipients(
+        _recipients_from_db(form_data.get("orientador")),
+        _emails_por_cargo("coordenador_estagio"),
+        _emails_por_cargo("diretor_faculdade"),
+    )
 
     prepared_files = list(prepare_files(uploaded_files))
     
@@ -706,7 +764,11 @@ def process_plano_submission(
         raise ValueError(f"Campos obrigatórios ausentes: {', '.join(missing)}")
 
     drive_folder_id = settings.plano_folder_id
-    notification_recipients = _coerce_recipients(settings.plano_recipients or settings.destinatarios or [])
+    # Destinatários (base de dados): docente responsável + Diretor.
+    notification_recipients = _merge_recipients(
+        _recipients_from_db(form_data.get("docente")),
+        _emails_por_cargo("diretor_faculdade"),
+    )
 
     prepared_files = list(prepare_files(uploaded_files))
     
@@ -827,9 +889,18 @@ def process_projetos_submission(
     
     drive_folder_id = settings.projetos_folder_id
     sheet_id = settings.projetos_sheet_id
-    notification_recipients = _coerce_recipients(settings.projetos_recipients or settings.destinatarios or [])
-    pareceristas_str = settings.pareceristas or os.getenv("PARECERISTAS", "")
-    pareceristas_dict = _parse_name_email_map(pareceristas_str)
+    # Destinatários (base de dados): docente (coordenador do projeto) +
+    # pareceristas selecionados + Diretor.
+    notification_recipients = _merge_recipients(
+        _recipients_from_db(
+            form_data.get("docente"),
+            form_data.get("parecerista1"),
+            form_data.get("parecerista2"),
+        ),
+        _emails_por_cargo("diretor_faculdade"),
+    )
+    # Os e-mails já vêm resolvidos do banco; mapa legado fica vazio.
+    pareceristas_dict: dict[str, str] = {}
     
     # ===============================================
     # GERAR PDFs: Parecer e Declaração (exceto para Encerramento)
@@ -1163,7 +1234,12 @@ def process_requerimento_tcc_submission(**kwargs: Any) -> Dict[str, Any]:
     submission_id = save_requerimento_tcc_submission(kwargs)
 
     try:
-        recipients = _coerce_recipients(settings.requerimento_tcc_recipients or settings.destinatarios)
+        # Destinatários: orientador (e-mail da base) + Diretor + aluno.
+        # Os membros da banca NÃO são notificados.
+        recipients = _merge_recipients(
+            _recipients_from_db(kwargs.get("orientador")),
+            _emails_por_cargo("diretor_faculdade"),
+        )
         aluno_email = kwargs.get("email")
         all_recipients = list({aluno_email, *recipients} - {None, ""}) if aluno_email else recipients
 

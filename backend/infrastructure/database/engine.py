@@ -85,6 +85,9 @@ def _ensure_additional_columns() -> None:
         },
         "funcionarios": {
             "categoria": "VARCHAR(20) DEFAULT 'Docente'",
+            "diretor_faculdade": "BOOLEAN DEFAULT FALSE",
+            "coordenador_estagio": "BOOLEAN DEFAULT FALSE",
+            "representante_docente": "BOOLEAN DEFAULT FALSE",
         },
     }
     existing_tables = set(inspector.get_table_names())

@@ -10,12 +10,13 @@ import { FormSection, FieldGroup, Field } from '@/shared/components/FormSection'
 import { FileUpload } from '@/shared/components/FileUpload'
 import { SubmitButton } from '@/shared/components/SubmitButton'
 import {
-  PROFESSORES,
   NATUREZAS_PROJETO,
   SOLICITACOES_PROJETO,
   EDITAIS_PROJETO,
   CARGAS_HORARIAS_PROJETO,
 } from '@/shared/lib/constants'
+import { useFuncionarios, nomesFiltrados } from '@/shared/hooks/useFuncionarios'
+import { FuncionarioNotFoundHint } from '@/shared/components/FuncionarioNotFoundHint'
 import { submitForm } from '@/shared/lib/api'
 import { numericProps, ANO_REGEX, ANO_MSG } from '@/shared/lib/masks'
 
@@ -37,6 +38,8 @@ type FormData = z.infer<typeof schema>
 export function FormProjetos() {
   const [files, setFiles] = useState<File[]>([])
   const [fileKey, setFileKey] = useState(0)
+  const { data: funcionarios = [] } = useFuncionarios()
+  const docentesInternos = nomesFiltrados(funcionarios, f => f.categoria === 'Docente' && f.tipo === 'Interno')
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -63,8 +66,9 @@ export function FormProjetos() {
             <Field label="Docente responsável" required error={errors.docente?.message}>
               <select className="fasi-input" {...register('docente')}>
                 <option value="">Selecione o docente...</option>
-                {PROFESSORES.map(p => <option key={p} value={p}>{p}</option>)}
+                {docentesInternos.map(p => <option key={p} value={p}>{p}</option>)}
               </select>
+              <FuncionarioNotFoundHint />
             </Field>
             <Field label="Nome do projeto" required error={errors.nome_projeto?.message} className="sm:col-span-2">
               <input className="fasi-input" placeholder="Título completo do projeto" {...register('nome_projeto')} />
@@ -104,16 +108,17 @@ export function FormProjetos() {
             <Field label="Parecerista 1" required error={errors.parecerista1?.message}>
               <select className="fasi-input" {...register('parecerista1')}>
                 <option value="">Selecione o parecerista 1</option>
-                {PROFESSORES.map(p => <option key={p} value={p}>{p}</option>)}
+                {docentesInternos.map(p => <option key={p} value={p}>{p}</option>)}
               </select>
             </Field>
             <Field label="Parecerista 2" required error={errors.parecerista2?.message}>
               <select className="fasi-input" {...register('parecerista2')}>
                 <option value="">Selecione o parecerista 2</option>
-                {PROFESSORES.map(p => <option key={p} value={p}>{p}</option>)}
+                {docentesInternos.map(p => <option key={p} value={p}>{p}</option>)}
               </select>
             </Field>
           </FieldGroup>
+          <FuncionarioNotFoundHint />
         </FormSection>
 
         <FormSection title="Arquivos do Projeto">

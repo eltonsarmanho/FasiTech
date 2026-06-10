@@ -14,6 +14,13 @@ const TITULOS = ['Doutorado', 'Mestrado', 'Especialista', 'Graduação'] as cons
 const TIPOS = ['Interno', 'Externo'] as const
 const CATEGORIAS = ['Docente', 'Secretaria', 'Colaborador'] as const
 
+// Cargos/funções na faculdade (flags booleanas)
+const CARGOS = [
+  { key: 'diretor_faculdade', label: 'Diretor da Faculdade' },
+  { key: 'coordenador_estagio', label: 'Coordenador de Estágio' },
+  { key: 'representante_docente', label: 'Representante Docente' },
+] as const
+
 type Titulo = (typeof TITULOS)[number]
 type Tipo = (typeof TIPOS)[number]
 type Categoria = (typeof CATEGORIAS)[number]
@@ -28,6 +35,9 @@ interface Funcionario {
   email: string | null
   fone: string | null
   data_aniversario: string | null
+  diretor_faculdade: boolean
+  coordenador_estagio: boolean
+  representante_docente: boolean
 }
 
 interface FuncionarioFormData {
@@ -39,6 +49,9 @@ interface FuncionarioFormData {
   email: string
   fone: string
   data_aniversario: string
+  diretor_faculdade: boolean
+  coordenador_estagio: boolean
+  representante_docente: boolean
 }
 
 function formatDateBR(iso: string | null) {
@@ -69,8 +82,15 @@ function FuncionarioForm({
           email: editing.email ?? '',
           fone: editing.fone ?? '',
           data_aniversario: editing.data_aniversario ?? '',
+          diretor_faculdade: editing.diretor_faculdade ?? false,
+          coordenador_estagio: editing.coordenador_estagio ?? false,
+          representante_docente: editing.representante_docente ?? false,
         }
-      : { nome: '', filiacao: '', titulo: 'Graduação', tipo: 'Interno', categoria: 'Docente', email: '', fone: '', data_aniversario: '' },
+      : {
+          nome: '', filiacao: '', titulo: 'Graduação', tipo: 'Interno', categoria: 'Docente',
+          email: '', fone: '', data_aniversario: '',
+          diretor_faculdade: false, coordenador_estagio: false, representante_docente: false,
+        },
   })
 
   return (
@@ -115,7 +135,20 @@ function FuncionarioForm({
           <input className="fasi-input" type="date" {...register('data_aniversario')} />
         </Field>
       </FieldGroup>
-      <div className="flex gap-2 mt-3">
+
+      <div className="mt-4">
+        <p className="text-sm font-medium text-foreground mb-2">Cargos / Funções na Faculdade</p>
+        <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3">
+          {CARGOS.map(c => (
+            <label key={c.key} className="flex items-center gap-2 text-sm cursor-pointer">
+              <input type="checkbox" className="h-4 w-4 rounded border-input accent-fasi-500" {...register(c.key)} />
+              {c.label}
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex gap-2 mt-4">
         <SubmitButton loading={loading} label={editing ? 'Salvar' : 'Adicionar'} />
         <button type="button" onClick={onCancel} className="fasi-btn-secondary text-sm px-4">Cancelar</button>
       </div>
@@ -182,6 +215,9 @@ export function GestorFuncionarios() {
       email: data.email || null,
       fone: data.fone || null,
       data_aniversario: data.data_aniversario || null,
+      diretor_faculdade: data.diretor_faculdade,
+      coordenador_estagio: data.coordenador_estagio,
+      representante_docente: data.representante_docente,
     }
     if (editingId !== null) {
       updateMutation.mutate({ id: editingId, body: payload })
@@ -223,6 +259,15 @@ export function GestorFuncionarios() {
                             <span className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground">{f.categoria}</span>
                             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${tipoBadge(f.tipo)}`}>{f.tipo}</span>
                           </div>
+                          {CARGOS.some(c => f[c.key]) && (
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {CARGOS.filter(c => f[c.key]).map(c => (
+                                <span key={c.key} className="text-xs px-2 py-0.5 rounded-full font-medium bg-amber-100 text-amber-700">
+                                  {c.label}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                           {f.filiacao && (
                             <span className="text-xs text-muted-foreground">Filiação: {f.filiacao}</span>
                           )}

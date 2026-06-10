@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -8,12 +7,12 @@ import toast from 'react-hot-toast'
 import { PageShell } from '@/shared/components/PageShell'
 import { FormSection, FieldGroup, Field } from '@/shared/components/FormSection'
 import { SubmitButton } from '@/shared/components/SubmitButton'
-import { PROFESSORES, MODALIDADES_TCC } from '@/shared/lib/constants'
+import { MODALIDADES_TCC } from '@/shared/lib/constants'
 import { submitJson } from '@/shared/lib/api'
 import { numericProps, MATRICULA_REGEX, MATRICULA_MSG, ANO_REGEX, ANO_MSG, EMAIL_MSG } from '@/shared/lib/masks'
 import { usePeriodosSubmissao, isPeriodoAtivo, formatPeriodo } from '@/shared/hooks/usePeriodosSubmissao'
-
-const MEMBROS_BANCA = [...PROFESSORES, 'Outro'] as const
+import { useFuncionarios, nomesFiltrados } from '@/shared/hooks/useFuncionarios'
+import { FuncionarioNotFoundHint } from '@/shared/components/FuncionarioNotFoundHint'
 
 const schema = z.object({
   nome_aluno:       z.string().min(3, 'Nome obrigatório'),
@@ -28,11 +27,8 @@ const schema = z.object({
   palavra_chave:    z.string().min(1, 'Palavras-chave obrigatórias'),
   modalidade:       z.string().min(1, 'Modalidade obrigatória'),
   membro_banca1:    z.string().min(1, 'Membro 1 obrigatório'),
-  membro_banca1_outro: z.string().optional(),
   membro_banca2:    z.string().min(1, 'Membro 2 obrigatório'),
-  membro_banca2_outro: z.string().optional(),
   membro_banca3:    z.string().optional(),
-  membro_banca3_outro: z.string().optional(),
   data_defesa:      z.string().min(1, 'Data de defesa obrigatória'),
   horario_defesa:   z.string().min(1, 'Horário de defesa obrigatório'),
   local_defesa:     z.string().optional(),
@@ -40,11 +36,11 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>
 
 export function FormRequerimentoTCC() {
-  const [membro1, setMembro1] = useState('')
-  const [membro2, setMembro2] = useState('')
-  const [membro3, setMembro3] = useState('')
-
   const { data: periodosDefesa = [] } = usePeriodosSubmissao('tcc')
+  const { data: funcionarios = [] } = useFuncionarios()
+  // Orientador: somente docentes internos. Banca: docentes internos e externos.
+  const orientadores = nomesFiltrados(funcionarios, f => f.categoria === 'Docente' && f.tipo === 'Interno')
+  const membrosBanca = nomesFiltrados(funcionarios, f => f.categoria === 'Docente')
 
   const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -61,14 +57,11 @@ export function FormRequerimentoTCC() {
       }
       const payload = {
         ...data,
-        membro_banca1: data.membro_banca1 === 'Outro' ? (data.membro_banca1_outro ?? '') : data.membro_banca1,
-        membro_banca2: data.membro_banca2 === 'Outro' ? (data.membro_banca2_outro ?? '') : data.membro_banca2,
-        membro_banca3: data.membro_banca3 === 'Nenhum' || !data.membro_banca3 ? '' :
-          data.membro_banca3 === 'Outro' ? (data.membro_banca3_outro ?? '') : data.membro_banca3,
+        membro_banca3: data.membro_banca3 === 'Nenhum' || !data.membro_banca3 ? '' : data.membro_banca3,
       }
       return submitJson('/api/v1/forms/requerimento-tcc', payload)
     },
-    onSuccess: () => { toast.success('Requerimento de TCC registrado com sucesso!'); reset(); setMembro1(''); setMembro2(''); setMembro3('') },
+    onSuccess: () => { toast.success('Requerimento de TCC registrado com sucesso!'); reset() },
     onError: (e: Error) => toast.error(e.message || 'Erro ao registrar. Tente novamente.'),
   })
 
@@ -106,8 +99,9 @@ export function FormRequerimentoTCC() {
             <Field label="Orientador(a)" required error={errors.orientador?.message}>
               <select className="fasi-input" {...register('orientador')}>
                 <option value="">Selecione o orientador...</option>
-                {PROFESSORES.map(p => <option key={p} value={p}>{p}</option>)}
+                {orientadores.map(p => <option key={p} value={p}>{p}</option>)}
               </select>
+              <FuncionarioNotFoundHint />
             </Field>
             <Field label="Coorientador(a)">
               <input className="fasi-input" placeholder="Nome do coorientador (opcional)" {...register('coorientador')} />
@@ -116,40 +110,26 @@ export function FormRequerimentoTCC() {
 
           <FieldGroup cols={1}>
             <Field label="Membro 1 da Banca" required error={errors.membro_banca1?.message}>
-              <select className="fasi-input" {...register('membro_banca1')} onChange={e => setMembro1(e.target.value)}>
+              <select className="fasi-input" {...register('membro_banca1')}>
                 <option value="">Selecione o membro 1...</option>
-                {MEMBROS_BANCA.map(p => <option key={p} value={p}>{p}</option>)}
+                {membrosBanca.map(p => <option key={p} value={p}>{p}</option>)}
               </select>
             </Field>
-            {membro1 === 'Outro' && (
-              <Field label="Nome do Membro 1 (especifique)" required>
-                <input className="fasi-input" placeholder="Nome completo do membro externo" {...register('membro_banca1_outro')} />
-              </Field>
-            )}
 
             <Field label="Membro 2 da Banca" required error={errors.membro_banca2?.message}>
-              <select className="fasi-input" {...register('membro_banca2')} onChange={e => setMembro2(e.target.value)}>
+              <select className="fasi-input" {...register('membro_banca2')}>
                 <option value="">Selecione o membro 2...</option>
-                {MEMBROS_BANCA.map(p => <option key={p} value={p}>{p}</option>)}
+                {membrosBanca.map(p => <option key={p} value={p}>{p}</option>)}
               </select>
             </Field>
-            {membro2 === 'Outro' && (
-              <Field label="Nome do Membro 2 (especifique)" required>
-                <input className="fasi-input" placeholder="Nome completo do membro externo" {...register('membro_banca2_outro')} />
-              </Field>
-            )}
 
             <Field label="Membro 3 da Banca (opcional)">
-              <select className="fasi-input" {...register('membro_banca3')} onChange={e => setMembro3(e.target.value)}>
+              <select className="fasi-input" {...register('membro_banca3')}>
                 <option value="Nenhum">Nenhum</option>
-                {MEMBROS_BANCA.map(p => <option key={p} value={p}>{p}</option>)}
+                {membrosBanca.map(p => <option key={p} value={p}>{p}</option>)}
               </select>
             </Field>
-            {membro3 === 'Outro' && (
-              <Field label="Nome do Membro 3 (especifique)">
-                <input className="fasi-input" placeholder="Nome completo do membro externo" {...register('membro_banca3_outro')} />
-              </Field>
-            )}
+            <FuncionarioNotFoundHint />
           </FieldGroup>
         </FormSection>
 

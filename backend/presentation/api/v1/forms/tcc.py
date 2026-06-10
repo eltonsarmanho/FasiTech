@@ -57,12 +57,26 @@ async def submit_tcc(
 
     try:
         from backend.infrastructure.form_service_legacy import process_tcc_submission
+        # Destinatários (base de dados): orientador selecionado + Secretário(a)
+        # (categoria Secretaria) + biblioteca. O aluno é incluído internamente.
+        from backend.infrastructure.database.repository import (
+            get_funcionario_emails_by_nomes,
+            get_funcionario_emails,
+        )
+        recipients: list[str] = []
+        for email in [
+            *get_funcionario_emails_by_nomes([orientador]),
+            *get_funcionario_emails(categoria="Secretaria"),
+            "bibcameta@ufpa.br",
+        ]:
+            if email and email not in recipients:
+                recipients.append(email)
         result = process_tcc_submission(
             form_data,
             file_objs,
             drive_folder_id=settings.tcc_folder_id,
             sheet_id=settings.tcc_sheet_id,
-            notification_recipients=settings.tcc_recipients,
+            notification_recipients=recipients,
         )
         drive_links = result.get("drive_links", []) if isinstance(result, dict) else []
         sub_id = result.get("id", 0) if isinstance(result, dict) else 0

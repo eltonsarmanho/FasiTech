@@ -40,3 +40,4 @@ pydantic[email]
 pydantic-settings
 python-multipart
 playwright
+python-docx

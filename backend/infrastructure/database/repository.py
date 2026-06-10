@@ -1323,6 +1323,9 @@ def _funcionario_to_dict(r: Funcionario) -> Dict[str, Any]:
         "email": r.email,
         "fone": r.fone,
         "data_aniversario": r.data_aniversario,
+        "diretor_faculdade": bool(r.diretor_faculdade),
+        "coordenador_estagio": bool(r.coordenador_estagio),
+        "representante_docente": bool(r.representante_docente),
     }
 
 
@@ -1348,6 +1351,9 @@ def save_funcionario(data: Dict[str, Any]) -> int:
         email=data.get("email"),
         fone=data.get("fone"),
         data_aniversario=data.get("data_aniversario"),
+        diretor_faculdade=bool(data.get("diretor_faculdade", False)),
+        coordenador_estagio=bool(data.get("coordenador_estagio", False)),
+        representante_docente=bool(data.get("representante_docente", False)),
     )
     with get_db_session() as session:
         session.add(funcionario)
@@ -1364,7 +1370,11 @@ def update_funcionario(funcionario_id: int, data: Dict[str, Any]) -> bool:
         ).first()
         if row is None:
             return False
-        for campo in ("nome", "filiacao", "titulo", "tipo", "categoria", "email", "fone", "data_aniversario"):
+        for campo in (
+            "nome", "filiacao", "titulo", "tipo", "categoria", "email", "fone",
+            "data_aniversario", "diretor_faculdade", "coordenador_estagio",
+            "representante_docente",
+        ):
             if campo in data:
                 setattr(row, campo, data[campo])
         session.add(row)
@@ -1383,4 +1393,70 @@ def delete_funcionario(funcionario_id: int) -> bool:
         session.delete(row)
         session.commit()
         return True
+
+
+def get_funcionario_emails(
+    categoria: Optional[str] = None, tipo: Optional[str] = None
+) -> List[str]:
+    """Retorna e-mails de funcionários, filtrando por categoria/tipo (opcionais).
+
+    Ignora registros sem e-mail. Remove duplicatas preservando a ordem alfabética
+    de nome (ordem garantida por list_funcionarios).
+    """
+    funcionarios = list_funcionarios(tipo=tipo)
+    if categoria:
+        funcionarios = [f for f in funcionarios if (f.get("categoria") or "") == categoria]
+    seen: set = set()
+    emails: List[str] = []
+    for f in funcionarios:
+        email = (f.get("email") or "").strip()
+        if email and email.lower() not in seen:
+            seen.add(email.lower())
+            emails.append(email)
+    return emails
+
+
+def get_funcionario_emails_by_cargo(cargo: str) -> List[str]:
+    """Retorna e-mails de funcionários que possuem o cargo/função indicado.
+
+    ``cargo`` deve ser uma das flags: 'diretor_faculdade', 'coordenador_estagio'
+    ou 'representante_docente'. Ignora registros sem e-mail.
+    """
+    if cargo not in ("diretor_faculdade", "coordenador_estagio", "representante_docente"):
+        raise ValueError(f"Cargo inválido: {cargo}")
+    seen: set = set()
+    emails: List[str] = []
+    for f in list_funcionarios():
+        if not f.get(cargo):
+            continue
+        email = (f.get("email") or "").strip()
+        if email and email.lower() not in seen:
+            seen.add(email.lower())
+            emails.append(email)
+    return emails
+
+
+def get_funcionario_emails_by_nomes(nomes: List[str]) -> List[str]:
+    """Resolve uma lista de nomes de funcionários para os e-mails cadastrados.
+
+    Casamento por nome normalizado (trim + case-insensitive). Nomes sem
+    correspondência ou sem e-mail são silenciosamente ignorados. Retorna
+    e-mails únicos preservando a ordem dos nomes informados.
+    """
+    alvos = [(n or "").strip().lower() for n in nomes if n and n.strip()]
+    if not alvos:
+        return []
+    todos = list_funcionarios()
+    indice = {
+        (f.get("nome") or "").strip().lower(): (f.get("email") or "").strip()
+        for f in todos
+    }
+    seen: set = set()
+    emails: List[str] = []
+    for alvo in alvos:
+        email = indice.get(alvo, "")
+        if email and email.lower() not in seen:
+            seen.add(email.lower())
+            emails.append(email)
+    return emails
 

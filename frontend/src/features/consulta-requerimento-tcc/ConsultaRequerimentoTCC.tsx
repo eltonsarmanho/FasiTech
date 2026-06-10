@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Download, Loader2, Trash2 } from 'lucide-react'
+import { Download, Loader2, Trash2, FileText } from 'lucide-react'
+import toast from 'react-hot-toast'
 import { PageShell } from '@/shared/components/PageShell'
 import { FormSection, FieldGroup, Field } from '@/shared/components/FormSection'
 import { apiAuth } from '@/shared/lib/api'
@@ -57,6 +58,7 @@ export function ConsultaRequerimentoTCC() {
   const [filtroDataAte, setFiltroDataAte] = useState('')
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [deleting, setDeleting] = useState(false)
+  const [gerandoAtaId, setGerandoAtaId] = useState<number | null>(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['requerimento-tcc-list'],
@@ -112,6 +114,18 @@ export function ConsultaRequerimentoTCC() {
       queryClient.invalidateQueries({ queryKey: ['requerimento-tcc-list'] })
     } finally {
       setDeleting(false)
+    }
+  }
+
+  async function handleGerarAta(id: number) {
+    setGerandoAtaId(id)
+    try {
+      const res = await apiAuth.post(`/api/v1/requerimento-tcc/${id}/gerar-ata`)
+      toast.success(res.data?.message || 'ATA gerada e enviada ao orientador!')
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || 'Erro ao gerar ATA')
+    } finally {
+      setGerandoAtaId(null)
     }
   }
 
@@ -204,7 +218,7 @@ export function ConsultaRequerimentoTCC() {
                       className="cursor-pointer"
                     />
                   </th>
-                  {['Aluno', 'Matrícula', 'Orientador', 'Título', 'Modalidade', 'Defesa'].map(h => (
+                  {['Aluno', 'Matrícula', 'Orientador', 'Título', 'Modalidade', 'Defesa', 'Ações'].map(h => (
                     <th key={h} className="px-3 py-2.5 text-left font-medium whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
@@ -227,6 +241,19 @@ export function ConsultaRequerimentoTCC() {
                       <td className="px-3 py-2 max-w-[200px] truncate" title={r.titulo_trabalho}>{r.titulo_trabalho}</td>
                       <td className="px-3 py-2">{r.modalidade}</td>
                       <td className="px-3 py-2 whitespace-nowrap">{r.data_defesa ? formatDate(r.data_defesa) : '—'}</td>
+                      <td className="px-3 py-2" onClick={e => e.stopPropagation()}>
+                        <button
+                          onClick={() => handleGerarAta(id)}
+                          disabled={gerandoAtaId === id}
+                          title="Gerar ATA de Defesa e enviar ao orientador"
+                          className="fasi-btn-outline py-1 px-2 text-xs flex items-center gap-1 whitespace-nowrap"
+                        >
+                          {gerandoAtaId === id
+                            ? <Loader2 className="w-3 h-3 animate-spin" />
+                            : <FileText className="w-3 h-3" />}
+                          {gerandoAtaId === id ? 'Gerando...' : 'Gerar ATA'}
+                        </button>
+                      </td>
                     </tr>
                   )
                 })}

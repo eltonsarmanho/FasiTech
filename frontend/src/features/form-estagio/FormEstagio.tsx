@@ -11,6 +11,8 @@ import { FileUpload } from '@/shared/components/FileUpload'
 import { SubmitButton } from '@/shared/components/SubmitButton'
 import { POLOS, COMPONENTES_ESTAGIO } from '@/shared/lib/constants'
 import { usePeriodosLetivos } from '@/shared/hooks/usePeriodosLetivos'
+import { useFuncionarios, nomesFiltrados } from '@/shared/hooks/useFuncionarios'
+import { FuncionarioNotFoundHint } from '@/shared/components/FuncionarioNotFoundHint'
 import { usePeriodosSubmissao, isPeriodoAtivo, formatPeriodo } from '@/shared/hooks/usePeriodosSubmissao'
 import { submitForm } from '@/shared/lib/api'
 import { numericProps, MATRICULA_REGEX, MATRICULA_MSG, ANO_REGEX, ANO_MSG, EMAIL_MSG } from '@/shared/lib/masks'
@@ -32,6 +34,11 @@ export function FormEstagio() {
   const [files, setFiles] = useState<File[]>([])
   const [fileKey, setFileKey] = useState(0)
   const { data: periodos = [] } = usePeriodosLetivos()
+  const { data: funcionarios = [] } = useFuncionarios()
+  const orientadores = nomesFiltrados(
+    funcionarios,
+    f => f.categoria === 'Docente' || f.categoria === 'Colaborador',
+  )
   const { data: periodosSubmissao = [] } = usePeriodosSubmissao('estagio')
 
   const hoje = new Date().toISOString().slice(0, 10)
@@ -121,8 +128,12 @@ export function FormEstagio() {
             </ul>
           </div>
           <FieldGroup cols={2}>
-            <Field label="Orientador(a)" required error={errors.orientador?.message}>
-              <input className="fasi-input" {...register('orientador')} />
+            <Field label="Orientador(a) / Supervisor(a)" required error={errors.orientador?.message}>
+              <select className="fasi-input" {...register('orientador')}>
+                <option value="">Selecione o orientador/supervisor...</option>
+                {orientadores.map(n => <option key={n} value={n}>{n}</option>)}
+              </select>
+              <FuncionarioNotFoundHint />
             </Field>
             <Field label="Componente" required error={errors.componente?.message}>
               <select className="fasi-input" {...register('componente')}>

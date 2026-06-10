@@ -406,6 +406,10 @@ class Funcionario(SQLModel, table=True):
     email: Optional[str] = Field(default=None, max_length=255)
     fone: Optional[str] = Field(default=None, max_length=30)   # WhatsApp
     data_aniversario: Optional[str] = Field(default=None, max_length=10)  # YYYY-MM-DD
+    # Cargos/funções na faculdade
+    diretor_faculdade: bool = Field(default=False)
+    coordenador_estagio: bool = Field(default=False)
+    representante_docente: bool = Field(default=False)
     criado_em: datetime = Field(default_factory=datetime.utcnow)
 
 

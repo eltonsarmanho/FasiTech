@@ -34,36 +34,15 @@ def _now_local():
 
 def _get_docente_emails() -> List[str]:
     """
-    Carrega lista de e-mails dos docentes a partir das settings (env vars).
+    Carrega os e-mails dos docentes internos a partir da base de dados.
 
-    Lê de:
-    - NOTIFICATION_RECIPIENTS  — CSV de emails
-    - PARECERISTAS             — "Nome:email,Nome:email,..." formato
+    Fonte: tabela ``funcionarios`` (categoria = "Docente", tipo = "Interno").
+    Registros sem e-mail são ignorados. Substitui a antiga leitura de
+    DESTINATARIOS/PARECERISTAS do .env.
     """
-    from backend.config.settings import settings  # noqa: PLC0415
+    from backend.infrastructure.database.repository import get_funcionario_emails  # noqa: PLC0415
 
-    emails: List[str] = []
-
-    recipients_str = settings.destinatarios or ""
-    if recipients_str.strip():
-        emails.extend(r.strip() for r in recipients_str.split(",") if r.strip())
-
-    pareceristas_str = settings.pareceristas or ""
-    if pareceristas_str:
-        for par in pareceristas_str.split(","):
-            par = par.strip()
-            if ":" in par:
-                _, email = par.split(":", 1)
-                emails.append(email.strip())
-
-    # Remove duplicatas preservando ordem
-    seen: set = set()
-    unique: List[str] = []
-    for e in emails:
-        if e and e not in seen:
-            seen.add(e)
-            unique.append(e)
-    return unique
+    return get_funcionario_emails(categoria="Docente", tipo="Interno")
 
 
 def _parse_external_emails(raw_emails: str) -> List[str]:

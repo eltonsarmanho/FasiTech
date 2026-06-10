@@ -18,6 +18,9 @@ class FuncionarioRequest(BaseModel):
     email: Optional[str] = None
     fone: Optional[str] = None         # WhatsApp
     data_aniversario: Optional[str] = None  # YYYY-MM-DD
+    diretor_faculdade: bool = False
+    coordenador_estagio: bool = False
+    representante_docente: bool = False
 
 
 class FuncionarioUpdateRequest(BaseModel):
@@ -29,6 +32,9 @@ class FuncionarioUpdateRequest(BaseModel):
     email: Optional[str] = None
     fone: Optional[str] = None
     data_aniversario: Optional[str] = None
+    diretor_faculdade: Optional[bool] = None
+    coordenador_estagio: Optional[bool] = None
+    representante_docente: Optional[bool] = None
 
 
 @router.get("/funcionarios")

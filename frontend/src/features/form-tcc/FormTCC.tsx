@@ -11,6 +11,8 @@ import { FileUpload } from '@/shared/components/FileUpload'
 import { SubmitButton } from '@/shared/components/SubmitButton'
 import { POLOS, COMPONENTES_TCC } from '@/shared/lib/constants'
 import { usePeriodosLetivos } from '@/shared/hooks/usePeriodosLetivos'
+import { useFuncionarios, nomesFiltrados } from '@/shared/hooks/useFuncionarios'
+import { FuncionarioNotFoundHint } from '@/shared/components/FuncionarioNotFoundHint'
 import { submitForm } from '@/shared/lib/api'
 import { numericProps, MATRICULA_REGEX, MATRICULA_MSG, ANO_REGEX, ANO_MSG, EMAIL_MSG } from '@/shared/lib/masks'
 
@@ -31,6 +33,8 @@ export function FormTCC() {
   const [files, setFiles] = useState<File[]>([])
   const [fileKey, setFileKey] = useState(0)
   const { data: periodos = [] } = usePeriodosLetivos()
+  const { data: funcionarios = [] } = useFuncionarios()
+  const orientadores = nomesFiltrados(funcionarios, f => f.categoria === 'Docente' && f.tipo === 'Interno')
   const { register, handleSubmit, watch, reset, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
   })
@@ -86,7 +90,11 @@ export function FormTCC() {
         <FormSection title="Informações do TCC">
           <FieldGroup cols={2}>
             <Field label="Orientador(a)" required error={errors.orientador?.message}>
-              <input className="fasi-input" placeholder="Prof. Dr. Nome Sobrenome" {...register('orientador')} />
+              <select className="fasi-input" {...register('orientador')}>
+                <option value="">Selecione o orientador...</option>
+                {orientadores.map(n => <option key={n} value={n}>{n}</option>)}
+              </select>
+              <FuncionarioNotFoundHint />
             </Field>
             <Field label="Componente curricular" required error={errors.componente?.message}>
               <select className="fasi-input" {...register('componente')}>
