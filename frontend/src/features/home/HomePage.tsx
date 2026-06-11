@@ -24,7 +24,7 @@ const studentForms = [
   {
     icon: '📝',
     title: 'Requerimento de TCC',
-    description: 'Registro dos dados para defesa do TCC — banca examinadora e informações adicionais.',
+    description: 'Registro dos dados para defesa do TCC com banca examinadora e informações adicionais.',
     to: '/requerimento-tcc',
   },
   {
@@ -123,7 +123,7 @@ export function HomePage() {
         />
         <div>
           <p className="font-semibold text-sm" style={{ color: '#15803D' }}>
-            2º Lugar — Gestão Educacional Transformadora · Prêmio Educador Transformador 3ª Edição
+            2º Lugar na Gestão Educacional Transformadora · Prêmio Educador Transformador 3ª Edição
           </p>
           <p className="text-xs mt-1 leading-relaxed" style={{ color: '#16A34A' }}>
             O FasiTech foi reconhecido pelo Sebrae pela contribuição à inovação
