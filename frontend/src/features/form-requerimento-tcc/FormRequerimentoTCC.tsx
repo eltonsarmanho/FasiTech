@@ -30,7 +30,7 @@ const schema = z.object({
   membro_banca2:    z.string().min(1, 'Membro 2 obrigatório'),
   membro_banca3:    z.string().optional(),
   data_defesa:      z.string().min(1, 'Data de defesa obrigatória'),
-  horario_defesa:   z.string().min(1, 'Horário de defesa obrigatório'),
+  horario_defesa:   z.string().regex(/^\d{1,2}:\d{2}$/, 'Use o formato HH:MM (ex: 14:30)'),
   local_defesa:     z.string().optional(),
 })
 type FormData = z.infer<typeof schema>
@@ -178,7 +178,13 @@ export function FormRequerimentoTCC() {
               <input className="fasi-input" type="date" {...register('data_defesa')} />
             </Field>
             <Field label="Horário" required error={errors.horario_defesa?.message}>
-              <input className="fasi-input" type="time" {...register('horario_defesa')} />
+              <input
+                className="fasi-input"
+                type="text"
+                placeholder="Ex: 14:30"
+                maxLength={5}
+                {...register('horario_defesa')}
+              />
             </Field>
             <Field label="Local">
               <input className="fasi-input" placeholder="Ex.: Sala 101, Campus Cametá" {...register('local_defesa')} />

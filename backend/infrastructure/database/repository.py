@@ -428,20 +428,89 @@ def save_social_submission(data: Dict[str, Any]) -> int:
         return submission.id
 
 
-def save_requerimento_tcc_submission(data: Dict[str, Any]) -> int:
+def _parse_horario_minutos(horario: str) -> Optional[int]:
+    """Parse 'HH:MM' ou 'HHhMM' para minutos desde meia-noite. None se inválido."""
+    import re
+    if not horario:
+        return None
+    m = re.match(r'^(\d{1,2})[h:](\d{0,2})$', horario.strip())
+    if m:
+        return int(m.group(1)) * 60 + int(m.group(2) or 0)
+    return None
+
+
+def _banca_members_from_dict(data: dict) -> set:
+    """Retorna set normalizado dos membros de banca a partir de um dicionário de submissão."""
+    fields = ['orientador', 'membro_banca1', 'membro_banca2', 'membro_banca3']
+    return {v.strip().lower() for k in fields if (v := data.get(k))}
+
+
+def _banca_members_from_row(row) -> set:
+    """Retorna set normalizado dos membros de banca a partir de um objeto do DB."""
+    fields = [row.orientador, row.membro_banca1, row.membro_banca2, row.membro_banca3]
+    return {v.strip().lower() for v in fields if v}
+
+
+def check_tcc_scheduling_conflicts(data: Dict[str, Any], exclude_matricula: Optional[str] = None) -> List[str]:
     """
-    Salva submissão do Requerimento de TCC (defesa) no banco de dados.
+    Verifica conflitos de agenda para defesas de TCC.
+    Retorna lista de mensagens de conflito (vazia = sem conflito).
 
-    Args:
-        data: Dicionário com dados do formulário
-
-    Returns:
-        ID da submissão criada
+    Política 1: mesmo dia/horário com título+banca diferentes → conflito de slot.
+    Política 2: membro em outra banca no mesmo dia com diferença < 60 min → conflito de disponibilidade.
     """
     _ensure_requerimento_tcc_schema_columns()
-    submission = RequerimentoTccSubmission(
+    conflicts: List[str] = []
+    data_defesa = data.get("data_defesa")
+    horario = data.get("horario_defesa")
+    if not data_defesa or not horario:
+        return conflicts
+
+    new_min = _parse_horario_minutos(horario)
+    new_members = _banca_members_from_dict(data)
+    new_titulo = (data.get("titulo_trabalho") or "").strip().lower()
+
+    with get_db_session() as session:
+        query = select(RequerimentoTccSubmission).where(
+            RequerimentoTccSubmission.data_defesa == data_defesa
+        )
+        if exclude_matricula:
+            query = query.where(RequerimentoTccSubmission.matricula != exclude_matricula)
+        existing = session.exec(query).all()
+
+        for row in existing:
+            ex_members = _banca_members_from_row(row)
+            ex_titulo = (row.titulo_trabalho or "").strip().lower()
+            ex_min = _parse_horario_minutos(row.horario_defesa or "")
+            same_slot = row.horario_defesa == horario
+
+            if same_slot:
+                is_dupla = (new_titulo == ex_titulo and new_members == ex_members and len(new_members) > 0)
+                if not is_dupla:
+                    conflicts.append(
+                        f"Já existe uma defesa cadastrada para {data_defesa} às {horario} "
+                        f"(aluno: {row.nome_aluno}). Se você é parceiro(a) neste TCC, "
+                        f"use exatamente o mesmo título e os mesmos membros da banca."
+                    )
+            elif new_min is not None and ex_min is not None:
+                if abs(new_min - ex_min) < 60:
+                    overlap = new_members & ex_members
+                    if overlap:
+                        nomes = ", ".join(sorted(overlap))
+                        conflicts.append(
+                            f"O(s) membro(s) '{nomes}' já estão em outra banca às "
+                            f"{row.horario_defesa} em {data_defesa}. "
+                            f"O intervalo mínimo entre bancas é de 1 hora."
+                        )
+    return conflicts
+
+
+def save_requerimento_tcc_submission(data: Dict[str, Any]) -> int:
+    """Salva ou atualiza submissão do Requerimento de TCC (upsert por matricula)."""
+    _ensure_requerimento_tcc_schema_columns()
+
+    fields = dict(
         nome_aluno=data["nome_aluno"],
-        matricula=data["matricula"],
         email=data["email"],
         telefone=data.get("telefone"),
         turma=data["turma"],
@@ -460,6 +529,21 @@ def save_requerimento_tcc_submission(data: Dict[str, Any]) -> int:
     )
 
     with get_db_session() as session:
+        existing = session.exec(
+            select(RequerimentoTccSubmission).where(
+                RequerimentoTccSubmission.matricula == data["matricula"]
+            )
+        ).first()
+
+        if existing:
+            for k, v in fields.items():
+                setattr(existing, k, v)
+            session.add(existing)
+            session.commit()
+            session.refresh(existing)
+            return existing.id
+
+        submission = RequerimentoTccSubmission(matricula=data["matricula"], **fields)
         session.add(submission)
         session.commit()
         session.refresh(submission)
@@ -524,6 +608,28 @@ def delete_requerimento_tcc_submission(submission_id: int) -> bool:
         session.delete(row)
         session.commit()
         return True
+
+
+def get_requerimento_tcc_drive_info(submission_id: int) -> Optional[Dict[str, Any]]:
+    """Retorna informações da pasta no Drive associada ao requerimento de TCC."""
+    with get_db_session() as session:
+        row = session.exec(
+            select(RequerimentoTccSubmission).where(RequerimentoTccSubmission.id == submission_id)
+        ).first()
+        if not row:
+            return None
+        tcc = session.exec(
+            select(TccSubmission).where(TccSubmission.matricula == row.matricula)
+        ).first()
+        if not tcc:
+            return None
+        from backend.infrastructure.google.drive import get_tcc_folder_root_id
+        root_id = get_tcc_folder_root_id()
+        return {
+            "type": "folder",
+            "root": root_id,
+            "path": [tcc.componente, tcc.turma, tcc.nome],
+        }
 
 
 def save_avaliacao_gestao_submission(data: Dict[str, Any]) -> int:
