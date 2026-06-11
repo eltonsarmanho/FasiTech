@@ -23,7 +23,8 @@ export function FuncionarioNotFoundHint() {
         Não encontrou o nome na lista? Envie um e-mail para{' '}
         <a
           href={`mailto:${FASI_EMAIL}?subject=${assunto}&body=${corpo}`}
-          className="underline text-fasi-600 hover:text-fasi-700"
+          className="underline hover:opacity-80 transition-opacity"
+          style={{ color: '#2563EB' }}
         >
           {FASI_EMAIL}
         </a>{' '}

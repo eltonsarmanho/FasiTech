@@ -24,36 +24,33 @@ export function FormCard({ icon, title, description, to, external = false, varia
       tabIndex={0}
       onClick={handleClick}
       onKeyDown={(e) => e.key === 'Enter' && handleClick()}
-      className={cn(
-        'group rounded-xl p-6 text-white cursor-pointer select-none',
-        'transition-all duration-200 ease-out focus:outline-none',
-        'focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-fasi-500',
-        variant === 'primary'
-          ? 'bg-fasi-500 hover:bg-fasi-600'
-          : 'bg-amber-500 hover:bg-amber-600',
-      )}
-      style={{
-        boxShadow: variant === 'primary'
-          ? '0 4px 14px rgba(0,0,255,0.20)'
-          : '0 4px 14px rgba(245,158,11,0.20)',
-      }}
+      className={cn('fasi-service-card group', variant === 'warning' && 'variant-warning')}
     >
       {/* Ícone */}
-      <div className="text-3xl mb-3 group-hover:scale-110 transition-transform duration-200">
-        {icon}
+      <div className="text-2xl mb-3.5 group-hover:scale-110 transition-transform duration-200 leading-none">
+        <span role="img" aria-hidden>{icon}</span>
       </div>
 
       {/* Título */}
-      <h3 className="font-bold text-base mb-2 leading-tight">{title}</h3>
+      <h3
+        className="font-display font-bold text-[0.9375rem] mb-1.5 leading-snug"
+        style={{ color: '#0F172A' }}
+      >
+        {title}
+      </h3>
 
       {/* Descrição */}
-      <p className="text-sm text-white/80 leading-relaxed mb-4">{description}</p>
+      <p className="text-sm leading-relaxed mb-4" style={{ color: '#64748B' }}>
+        {description}
+      </p>
 
       {/* CTA */}
-      <div className="inline-flex items-center gap-1.5 text-xs font-semibold
-                      bg-white/15 hover:bg-white/25 rounded-full px-3 py-1.5
-                      transition-colors duration-150">
-        Acessar →
+      <div
+        className="inline-flex items-center gap-1 text-xs font-semibold
+                   group-hover:gap-2 transition-all duration-150"
+        style={{ color: variant === 'primary' ? '#2563EB' : '#d97706' }}
+      >
+        Acessar <span aria-hidden>→</span>
       </div>
     </div>
   )

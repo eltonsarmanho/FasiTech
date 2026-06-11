@@ -42,7 +42,7 @@ export function FileUpload({
       <div
         className={cn(
           'fasi-upload-area',
-          dragging && 'border-fasi-500 bg-fasi-50',
+          dragging && 'border-[#2563EB] bg-[#EFF6FF]',
           error && 'border-red-300',
         )}
         onClick={() => inputRef.current?.click()}
@@ -50,8 +50,8 @@ export function FileUpload({
         onDragLeave={() => setDragging(false)}
         onDrop={(e) => { e.preventDefault(); setDragging(false); handleFiles(e.dataTransfer.files) }}
       >
-        <Upload className="w-8 h-8 mx-auto mb-2 text-fasi-400" />
-        <p className="text-sm font-medium text-fasi-600">{label}</p>
+        <Upload className="w-8 h-8 mx-auto mb-2" style={{ color: '#60a5fa' }} />
+        <p className="text-sm font-medium" style={{ color: '#1A3A6B' }}>{label}</p>
         <p className="text-xs text-muted-foreground mt-1">
           {accept.toUpperCase().replace(/\./g, '')} • máx {maxSizeMB}MB
           {multiple && ' • múltiplos arquivos'}
@@ -71,7 +71,7 @@ export function FileUpload({
         <ul className="space-y-2">
           {files.map((f, i) => (
             <li key={i} className="flex items-center gap-3 rounded-lg border border-border bg-muted/40 px-3 py-2">
-              <FileText className="w-4 h-4 text-fasi-500 shrink-0" />
+              <FileText className="w-4 h-4 shrink-0" style={{ color: '#2563EB' }} />
               <span className="flex-1 text-sm truncate text-foreground">{f.name}</span>
               <span className="text-xs text-muted-foreground shrink-0">
                 {(f.size / (1024 * 1024)).toFixed(1)} MB

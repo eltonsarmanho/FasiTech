@@ -1,37 +1,36 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* ── CSS Custom Properties — Design System FASI ──────────────────────── */
+/* ── Tokens de design — paleta institucional FASI ──────────────────────── */
 @layer base {
   :root {
-    /* FASI Blue puro como primária */
-    --primary:             240 100% 50%;   /* #0000FF */
-    --primary-foreground:  0   0%   100%;  /* branco */
+    --primary:             214 60% 26%;   /* #1A3A6B — navy institucional */
+    --primary-foreground:  0   0%  100%;
 
-    --background:          0   0%   100%;  /* branco limpo */
-    --foreground:          220 15%  15%;   /* quase preto, levemente azulado */
+    --background:          220 35% 97%;   /* #F4F6FA — fundo gelo-azulado */
+    --foreground:          215 40%   8%;  /* #0F172A — tinta */
 
-    --card:                0   0%   100%;
-    --card-foreground:     220 15%  15%;
+    --card:                0   0%  100%;
+    --card-foreground:     215 40%   8%;
 
-    --muted:               220 15%  96%;
-    --muted-foreground:    220 10%  50%;
+    --muted:               218 22%  93%;
+    --muted-foreground:    215 16%  45%; /* #64748B */
 
-    --accent:              240 100% 97%;   /* azul muito claro */
-    --accent-foreground:   240 100% 40%;
+    --accent:              217 83%  53%; /* #2563EB — royal interativo */
+    --accent-foreground:   0   0%  100%;
 
-    --secondary:           220 15%  96%;
-    --secondary-foreground: 220 15%  20%;
+    --secondary:           218 22%  94%;
+    --secondary-foreground: 215 25% 20%;
 
     --destructive:         0   84%  60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border:              220 13%  91%;
-    --input:               220 13%  91%;
-    --ring:                240 100% 50%;
+    --border:              214 28%  88%; /* #E2E8F0 */
+    --input:               214 28%  88%;
+    --ring:                217 83%  53%; /* royal para focus */
 
     --radius: 0.625rem;
   }
@@ -52,116 +51,224 @@
   }
 
   h1, h2, h3, h4, h5, h6 {
-    @apply font-semibold tracking-tight;
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    @apply font-bold tracking-tight;
   }
 }
 
-/* ── Utilitários FASI ─────────────────────────────────────────────────── */
+/* ── Classes de componente ──────────────────────────────────────────────── */
 @layer components {
-  /* Cabeçalho institucional */
+
+  /* Gradiente de cabeçalho — navy institucional */
   .fasi-header-gradient {
-    background: #0000ff;
-    background-image: linear-gradient(135deg, #0000cc 0%, #0000ff 60%, #2929ff 100%);
+    background: linear-gradient(135deg, #112B54 0%, #1A3A6B 55%, #1e4484 100%);
   }
 
-  /* Card padrão com hover suave */
+  /* Card base — tabelas, painéis, containers gerais */
   .fasi-card {
-    @apply bg-white rounded-xl border border-border shadow-fasi-sm
+    @apply bg-white rounded-xl border border-border shadow-navy-sm
            transition-all duration-200 ease-out;
   }
-
   .fasi-card:hover {
-    @apply shadow-fasi-md -translate-y-0.5;
+    @apply shadow-navy-md -translate-y-0.5;
   }
 
-  /* Card de formulário azul (como os cards do Streamlit) */
+  /*
+   * Card de serviço — borda esquerda navy (elemento assinatura).
+   * Remete à aba de uma pasta de protocolo acadêmico.
+   */
+  .fasi-service-card {
+    background: #ffffff;
+    border-radius: 0.75rem;
+    border: 1px solid #E2E8F0;
+    border-left: 4px solid #1A3A6B;
+    padding: 1.25rem;
+    cursor: pointer;
+    user-select: none;
+    transition: transform 0.18s ease-out, box-shadow 0.18s ease-out;
+    outline: none;
+  }
+  .fasi-service-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 22px rgba(26, 58, 107, 0.13);
+  }
+  .fasi-service-card:focus-visible {
+    outline: 2px solid #2563EB;
+    outline-offset: 2px;
+  }
+  .fasi-service-card.variant-warning {
+    border-left-color: #d97706;
+  }
+
+  /* Card de formulário — legado, mantido para compat */
   .fasi-form-card {
-    @apply rounded-xl p-6 text-white cursor-pointer
-           transition-all duration-200 ease-out;
-    background: #0000ff;
-    background-image: linear-gradient(135deg, #0000cc 0%, #0000ff 100%);
+    @apply rounded-xl p-6 text-white cursor-pointer transition-all duration-200 ease-out;
+    background: linear-gradient(135deg, #112B54 0%, #1A3A6B 100%);
   }
-
   .fasi-form-card:hover {
     @apply -translate-y-1;
-    box-shadow: 0 12px 32px rgba(0,0,255,0.25);
+    box-shadow: 0 14px 36px rgba(26, 58, 107, 0.28);
+  }
+
+  /* Eyebrow de seção — rótulo em caixa alta */
+  .fasi-section-eyebrow {
+    display: block;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #2563EB;
+    margin-bottom: 0.25rem;
+  }
+
+  /* Título de seção — barra vertical navy + texto display */
+  .fasi-section-title {
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: #0F172A;
+    margin-bottom: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+  }
+  .fasi-section-title::before {
+    content: '';
+    display: inline-block;
+    width: 3px;
+    height: 1.25em;
+    background: #1A3A6B;
+    border-radius: 2px;
+    flex-shrink: 0;
   }
 
   /* Badge de status */
   .fasi-badge {
-    @apply inline-flex items-center rounded-full px-2.5 py-0.5
-           text-xs font-medium;
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
   }
 
   /* Input padrão */
   .fasi-input {
-    @apply w-full rounded-lg border border-input bg-background px-3 py-2.5
-           text-sm placeholder:text-muted-foreground
-           focus:outline-none focus:ring-2 focus:ring-fasi-500 focus:border-transparent
-           transition-shadow duration-150;
+    width: 100%;
+    border-radius: 0.5rem;
+    border: 1px solid hsl(var(--input));
+    background: #ffffff;
+    padding: 0.625rem 0.75rem;
+    font-size: 0.875rem;
+    color: hsl(var(--foreground));
+    transition: box-shadow 0.15s, border-color 0.15s;
+    outline: none;
+  }
+  .fasi-input::placeholder { color: hsl(var(--muted-foreground)); }
+  .fasi-input:focus {
+    border-color: transparent;
+    box-shadow: 0 0 0 2px #2563EB;
   }
 
-  /* Botão primário FASI */
+  /* Botão primário */
   .fasi-btn-primary {
-    @apply inline-flex items-center justify-center gap-2
-           rounded-lg px-5 py-2.5 text-sm font-semibold text-white
-           bg-fasi-500 hover:bg-fasi-600 active:bg-fasi-700
-           focus:outline-none focus:ring-2 focus:ring-fasi-500 focus:ring-offset-2
-           disabled:opacity-50 disabled:cursor-not-allowed
-           transition-all duration-150;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #ffffff;
+    background: #2563EB;
+    border: none;
+    cursor: pointer;
+    transition: background 0.15s, box-shadow 0.15s;
+    outline: none;
   }
+  .fasi-btn-primary:hover  { background: #1d4ed8; }
+  .fasi-btn-primary:active { background: #1e40af; }
+  .fasi-btn-primary:focus-visible { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #2563EB; }
+  .fasi-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
   /* Botão secundário */
   .fasi-btn-secondary {
-    @apply inline-flex items-center justify-center gap-2
-           rounded-lg px-5 py-2.5 text-sm font-semibold
-           text-fasi-600 bg-fasi-50 hover:bg-fasi-100 border border-fasi-200
-           focus:outline-none focus:ring-2 focus:ring-fasi-500 focus:ring-offset-2
-           disabled:opacity-50 disabled:cursor-not-allowed
-           transition-all duration-150;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #1A3A6B;
+    background: #EFF6FF;
+    border: 1px solid #BFDBFE;
+    cursor: pointer;
+    transition: background 0.15s;
+    outline: none;
   }
+  .fasi-btn-secondary:hover    { background: #DBEAFE; }
+  .fasi-btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .fasi-btn-secondary:focus-visible { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #2563EB; }
 
   /* Botão outline */
   .fasi-btn-outline {
-    @apply inline-flex items-center justify-center gap-2
-           rounded-lg px-5 py-2.5 text-sm font-semibold
-           text-fasi-600 bg-transparent hover:bg-fasi-50 border border-fasi-500
-           focus:outline-none focus:ring-2 focus:ring-fasi-500 focus:ring-offset-2
-           transition-all duration-150;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #1A3A6B;
+    background: transparent;
+    border: 1.5px solid #1A3A6B;
+    cursor: pointer;
+    transition: background 0.15s;
+    outline: none;
+  }
+  .fasi-btn-outline:hover { background: #EFF6FF; }
+  .fasi-btn-outline:focus-visible { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #2563EB; }
+
+  /* Área de upload */
+  .fasi-upload-area {
+    border: 2px dashed #BFDBFE;
+    border-radius: 0.75rem;
+    padding: 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .fasi-upload-area:hover {
+    border-color: #2563EB;
+    background: #EFF6FF;
   }
 
-  /* Section title */
-  .fasi-section-title {
-    @apply text-xl font-bold text-foreground border-b-2 border-fasi-500 pb-2 mb-6;
-    display: inline-block;
+  /* Caixa informativa */
+  .fasi-info-box {
+    border-radius: 0.75rem;
+    border: 1px solid #BFDBFE;
+    background: #EFF6FF;
+    padding: 1.25rem;
+    font-size: 0.875rem;
+    color: #1e3a8a;
   }
 
   /* Tab ativa */
   .fasi-tab-active {
-    @apply bg-fasi-500 text-white;
-  }
-
-  /* Upload area */
-  .fasi-upload-area {
-    @apply border-2 border-dashed border-fasi-200 rounded-xl p-8 text-center
-           hover:border-fasi-400 hover:bg-fasi-50
-           transition-all duration-200 cursor-pointer;
-  }
-
-  /* Alert / info box */
-  .fasi-info-box {
-    @apply rounded-lg border border-fasi-100 bg-fasi-50 p-4
-           text-sm text-fasi-800;
+    background: #1A3A6B;
+    color: #ffffff;
   }
 }
 
-/* ── Scrollbar sutil ─────────────────────────────────────────────────── */
+/* ── Utilitários ─────────────────────────────────────────────────────────── */
 @layer utilities {
   ::-webkit-scrollbar       { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: #0000ff44; border-radius: 3px; }
-  ::-webkit-scrollbar-thumb:hover { background: #0000ff88; }
+  ::-webkit-scrollbar-thumb { background: rgba(26,58,107,0.28); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(26,58,107,0.48); }
 
   .scrollbar-none { scrollbar-width: none; }
   .scrollbar-none::-webkit-scrollbar { display: none; }
+
+  .font-display { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
 }

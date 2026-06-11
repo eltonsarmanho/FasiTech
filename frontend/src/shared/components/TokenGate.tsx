@@ -41,7 +41,7 @@ export function TokenGate({ storageKey, children }: Props) {
     <div className="flex flex-col items-center justify-center py-16">
       <div className="fasi-card max-w-sm w-full p-8 text-center space-y-5">
         <div className="flex justify-center">
-          <Lock className="w-10 h-10 text-fasi-500" />
+          <Lock className="w-10 h-10" style={{ color: '#1A3A6B' }} />
         </div>
         <div>
           <h2 className="text-lg font-semibold text-foreground">Acesso Restrito</h2>

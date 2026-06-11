@@ -12,7 +12,7 @@ export function FormSection({ title, children, className }: FormSectionProps) {
     <div className={cn('fasi-card p-6 mb-6', className)}>
       {title && (
         <h2 className="text-base font-semibold text-foreground mb-5 flex items-center gap-2">
-          <span className="w-1 h-5 rounded-full bg-fasi-500 inline-block" />
+          <span className="w-1 h-5 rounded-full inline-block" style={{ background: '#1A3A6B' }} />
           {title}
         </h2>
       )}

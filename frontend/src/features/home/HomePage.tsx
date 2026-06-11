@@ -2,8 +2,6 @@ import { FormCard } from '@/shared/components/FormCard'
 import fasiLogo from '@/assets/fasiOficial.png'
 import seloSebrae from '@/assets/selo-sebrae.png'
 
-// ── Dados dos cards ──────────────────────────────────────────────────────────
-
 const studentForms = [
   {
     icon: '🎓',
@@ -74,88 +72,100 @@ const generalItems = [
   },
 ]
 
-// ── Componente ───────────────────────────────────────────────────────────────
+function SectionHeader({ eyebrow, title }: { eyebrow: string; title: string }) {
+  return (
+    <div className="mb-5">
+      <span className="fasi-section-eyebrow">{eyebrow}</span>
+      <h2 className="fasi-section-title">{title}</h2>
+    </div>
+  )
+}
 
 export function HomePage() {
   return (
     <div className="animate-slide-up space-y-10">
-      {/* ── Hero ──────────────────────────────────────────────────────────── */}
-      <div className="fasi-header-gradient rounded-2xl p-8 md:p-12 text-white relative overflow-hidden">
-        <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-white/5 pointer-events-none" />
-        <div className="absolute -bottom-10 -left-10 w-40 h-40 rounded-full bg-white/5 pointer-events-none" />
 
-        <div className="relative flex flex-col md:flex-row items-center gap-6">
+      {/* ── Hero institucional ───────────────────────────────────────── */}
+      <div className="fasi-header-gradient rounded-2xl overflow-hidden">
+        <div className="flex flex-col md:flex-row items-center gap-6 px-8 md:px-12 py-10 md:py-12">
           <img
             src={fasiLogo}
             alt="FASI — Faculdade de Sistemas de Informação"
-            className="h-20 md:h-24 object-contain bg-white rounded-xl px-4 py-2 shadow-fasi-md"
+            className="h-20 md:h-24 object-contain bg-white rounded-xl px-4 py-2 shadow-navy-md shrink-0"
           />
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold mb-2">
+            <p
+              className="text-[10px] font-bold tracking-[0.2em] uppercase mb-2"
+              style={{ color: 'rgba(255,255,255,0.55)' }}
+            >
+              Universidade Federal do Pará · FASI
+            </p>
+            <h1 className="text-2xl md:text-3xl font-display font-bold text-white mb-2 leading-tight">
               Portal Acadêmico da FASI
             </h1>
-            <p className="text-white/80 text-sm md:text-base leading-relaxed max-w-xl">
+            <p className="text-sm md:text-base leading-relaxed max-w-xl" style={{ color: 'rgba(255,255,255,0.75)' }}>
               Central integrada de serviços, formulários e documentos institucionais.
               Acesse todos os recursos acadêmicos de forma rápida e unificada.
             </p>
           </div>
-
         </div>
       </div>
 
-      {/* ── Reconhecimento ────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-4 rounded-xl border border-green-200 bg-green-50 px-5 py-4">
+      {/* ── Reconhecimento Sebrae ────────────────────────────────────── */}
+      <div
+        className="flex items-center gap-4 rounded-xl px-5 py-4"
+        style={{ border: '1px solid #BBF7D0', background: '#F0FDF4' }}
+      >
         <img
           src={seloSebrae}
           alt="Selo Sebrae — Prêmio Educador Transformador"
-          className="h-32 w-32 shrink-0 object-contain"
+          className="h-28 w-28 shrink-0 object-contain"
         />
         <div>
-          <p className="font-semibold text-green-800 text-sm">
-            🏆 2º Lugar em Gestão Educacional Transformadora — Prêmio Educador Transformador · 3ª Edição
+          <p className="font-semibold text-sm" style={{ color: '#15803D' }}>
+            2º Lugar — Gestão Educacional Transformadora · Prêmio Educador Transformador 3ª Edição
           </p>
-          <p className="text-green-700 text-xs mt-0.5 leading-relaxed">
-            O FasiTech conquistou o 2º lugar na categoria Gestão Educacional Transformadora no
-            Prêmio Educador Transformador (3ª Edição), promovido pelo Sebrae, reconhecendo sua
-            contribuição à inovação e digitalização dos processos acadêmicos.
+          <p className="text-xs mt-1 leading-relaxed" style={{ color: '#16A34A' }}>
+            O FasiTech foi reconhecido pelo Sebrae pela contribuição à inovação
+            e digitalização dos processos acadêmicos da FASI/UFPA.
           </p>
         </div>
       </div>
 
-      {/* ── Formulários Discentes ─────────────────────────────────────────── */}
+      {/* ── Formulários para Discentes ──────────────────────────────── */}
       <section>
-        <h2 className="fasi-section-title">🎓 Formulários para Discentes</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+        <SectionHeader eyebrow="Discentes" title="Formulários para Alunos" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {studentForms.map(card => (
             <FormCard key={card.to} {...card} />
           ))}
         </div>
       </section>
 
-      {/* ── Formulários Docentes ──────────────────────────────────────────── */}
+      {/* ── Formulários para Docentes ───────────────────────────────── */}
       <section>
-        <h2 className="fasi-section-title">👨‍🏫 Formulários para Docentes</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+        <SectionHeader eyebrow="Docentes" title="Formulários para Professores" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {teacherForms.map(card => (
             <FormCard key={card.to} {...card} />
           ))}
         </div>
       </section>
 
-      {/* ── Geral ────────────────────────────────────────────────────────── */}
+      {/* ── Geral ───────────────────────────────────────────────────── */}
       <section>
-        <h2 className="fasi-section-title">🌐 Geral</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+        <SectionHeader eyebrow="Geral" title="Outros Serviços" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {generalItems.map(card => (
             <FormCard key={card.to} {...card} />
           ))}
         </div>
       </section>
 
-      {/* ── Info box ────────────────────────────────────────────────────── */}
+      {/* ── Informações importantes ──────────────────────────────────── */}
       <div className="fasi-info-box">
-        <p className="font-semibold text-fasi-700 mb-2">ℹ️ Informações Importantes</p>
-        <ul className="space-y-1 text-fasi-800">
+        <p className="font-semibold mb-2" style={{ color: '#1e3a8a' }}>Informações Importantes</p>
+        <ul className="space-y-1" style={{ color: '#1e40af' }}>
           <li>• Todos os formulários exigem dados pessoais e documentos em formato PDF</li>
           <li>• Certifique-se que sua matrícula está ativa no SIGAA antes de enviar</li>
           <li>• Você receberá confirmação por e-mail após o processamento</li>
@@ -163,6 +173,7 @@ export function HomePage() {
           <li>• Dúvidas: <a href="mailto:fasicuntins@ufpa.br" className="underline font-medium">fasicuntins@ufpa.br</a></li>
         </ul>
       </div>
+
     </div>
   )
 }
