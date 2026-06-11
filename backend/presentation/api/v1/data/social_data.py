@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import io
 from datetime import datetime
+from typing import Optional
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from fastapi.responses import HTMLResponse, StreamingResponse
 
 from backend.infrastructure.database.social_data_service import SocialDataService
@@ -33,6 +34,81 @@ def _build_rows(dados):
             'Acesso Internet': item.acesso_internet.value if item.acesso_internet else '',
         })
     return rows
+
+
+@router.get("/dados-sociais/dashboard")
+async def get_dashboard(
+    polo: Optional[str] = Query(None),
+    periodo: Optional[str] = Query(None),
+):
+    import pandas as pd
+
+    df = SocialDataService._load_raw_data()
+
+    polos: list = []
+    periodos: list = []
+
+    if not df.empty:
+        polos = sorted(df["Polo"].dropna().unique().tolist())
+        periodos = sorted(df["Periodo"].dropna().unique().tolist(), reverse=True)
+        if polo:
+            df = df[df["Polo"] == polo]
+        if periodo:
+            df = df[df["Periodo"] == periodo]
+
+    total = len(df)
+
+    if total == 0:
+        return {
+            "total": 0,
+            "pct_pcd": 0.0,
+            "pct_assistencia": 0.0,
+            "saude_media": None,
+            "polos": polos,
+            "periodos": periodos,
+            "distribuicoes": {k: {} for k in [
+                "genero", "cor_etnia", "renda", "moradia", "trabalho",
+                "deslocamento", "acesso_internet", "saude_mental",
+                "assistencia_estudantil", "escolaridade_pai", "escolaridade_mae",
+            ]},
+        }
+
+    def dist(col: str) -> dict:
+        if col not in df.columns:
+            return {}
+        return {str(k): int(v) for k, v in df[col].value_counts().items()}
+
+    pcd_count = int((df["PCD"] == "Sim").sum()) if "PCD" in df.columns else 0
+    pct_pcd = round(pcd_count / total * 100, 1)
+
+    assist_count = int((df["Assistência Estudantil"] == "Sim").sum()) if "Assistência Estudantil" in df.columns else 0
+    pct_assistencia = round(assist_count / total * 100, 1)
+
+    saude_map = {"Muito boa": 5, "Boa": 4, "Regular": 3, "Ruim": 2, "Muito ruim": 1}
+    saude_scores = df["Saúde Mental"].map(saude_map).dropna() if "Saúde Mental" in df.columns else pd.Series(dtype=float)
+    saude_media = round(float(saude_scores.mean()), 2) if len(saude_scores) > 0 else None
+
+    return {
+        "total": total,
+        "pct_pcd": pct_pcd,
+        "pct_assistencia": pct_assistencia,
+        "saude_media": saude_media,
+        "polos": polos,
+        "periodos": periodos,
+        "distribuicoes": {
+            "genero": dist("Genero"),
+            "cor_etnia": dist("Cor/Etnia"),
+            "renda": dist("Renda"),
+            "moradia": dist("Tipo Moradia"),
+            "trabalho": dist("Trabalho"),
+            "deslocamento": dist("Deslocamento"),
+            "acesso_internet": dist("Acesso Internet"),
+            "saude_mental": dist("Saúde Mental"),
+            "assistencia_estudantil": dist("Assistência Estudantil"),
+            "escolaridade_pai": dist("Escolaridade Pai"),
+            "escolaridade_mae": dist("Escolaridade Mãe"),
+        },
+    }
 
 
 @router.get("/dados-sociais/download", response_class=HTMLResponse, include_in_schema=False)

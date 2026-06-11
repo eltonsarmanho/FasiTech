@@ -18,6 +18,7 @@ import { LancamentoConceitos } from '@/features/lancamento-conceitos/LancamentoC
 import { ConsultaRequerimentoTCC } from '@/features/consulta-requerimento-tcc/ConsultaRequerimentoTCC'
 import { ConsultaProjetos } from '@/features/consulta-projetos/ConsultaProjetos'
 import { ConsultaGestao } from '@/features/consulta-gestao/ConsultaGestao'
+import { ConsultaSocial } from '@/features/consulta-social/ConsultaSocial'
 import { ConfiguracaoPage } from '@/features/configuracao/ConfiguracaoPage'
 import { GestorPeriodos } from '@/features/gestor-periodos/GestorPeriodos'
 import { GestorFuncionarios } from '@/features/gestor-funcionarios/GestorFuncionarios'
@@ -56,6 +57,7 @@ export default function App() {
         <Route path="consulta/requerimento-tcc" element={<ConsultaRequerimentoTCC />} />
         <Route path="consulta/projetos" element={<ConsultaProjetos />} />
         <Route path="consulta/gestao" element={<ConsultaGestao />} />
+        <Route path="consulta/social" element={<ConsultaSocial />} />
 
         {/* Configuração */}
         <Route path="configuracao" element={<ConfiguracaoPage />} />

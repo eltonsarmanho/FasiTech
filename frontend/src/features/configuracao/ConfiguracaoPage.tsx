@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ClipboardList, FlaskConical, Bell, BookOpen, BarChart2, CalendarRange, Users } from 'lucide-react'
+import { ClipboardList, FlaskConical, Bell, BookOpen, BarChart2, CalendarRange, Users, UserCheck } from 'lucide-react'
 
 import { PageShell } from '@/shared/components/PageShell'
 import { TokenGate } from '@/shared/components/TokenGate'
@@ -53,6 +53,13 @@ const items = [
     description: 'Cadastro de docentes e colaboradores — nome, titulação, tipo, contato e aniversário.',
     to: '/admin/funcionarios',
     color: 'text-amber-500',
+  },
+  {
+    icon: UserCheck,
+    title: 'Dashboard Social',
+    description: 'Perfil socioeconômico dos discentes — gênero, renda, moradia, saúde mental, PCD e assistência estudantil.',
+    to: '/consulta/social',
+    color: 'text-fasi-500',
   },
 ]
 
