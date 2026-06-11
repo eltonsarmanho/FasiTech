@@ -66,7 +66,7 @@ class RequerimentoTccFormRequest(BaseModel):
 
 class SocialFormRequest(BaseModel):
     matricula: str
-    periodo_referencia: str
+    periodo_referencia: Optional[str] = None
     genero: Optional[str] = None
     polo: Optional[str] = None
     cor_etnia: Optional[str] = None

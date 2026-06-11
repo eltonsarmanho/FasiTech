@@ -1143,10 +1143,18 @@ Os documentos gerados foram anexados a este e-mail e também salvos no Google Dr
 # Submissões JSON (sem arquivo) — Social, Avaliação, Requerimento TCC, Emissão
 # ---------------------------------------------------------------------------
 
+def _calc_periodo_social() -> str:
+    from datetime import datetime  # noqa: PLC0415
+    now = datetime.now()
+    semestre = "(1 e 2)" if now.month <= 7 else "(3 e 4)"
+    return f"{now.year}.{semestre}"
+
+
 def process_social_submission(**kwargs: Any) -> Dict[str, Any]:
     """Salva dados do formulário socioeconômico e envia notificação interna."""
     from backend.infrastructure.database.repository import save_social_submission  # noqa: PLC0415
 
+    kwargs["periodo_referencia"] = _calc_periodo_social()
     submission_id = save_social_submission(kwargs)
 
     # Salvar no Google Sheets

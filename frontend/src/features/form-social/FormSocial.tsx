@@ -6,21 +6,20 @@ import { PageShell } from '@/shared/components/PageShell'
 import { FormSection, FieldGroup, Field } from '@/shared/components/FormSection'
 import { SubmitButton } from '@/shared/components/SubmitButton'
 import { POLOS, GENEROS, COR_ETNIA_OPTIONS, RENDA_OPTIONS } from '@/shared/lib/constants'
-import { usePeriodosLetivos } from '@/shared/hooks/usePeriodosLetivos'
 import { submitJson } from '@/shared/lib/api'
 import { numericProps } from '@/shared/lib/masks'
 
 const SIM_NAO = ['Sim', 'Não'] as const
-const MORADIA = ['Própria', 'Alugada', 'Cedida', 'Quilombola/Indígena', 'Outro'] as const
+const MORADIA = ['Própria', 'Alugada', 'Cedida', 'Outro'] as const
 const TRABALHO_OPT = ['Não trabalho', 'Trabalho com carteira assinada', 'Autônomo/Informal', 'Estágio', 'Outro'] as const
 const DESLOCAMENTO = ['A pé', 'Bicicleta', 'Moto', 'Carro próprio', 'Transporte público', 'Barco/Fluvial', 'Outro'] as const
 const ASSIST_EST = ['Não recebo', 'Ótima', 'Boa', 'Regular', 'Ruim', 'Péssima'] as const
 const SAUDE_MENTAL = ['Ótima', 'Boa', 'Regular', 'Ruim', 'Péssima'] as const
 const ESCOLARIDADE = ['Sem escolaridade', 'Fundamental incompleto', 'Fundamental completo', 'Médio incompleto', 'Médio completo', 'Superior incompleto', 'Superior completo', 'Pós-graduação'] as const
 const ACESSO_INTERNET = ['Muito ruim', 'Ruim', 'Regular', 'Boa', 'Muito boa'] as const
+const GASTO_UNIVERSIDADE = ['Menos de R$ 250', 'Entre R$ 250 a R$ 500', 'Acima de R$ 500'] as const
 
 export function FormSocial() {
-  const { data: periodos = [] } = usePeriodosLetivos()
   const { register, handleSubmit, watch, reset, formState: { errors } } = useForm()
   const pcd = watch('pcd')
 
@@ -50,12 +49,6 @@ export function FormSocial() {
                   pattern: { value: /^\d{12}$/, message: 'Matrícula deve ter exatamente 12 dígitos numéricos' },
                 })}
               />
-            </Field>
-            <Field label="Período de referência" required>
-              <select className="fasi-input" {...register('periodo_referencia', { required: true })}>
-                <option value="">Selecione</option>
-                {periodos.map(p => <option key={p}>{p}</option>)}
-              </select>
             </Field>
             <Field label="Gênero">
               <select className="fasi-input" {...register('genero')}>
@@ -186,8 +179,11 @@ export function FormSocial() {
                 {ACESSO_INTERNET.map(o => <option key={o}>{o}</option>)}
               </select>
             </Field>
-            <Field label="Gasto mensal com internet">
-              <input className="fasi-input" placeholder="Ex.: R$ 80,00 / mês" {...register('gasto_internet')} />
+            <Field label="Gasto mensal com Universidade">
+              <select className="fasi-input" {...register('gasto_internet')}>
+                <option value="">Selecione</option>
+                {GASTO_UNIVERSIDADE.map(o => <option key={o}>{o}</option>)}
+              </select>
             </Field>
           </FieldGroup>
         </FormSection>
