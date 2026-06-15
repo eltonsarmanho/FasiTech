@@ -59,7 +59,7 @@ class RequerimentoTccFormRequest(BaseModel):
     membro_banca1: Optional[str] = None
     membro_banca2: Optional[str] = None
     membro_banca3: Optional[str] = None
-    data_defesa: Optional[str] = None
+    data_defesa: str  # obrigatório — sem data não é possível validar conflito
     horario_defesa: str  # obrigatório
     local_defesa: Optional[str] = None
 

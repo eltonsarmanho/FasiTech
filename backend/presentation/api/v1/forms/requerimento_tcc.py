@@ -48,15 +48,19 @@ async def submit_requerimento_tcc(data: RequerimentoTccFormRequest):
         from backend.infrastructure.database.repository import check_tcc_scheduling_conflicts
         conflicts = check_tcc_scheduling_conflicts(data.model_dump(), exclude_matricula=data.matricula)
         if conflicts:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "; ".join(conflicts))
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                {"type": "cruzamento_horario", "conflitos": conflicts},
+            )
 
     try:
         from backend.infrastructure.form_service_legacy import process_requerimento_tcc_submission
         result = process_requerimento_tcc_submission(**data.model_dump())
+        is_new = result.get("is_new", True)
         return SubmissionResult(
             id=result.get("id", 0),
             status="recebido",
-            message="Requerimento de TCC registrado com sucesso!",
+            message="Requerimento de TCC registrado com sucesso!" if is_new else "Requerimento de TCC atualizado com sucesso!",
         )
     except HTTPException:
         raise

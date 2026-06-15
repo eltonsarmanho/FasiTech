@@ -1239,34 +1239,36 @@ def process_requerimento_tcc_submission(**kwargs: Any) -> Dict[str, Any]:
     """Salva requerimento de defesa de TCC e envia notificação aos envolvidos."""
     from backend.infrastructure.database.repository import save_requerimento_tcc_submission  # noqa: PLC0415
 
-    submission_id = save_requerimento_tcc_submission(kwargs)
+    submission_id, is_new = save_requerimento_tcc_submission(kwargs)
 
     try:
-        # Destinatários: orientador (e-mail da base) + Diretor + aluno.
-        # Os membros da banca NÃO são notificados.
-        recipients = _merge_recipients(
-            _recipients_from_db(kwargs.get("orientador")),
-            _emails_por_cargo("diretor_faculdade"),
-        )
-        aluno_email = kwargs.get("email")
-        all_recipients = list({aluno_email, *recipients} - {None, ""}) if aluno_email else recipients
-
-        if all_recipients:
-            subject = f"[FasiTech] Requerimento de TCC — {kwargs.get('nome_aluno', '?')}"
-            body = (
-                f"Novo requerimento de defesa de TCC recebido.\n\n"
-                f"Aluno(a): {kwargs.get('nome_aluno')}\n"
-                f"Matrícula: {kwargs.get('matricula')}\n"
-                f"Orientador(a): {kwargs.get('orientador')}\n"
-                f"Título: {kwargs.get('titulo_trabalho')}\n"
-                f"Modalidade: {kwargs.get('modalidade')}\n"
-                f"Data de defesa: {kwargs.get('data_defesa', 'A definir')}\n"
+        # Envia email apenas em novos cadastros — re-submissões (edições) não disparam email.
+        if is_new:
+            # Destinatários: orientador (e-mail da base) + Diretor + aluno.
+            # Os membros da banca NÃO são notificados.
+            recipients = _merge_recipients(
+                _recipients_from_db(kwargs.get("orientador")),
+                _emails_por_cargo("diretor_faculdade"),
             )
-            send_notification(subject, body, all_recipients)
+            aluno_email = kwargs.get("email")
+            all_recipients = list({aluno_email, *recipients} - {None, ""}) if aluno_email else recipients
+
+            if all_recipients:
+                subject = f"[FasiTech] Requerimento de TCC — {kwargs.get('nome_aluno', '?')}"
+                body = (
+                    f"Novo requerimento de defesa de TCC recebido.\n\n"
+                    f"Aluno(a): {kwargs.get('nome_aluno')}\n"
+                    f"Matrícula: {kwargs.get('matricula')}\n"
+                    f"Orientador(a): {kwargs.get('orientador')}\n"
+                    f"Título: {kwargs.get('titulo_trabalho')}\n"
+                    f"Modalidade: {kwargs.get('modalidade')}\n"
+                    f"Data de defesa: {kwargs.get('data_defesa', 'A definir')}\n"
+                )
+                send_notification(subject, body, all_recipients)
     except Exception as exc:
         print(f"⚠️ Erro ao notificar requerimento TCC: {exc}")
 
-    return {"id": submission_id}
+    return {"id": submission_id, "is_new": is_new}
 
 
 def process_emissao_documentos_submission(**kwargs: Any) -> Dict[str, Any]:

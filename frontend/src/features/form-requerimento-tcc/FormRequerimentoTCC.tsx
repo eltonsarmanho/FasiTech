@@ -2,13 +2,14 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation } from '@tanstack/react-query'
+import { useState } from 'react'
 import toast from 'react-hot-toast'
 
 import { PageShell } from '@/shared/components/PageShell'
 import { FormSection, FieldGroup, Field } from '@/shared/components/FormSection'
 import { SubmitButton } from '@/shared/components/SubmitButton'
 import { MODALIDADES_TCC } from '@/shared/lib/constants'
-import { submitJson } from '@/shared/lib/api'
+import { submitJson, ApiError } from '@/shared/lib/api'
 import { numericProps, MATRICULA_REGEX, MATRICULA_MSG, ANO_REGEX, ANO_MSG, EMAIL_MSG } from '@/shared/lib/masks'
 import { usePeriodosSubmissao, isPeriodoAtivo, formatPeriodo } from '@/shared/hooks/usePeriodosSubmissao'
 import { useFuncionarios, nomesFiltrados } from '@/shared/hooks/useFuncionarios'
@@ -47,6 +48,7 @@ export function FormRequerimentoTCC() {
   })
 
   const dataDefesaValue = watch('data_defesa')
+  const [conflictErrors, setConflictErrors] = useState<string[]>([])
 
   const mutation = useMutation({
     mutationFn: (data: FormData) => {
@@ -61,8 +63,22 @@ export function FormRequerimentoTCC() {
       }
       return submitJson('/api/v1/forms/requerimento-tcc', payload)
     },
-    onSuccess: () => { toast.success('Requerimento de TCC registrado com sucesso!'); reset() },
-    onError: (e: Error) => toast.error(e.message || 'Erro ao registrar. Tente novamente.'),
+    onSuccess: () => {
+      setConflictErrors([])
+      toast.success('Requerimento de TCC registrado com sucesso!')
+      reset()
+    },
+    onError: (e: Error) => {
+      setConflictErrors([])
+      if (e instanceof ApiError) {
+        const detail = e.detail as { type?: string; conflitos?: string[] } | null
+        if (detail?.type === 'cruzamento_horario' && Array.isArray(detail.conflitos)) {
+          setConflictErrors(detail.conflitos)
+          return
+        }
+      }
+      toast.error(e.message || 'Erro ao registrar. Tente novamente.')
+    },
   })
 
   return (
@@ -193,6 +209,25 @@ export function FormRequerimentoTCC() {
         </FormSection>
 
         <SubmitButton loading={mutation.isPending} label="Enviar Requerimento" />
+
+        {conflictErrors.length > 0 && (
+          <div className="mt-4 rounded-lg border border-red-300 bg-red-50 p-4">
+            <p className="flex items-center gap-2 font-semibold text-red-700 mb-2">
+              <span>⚠️</span> Conflito de horário detectado
+            </p>
+            <ul className="space-y-1.5 text-sm text-red-700">
+              {conflictErrors.map((msg, i) => (
+                <li key={i} className="flex gap-2">
+                  <span className="mt-0.5 shrink-0">•</span>
+                  <span>{msg}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-3 text-xs text-red-600">
+              Ajuste a data e/ou horário da defesa para evitar o conflito antes de enviar novamente.
+            </p>
+          </div>
+        )}
       </form>
     </PageShell>
   )

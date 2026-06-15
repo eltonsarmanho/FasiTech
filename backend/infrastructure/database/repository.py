@@ -78,7 +78,7 @@ def _ensure_forms_schema_columns() -> None:
 
 
 def _ensure_requerimento_tcc_schema_columns() -> None:
-    """Garante coluna membro_banca3 na tabela requerimento_tcc_submissions."""
+    """Garante que todas as colunas adicionadas após a criação inicial da tabela existam."""
     global _req_tcc_schema_ready
     with _req_tcc_schema_lock:
         if _req_tcc_schema_ready:
@@ -86,12 +86,19 @@ def _ensure_requerimento_tcc_schema_columns() -> None:
         inspector = inspect(engine)
         if "requerimento_tcc_submissions" in set(inspector.get_table_names()):
             current = {c["name"] for c in inspector.get_columns("requerimento_tcc_submissions")}
+            alterations = [
+                ("membro_banca3",  "VARCHAR(255)"),
+                ("data_defesa",    "VARCHAR(50)"),
+                ("horario_defesa", "VARCHAR(50)"),
+                ("local_defesa",   "VARCHAR(255)"),
+            ]
             with engine.begin() as conn:
-                if "membro_banca3" not in current:
-                    conn.execute(text(
-                        "ALTER TABLE requerimento_tcc_submissions "
-                        "ADD COLUMN membro_banca3 VARCHAR(255)"
-                    ))
+                for col, col_type in alterations:
+                    if col not in current:
+                        conn.execute(text(
+                            f"ALTER TABLE requerimento_tcc_submissions "
+                            f"ADD COLUMN {col} {col_type}"
+                        ))
         _req_tcc_schema_ready = True
 
 
@@ -456,7 +463,8 @@ def check_tcc_scheduling_conflicts(data: Dict[str, Any], exclude_matricula: Opti
     Verifica conflitos de agenda para defesas de TCC.
     Retorna lista de mensagens de conflito (vazia = sem conflito).
 
-    Política 1: mesmo dia/horário com título+banca diferentes → conflito de slot.
+    Política 1: mesmo dia/horário com membro(s) em comum → conflito de slot.
+                Grupos completamente diferentes no mesmo slot são permitidos.
     Política 2: membro em outra banca no mesmo dia com diferença < 60 min → conflito de disponibilidade.
     """
     _ensure_requerimento_tcc_schema_columns()
@@ -485,13 +493,22 @@ def check_tcc_scheduling_conflicts(data: Dict[str, Any], exclude_matricula: Opti
             same_slot = row.horario_defesa == horario
 
             if same_slot:
-                is_dupla = (new_titulo == ex_titulo and new_members == ex_members and len(new_members) > 0)
+                is_dupla = (
+                    bool(new_titulo)  # título não pode ser vazio — evita falso positivo
+                    and new_titulo == ex_titulo
+                    and new_members == ex_members
+                    and len(new_members) > 0
+                )
                 if not is_dupla:
-                    conflicts.append(
-                        f"Já existe uma defesa cadastrada para {data_defesa} às {horario} "
-                        f"(aluno: {row.nome_aluno}). Se você é parceiro(a) neste TCC, "
-                        f"use exatamente o mesmo título e os mesmos membros da banca."
-                    )
+                    overlap = new_members & ex_members
+                    if overlap:
+                        nomes = ", ".join(sorted(overlap))
+                        conflicts.append(
+                            f"Conflito no mesmo horário ({data_defesa} às {horario}): "
+                            f"o(s) membro(s) '{nomes}' já fazem parte da banca do aluno "
+                            f"{row.nome_aluno}. Se você é parceiro(a) neste TCC, "
+                            f"use exatamente o mesmo título e os mesmos membros da banca."
+                        )
             elif new_min is not None and ex_min is not None:
                 if abs(new_min - ex_min) < 60:
                     overlap = new_members & ex_members
@@ -505,8 +522,11 @@ def check_tcc_scheduling_conflicts(data: Dict[str, Any], exclude_matricula: Opti
     return conflicts
 
 
-def save_requerimento_tcc_submission(data: Dict[str, Any]) -> int:
-    """Salva ou atualiza submissão do Requerimento de TCC (upsert por matricula)."""
+def save_requerimento_tcc_submission(data: Dict[str, Any]) -> tuple[int, bool]:
+    """Salva ou atualiza submissão do Requerimento de TCC (upsert por matricula).
+    
+    Retorna (id, is_new) onde is_new=True indica criação, False indica atualização.
+    """
     _ensure_requerimento_tcc_schema_columns()
 
     fields = dict(
@@ -541,13 +561,13 @@ def save_requerimento_tcc_submission(data: Dict[str, Any]) -> int:
             session.add(existing)
             session.commit()
             session.refresh(existing)
-            return existing.id
+            return existing.id, False
 
         submission = RequerimentoTccSubmission(matricula=data["matricula"], **fields)
         session.add(submission)
         session.commit()
         session.refresh(submission)
-        return submission.id
+        return submission.id, True
 
 
 def list_requerimento_tcc_submissions(
