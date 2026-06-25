@@ -51,6 +51,7 @@ origins = [
     "https://www.fasitech.com.br",
     "https://fasitech.com.br",
     "http://fasitech.cameta.ufpa.br",
+    "https://fasitech.cameta.ufpa.br",
 ]
 
 app.add_middleware(
