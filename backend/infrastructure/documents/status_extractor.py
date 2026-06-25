@@ -94,10 +94,42 @@ class StatusAlunoExtractor:
     def aluno_integralizou(pdf_input: PdfInput) -> bool:
         texto = StatusAlunoExtractor._pdf_to_text(pdf_input)
         StatusAlunoExtractor._validar_documento_historico_texto(texto)
-        match = re.search(r"^\s*Pendente\s+.*?(\d+)\s*h\s*$", texto, flags=re.MULTILINE | re.IGNORECASE)
-        if not match:
-            raise ValueError("Linha 'Pendente' não encontrada na seção de carga horária.")
-        return int(match.group(1)) == 0
+
+        # Regra principal: Total Integralizado deve ser >= Total Exigido.
+        # Captura o último valor numérico da linha (coluna Total).
+        exigido_match = re.search(
+            r"^\s*Exigido\b[^\n]*\b(\d+)\s*h\s*$",
+            texto,
+            flags=re.MULTILINE | re.IGNORECASE,
+        )
+        integralizado_match = re.search(
+            r"^\s*Integralizado\b[^\n]*\b(\d+)\s*h\s*$",
+            texto,
+            flags=re.MULTILINE | re.IGNORECASE,
+        )
+        if not exigido_match or not integralizado_match:
+            raise ValueError(
+                "Carga horária Exigido/Integralizado não encontrada na seção de carga horária."
+            )
+
+        exigido = int(exigido_match.group(1))
+        integralizado = int(integralizado_match.group(1))
+        if integralizado < exigido:
+            return False
+
+        # Verificação adicional: componentes obrigatórios pendentes com CH > 0.
+        pendentes_match = re.search(
+            r"Componentes\s+Curriculares\s+Obrigat[oó]rios\s+Pendentes\s*:\s*(\d+)",
+            texto,
+            flags=re.IGNORECASE,
+        )
+        if pendentes_match and int(pendentes_match.group(1)) > 0:
+            secao_pendentes = texto[pendentes_match.end():pendentes_match.end() + 2000]
+            chs = [int(ch) for ch in re.findall(r"\b(\d+)\s*h\b", secao_pendentes)]
+            if any(ch > 0 for ch in chs):
+                return False
+
+        return True
 
     @staticmethod
     def aluno_matriculado(pdf_input: PdfInput) -> bool:
