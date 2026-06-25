@@ -9,7 +9,7 @@ import { Upload, FileText, X } from 'lucide-react'
 import { PageShell } from '@/shared/components/PageShell'
 import { FormSection, FieldGroup, Field } from '@/shared/components/FormSection'
 import { SubmitButton } from '@/shared/components/SubmitButton'
-import { api } from '@/shared/lib/api'
+import { ApiError, api } from '@/shared/lib/api'
 import { numericProps, cpfProps, MATRICULA_REGEX, MATRICULA_MSG, CPF_REGEX, CPF_MSG, EMAIL_MSG } from '@/shared/lib/masks'
 
 const TIPOS_DOCUMENTO = [
@@ -56,9 +56,15 @@ export function FormEmissaoDocumentos() {
       setHistorico(null)
       if (fileInputRef.current) fileInputRef.current.value = ''
     },
-    onError: (err: any) => {
-      const detail = err?.response?.data?.detail
-      toast.error(detail ?? 'Erro ao processar. Tente novamente.')
+    onError: (err: unknown) => {
+      const message =
+        err instanceof ApiError
+          ? err.message
+          : (err as { response?: { data?: { detail?: string } }; message?: string })?.response?.data?.detail
+            ?? (err as { message?: string })?.message
+            ?? 'Erro ao processar. Tente novamente.'
+
+      toast.error(message)
     },
   })
 
