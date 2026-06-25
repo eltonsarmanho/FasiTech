@@ -133,9 +133,16 @@ class StatusAlunoExtractor:
 
     @staticmethod
     def aluno_matriculado(pdf_input: PdfInput) -> bool:
+        """
+        Retorna True se houver ao menos uma disciplina com situação MATRICULADO
+        na seção 'Componentes Curriculares Cursados/Cursando'.
+        """
         texto = StatusAlunoExtractor._pdf_to_text(pdf_input)
         StatusAlunoExtractor._validar_documento_historico_texto(texto)
-        return "MATRICULADO" in texto.upper()
+        secao = StatusAlunoExtractor._extrair_secao_componentes(texto)
+        if not secao:
+            return False
+        return bool(re.search(r"\bMATRICULADO\b", secao, flags=re.IGNORECASE))
 
     @staticmethod
     def extrair_dados_aluno(pdf_input: PdfInput) -> dict[str, str]:

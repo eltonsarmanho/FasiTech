@@ -36,15 +36,27 @@ async def submit_emissao_documentos(
     tipo_documento: Annotated[str, Form()],
     historico: Annotated[UploadFile, File(description="PDF do histórico acadêmico")],
 ):
+    logger.info(
+        "emissao-documentos: matricula=%s tipo=%s filename=%s content_type=%s",
+        matricula, tipo_documento,
+        getattr(historico, "filename", "?"),
+        getattr(historico, "content_type", "?"),
+    )
+
     document_type = DOCUMENT_TYPE_MAP.get(tipo_documento)
     if not document_type:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Tipo de documento inválido.")
+        logger.warning("emissao-documentos: tipo_documento inválido=%r", tipo_documento)
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Tipo de documento inválido.")
 
     content = await historico.read()
     if len(content) > MAX_FILE_SIZE:
         raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "Arquivo excede 50 MB.")
     if historico.content_type != "application/pdf":
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Apenas arquivos PDF são aceitos.")
+        logger.warning(
+            "emissao-documentos: content_type inesperado=%r (matricula=%s)",
+            historico.content_type, matricula,
+        )
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Apenas arquivos PDF são aceitos.")
 
     file_obj = _FileLike(content, historico.filename or "historico.pdf")
 
@@ -64,13 +76,18 @@ async def submit_emissao_documentos(
             notification_recipients=settings.destinatarios or [],
         )
     except ValueError as e:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(e))
+        logger.warning("emissao-documentos: ValueError matricula=%s | %s", matricula, e)
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(e))
     except Exception as e:
         logger.error("Erro ao processar Emissão de Documentos:\n%s", traceback.format_exc())
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, f"Erro ao processar documento: {e}")
 
     if not result.get("success"):
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, result.get("message", "Validação do histórico falhou."))
+        logger.warning(
+            "emissao-documentos: rejeitado matricula=%s | %s",
+            matricula, result.get("message"),
+        )
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, result.get("message", "Validação do histórico falhou."))
 
     return {
         "status": "emitido",

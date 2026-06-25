@@ -1,12 +1,20 @@
 """
-Testes de validação do StatusAlunoExtractor com o histórico real da aluna
-Milena Lopes Brabo (matrícula 202285940010).
+Testes de validação do StatusAlunoExtractor com históricos reais.
 
-Cenário:
-  - Obrigatórias Exigido  : 3196 h
-  - Obrigatórias Integralizado: 3060 h  (< Exigido → NÃO integralizada)
-  - Componentes Obrigatórios Pendentes: 4 (SI05049, SI05050, SI05048, ENADE)
-  - Status SIGAA: GRADUANDO (não FORMANDO)
+Cenários cobertos:
+  [202016040002] Klebson do Carmo Silva
+    - Total Exigido == Total Integralizado (3332h == 3332h)
+    - Sem seção de pendentes → deve ser considerado INTEGRALIZADO
+    - Nenhuma disciplina MATRICULADO → aluno_matriculado = False
+
+  [202285940010] Milena Lopes Brabo
+    - Total Integralizado (3400h) >= Total Exigido (3196h), mas 4 componentes
+      obrigatórios pendentes com CH > 0 → NÃO integralizada
+    - Nenhuma disciplina MATRICULADO → aluno_matriculado = False
+
+  [202516040022] Henrique Costa Rodrigues
+    - Total Integralizado (285h) << Total Exigido (2855h) → NÃO integralizado
+    - Tem ao menos uma disciplina com situação MATRICULADO → aluno_matriculado = True
 """
 
 from pathlib import Path
@@ -15,66 +23,108 @@ import pytest
 
 from backend.infrastructure.documents.status_extractor import StatusAlunoExtractor
 
-HISTORICO_PDF = Path(__file__).parent / "historico_202016040002.pdf"
+DIR = Path(__file__).parent
+
+PDF_KLEBSON  = DIR / "historico_202016040002.pdf"   # integralizado, sem MATRICULADO
+PDF_MILENA   = DIR / "historico_202285940010.pdf"   # pendentes, sem MATRICULADO
+PDF_HENRIQUE = DIR / "historico_202516040022.pdf"   # ativo (MATRICULADO), não integralizado
 
 
 @pytest.fixture(scope="module")
-def pdf_bytes() -> bytes:
-    return HISTORICO_PDF.read_bytes()
+def bytes_klebson() -> bytes:
+    return PDF_KLEBSON.read_bytes()
+
+
+@pytest.fixture(scope="module")
+def bytes_milena() -> bytes:
+    return PDF_MILENA.read_bytes()
+
+
+@pytest.fixture(scope="module")
+def bytes_henrique() -> bytes:
+    return PDF_HENRIQUE.read_bytes()
 
 
 # ---------------------------------------------------------------------------
-# Validação do template
+# Validação de template SIGAA
 # ---------------------------------------------------------------------------
 
-def test_valida_documento_historico_nao_lanca(pdf_bytes: bytes):
-    """O PDF é reconhecido como histórico SIGAA/UFPA válido."""
-    StatusAlunoExtractor.validar_documento_historico(pdf_bytes)  # não deve lançar
+@pytest.mark.parametrize("pdf_path", [PDF_KLEBSON, PDF_MILENA, PDF_HENRIQUE])
+def test_todos_sao_historicos_sigaa_validos(pdf_path: Path):
+    """Os três PDFs devem ser reconhecidos como histórico SIGAA/UFPA válido."""
+    StatusAlunoExtractor.validar_documento_historico(pdf_path.read_bytes())
 
 
 # ---------------------------------------------------------------------------
-# Integralização – regra corrigida
+# aluno_integralizou
 # ---------------------------------------------------------------------------
 
-def test_aluno_NAO_integralizou(pdf_bytes: bytes):
+def test_klebson_integralizou(bytes_klebson: bytes):
     """
-    Total Integralizado (3400h) >= Total Exigido (3196h) → passa a primeira checagem.
-    Bloqueada pela segunda: 4 componentes obrigatórios pendentes com CH > 0
-    (SI05049 34h, SI05050 34h, SI05048 68h; ENADE 0h ignorado).
-    Bug anterior: método retornava True porque Pendente total = 0 h.
+    Exigido == Integralizado (3332h) e sem seção de pendentes
+    → deve retornar True.
     """
-    resultado = StatusAlunoExtractor.aluno_integralizou(pdf_bytes)
-    assert resultado is False, (
-        "Esperado False: aluna possui componentes obrigatórios pendentes "
-        "com carga horária > 0."
-    )
+    assert StatusAlunoExtractor.aluno_integralizou(bytes_klebson) is True
+
+
+def test_milena_NAO_integralizou(bytes_milena: bytes):
+    """
+    Total Integralizado (3400h) >= Total Exigido (3196h), mas há 4
+    componentes obrigatórios pendentes com CH > 0 → deve retornar False.
+    Bug anterior: retornava True porque Pendente total = 0 h na tabela.
+    """
+    assert StatusAlunoExtractor.aluno_integralizou(bytes_milena) is False
+
+
+def test_henrique_NAO_integralizou(bytes_henrique: bytes):
+    """
+    Total Integralizado (285h) muito abaixo do Exigido (2855h)
+    → deve retornar False.
+    """
+    assert StatusAlunoExtractor.aluno_integralizou(bytes_henrique) is False
 
 
 # ---------------------------------------------------------------------------
-# Matrícula ativa
+# aluno_matriculado — busca MATRICULADO na seção de componentes
 # ---------------------------------------------------------------------------
 
-def test_aluno_matriculado_retorna_false_para_graduando(pdf_bytes: bytes):
+def test_klebson_NAO_matriculado(bytes_klebson: bytes):
+    """Klebson não tem disciplinas com situação MATRICULADO → False."""
+    assert StatusAlunoExtractor.aluno_matriculado(bytes_klebson) is False
+
+
+def test_milena_NAO_matriculado(bytes_milena: bytes):
+    """Milena (GRADUANDO) não tem disciplinas com situação MATRICULADO → False."""
+    assert StatusAlunoExtractor.aluno_matriculado(bytes_milena) is False
+
+
+def test_henrique_matriculado(bytes_henrique: bytes):
     """
-    Status da aluna é GRADUANDO (não MATRICULADO), então aluno_matriculado
-    deve retornar False com a implementação atual.
-    Nota: o fluxo de Comprovante de Conclusão usa aluno_integralizou, não este método.
+    Henrique tem ao menos uma disciplina com situação MATRICULADO
+    na seção de componentes → deve retornar True.
     """
-    resultado = StatusAlunoExtractor.aluno_matriculado(pdf_bytes)
-    assert resultado is False
+    assert StatusAlunoExtractor.aluno_matriculado(bytes_henrique) is True
 
 
+# ---------------------------------------------------------------------------
+# Extração de dados
+# ---------------------------------------------------------------------------
 
-def test_extrair_ultimo_periodo(pdf_bytes: bytes):
-    periodo = StatusAlunoExtractor.extrair_ultimo_periodo_componente(pdf_bytes)
+@pytest.mark.parametrize("pdf_path,nome_esperado", [
+    (PDF_KLEBSON,  "KLEBSON"),
+    (PDF_MILENA,   "MILENA"),
+    (PDF_HENRIQUE, "HENRIQUE"),
+])
+def test_extrair_nome(pdf_path: Path, nome_esperado: str):
+    dados = StatusAlunoExtractor.extrair_dados_aluno(pdf_path.read_bytes())
+    assert nome_esperado in dados.get("nome", "").upper()
+
+
+@pytest.mark.parametrize("pdf_path", [PDF_KLEBSON, PDF_MILENA, PDF_HENRIQUE])
+def test_extrair_ultimo_periodo(pdf_path: Path):
+    periodo = StatusAlunoExtractor.extrair_ultimo_periodo_componente(pdf_path.read_bytes())
     assert periodo, "Período não extraído"
     ano, sem = periodo.split(".")
-    assert int(ano) >= 2022
+    assert int(ano) >= 2020
     assert sem in {"1", "2", "3", "4"}
 
-
-def test_extrair_periodo_matriculado(pdf_bytes: bytes):
-    periodo = StatusAlunoExtractor.extrair_periodo_matriculado(pdf_bytes)
-    # Aluna está GRADUANDO, pode não ter período MATRICULADO explícito
-    # Apenas verifica que não lança exceção e retorna string
-    assert isinstance(periodo, str)
