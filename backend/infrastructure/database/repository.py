@@ -181,8 +181,21 @@ def save_tcc_submission(data: Dict[str, Any]) -> int:
         return submission.id
 
 
+def acc_already_submitted(matricula: str, polo: str, periodo: str) -> bool:
+    """Retorna True se o aluno já enviou ACC para este polo+periodo."""
+    _ensure_forms_schema_columns()
+    with get_db_session() as session:
+        return session.exec(
+            select(AccSubmission).where(
+                AccSubmission.matricula == matricula,
+                AccSubmission.polo == polo,
+                AccSubmission.periodo == periodo,
+            )
+        ).first() is not None
+
+
 def save_acc_submission(data: Dict[str, Any]) -> int:
-    """Upsert de submissão ACC — atualiza se já existe (matricula+polo+periodo)."""
+    """Salva nova submissão ACC. Levanta ValueError se já existir envio para matricula+polo+periodo."""
     _ensure_forms_schema_columns()
     with get_db_session() as session:
         existing = session.exec(
@@ -193,17 +206,10 @@ def save_acc_submission(data: Dict[str, Any]) -> int:
             )
         ).first()
         if existing:
-            existing.nome = data["name"]
-            existing.email = data["email"]
-            existing.turma = data["class_group"]
-            existing.semestre = data["semester"]
-            if data.get("file_link"):
-                existing.arquivo_pdf_link = data["file_link"]
-            if data.get("drive_file_id"):
-                existing.drive_file_id = data["drive_file_id"]
-            session.add(existing)
-            session.commit()
-            return existing.id
+            raise ValueError(
+                f"Você já enviou sua ACC para o período {data.get('periodo', '')}. "
+                "Não é permitido um segundo envio."
+            )
         submission = AccSubmission(
             nome=data["name"],
             matricula=data["registration"],

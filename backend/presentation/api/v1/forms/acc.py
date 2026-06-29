@@ -31,8 +31,19 @@ async def submit_acc(
 ):
     # Valida que o envio ocorre dentro de um período de submissão de ACC
     from datetime import date as _date
-    from backend.infrastructure.database.repository import get_periodos_ativos_para_data, list_periodos_submissao
+    from backend.infrastructure.database.repository import (
+        get_periodos_ativos_para_data,
+        list_periodos_submissao,
+        acc_already_submitted,
+    )
     hoje = _date.today().isoformat()
+
+    if acc_already_submitted(matricula, polo, periodo):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "Você já enviou sua ACC para este período letivo. Não é permitido um segundo envio.",
+        )
+
     if not get_periodos_ativos_para_data("acc", hoje):
         todos_periodos = list_periodos_submissao(tipo="acc")
         if todos_periodos:

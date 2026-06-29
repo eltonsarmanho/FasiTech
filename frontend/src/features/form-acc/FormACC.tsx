@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { useMutation } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { useState } from 'react'
+import { ApiError } from '@/shared/lib/api'
 
 import { PageShell } from '@/shared/components/PageShell'
 import { FormSection, FieldGroup, Field } from '@/shared/components/FormSection'
@@ -28,6 +29,7 @@ type FormData = z.infer<typeof schema>
 export function FormACC() {
   const [files, setFiles] = useState<File[]>([])
   const [fileKey, setFileKey] = useState(0)
+  const [jaEnviado, setJaEnviado] = useState(false)
   const { data: periodos = [] } = usePeriodosLetivos()
   const { data: periodosSubmissao = [] } = usePeriodosSubmissao('acc')
 
@@ -52,7 +54,14 @@ export function FormACC() {
       setFiles([])
       setFileKey(k => k + 1)
     },
-    onError: (e: Error) => toast.error(e.message || 'Erro ao enviar. Tente novamente.'),
+    onError: (e: Error) => {
+      if (e instanceof ApiError && e.status === 409) {
+        setJaEnviado(true)
+        toast.error(e.message)
+      } else {
+        toast.error(e.message || 'Erro ao enviar. Tente novamente.')
+      }
+    },
   })
 
   return (
@@ -86,6 +95,16 @@ export function FormACC() {
               </ul>
             </>
           )}
+        </div>
+      )}
+
+      {jaEnviado && (
+        <div className="mb-6 rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-800">
+          <p className="font-semibold">Envio já registrado</p>
+          <p className="mt-1 text-sm">
+            Sua ACC para este período letivo já foi enviada e está registrada no sistema.
+            Não é permitido um segundo envio. Em caso de dúvidas, entre em contato com a secretaria.
+          </p>
         </div>
       )}
 
@@ -135,7 +154,7 @@ export function FormACC() {
           />
         </FormSection>
 
-        <SubmitButton loading={mutation.isPending} label="Enviar ACC" loadingLabel="Enviando..." disabled={!periodoAberto || mutation.isPending} />
+        <SubmitButton loading={mutation.isPending} label="Enviar ACC" loadingLabel="Enviando..." disabled={!periodoAberto || mutation.isPending || jaEnviado} />
       </form>
     </PageShell>
   )
