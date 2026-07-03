@@ -4,6 +4,7 @@ import { Layout } from '@/shared/components/Layout'
 // Páginas
 import { HomePage } from '@/features/home/HomePage'
 import { FormACC } from '@/features/form-acc/FormACC'
+import { FormCCF } from '@/features/form-ccf/FormCCF'
 import { FormTCC } from '@/features/form-tcc/FormTCC'
 import { FormEstagio } from '@/features/form-estagio/FormEstagio'
 import { FormSocial } from '@/features/form-social/FormSocial'
@@ -33,6 +34,7 @@ export default function App() {
 
         {/* Formulários Discentes */}
         <Route path="acc" element={<FormACC />} />
+        <Route path="ccf" element={<FormCCF />} />
         <Route path="tcc" element={<FormTCC />} />
         <Route path="estagio" element={<FormEstagio />} />
         <Route path="social" element={<FormSocial />} />

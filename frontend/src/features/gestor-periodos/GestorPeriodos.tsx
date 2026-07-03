@@ -10,12 +10,13 @@ import { SubmitButton } from '@/shared/components/SubmitButton'
 import { TokenGate } from '@/shared/components/TokenGate'
 import { apiAuth } from '@/shared/lib/api'
 
-type TipoForm = 'tcc' | 'acc' | 'estagio'
+type TipoForm = 'tcc' | 'acc' | 'estagio' | 'ccf'
 
 const TIPO_LABELS: Record<TipoForm, string> = {
   tcc: 'Requerimento TCC',
   acc: 'ACC',
   estagio: 'Estágio',
+  ccf: 'CCF',
 }
 
 interface Periodo {
@@ -238,7 +239,7 @@ function TabPeriodos({ tipo }: { tipo: TipoForm }) {
   )
 }
 
-const TABS: TipoForm[] = ['tcc', 'acc', 'estagio']
+const TABS: TipoForm[] = ['tcc', 'acc', 'estagio', 'ccf']
 
 export function GestorPeriodos() {
   const [activeTab, setActiveTab] = useState<TipoForm>('tcc')

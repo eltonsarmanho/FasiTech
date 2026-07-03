@@ -29,7 +29,7 @@ const items = [
   {
     icon: BookOpen,
     title: 'Lançamento de Conceitos',
-    description: 'Painel para listar alunos por ACC, TCC e Estágio com filtros por turma, polo e período.',
+    description: 'Painel para listar alunos por ACC, TCC, Estágio e CCF com filtros por turma, polo e período.',
     to: '/admin/lancamentos',
     color: 'text-amber-500',
   },

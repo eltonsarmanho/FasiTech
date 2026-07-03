@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, Iterable
 import io
+import json
 import os
 import tempfile
 import unicodedata
@@ -9,13 +10,15 @@ import unicodedata
 from backend.config.settings import settings
 from backend.infrastructure.database.schemas_legacy import AccSubmission
 from backend.infrastructure.email.service import send_notification, send_email_with_attachments
-from backend.infrastructure.file_processing.processor import prepare_files, sanitize_submission
+from backend.infrastructure.file_processing.processor import prepare_files, sanitize_submission, sanitize_text_field
 from backend.infrastructure.google.drive import upload_files
 from backend.infrastructure.google.sheets import append_rows  # Mantido para compatibilidade temporária
 from backend.utils.datetime_utils import format_local_datetime
 from backend.infrastructure.database.repository import (
     save_tcc_submission,
     save_acc_submission,
+    save_ccf_submission,
+    update_ccf_resultado,
     save_projetos_submission,
     save_plano_ensino_submission,
     save_estagio_submission,
@@ -400,6 +403,199 @@ A coordenação fará a análise manual dos seus certificados.
         class_group=sanitized["class_group"],
         file_ids=file_ids,
     )
+
+
+def process_ccf_submission(
+    form_data: Dict[str, Any],
+    uploaded_file: Any,
+    *,
+    notification_recipients: Iterable[str] | str | None = None,
+) -> Dict[str, Any]:
+    """Processa submissões de CCF (Componentes Curriculares Flexibilizados).
+
+    Diferente do ACC, o PDF é salvo diretamente no banco (bytea) — não há
+    upload para Google Drive nem Sheets. Fluxo:
+    1. Salvamento imediato no banco (registro + PDF)
+    2. Processamento IA em background (thread separada) para somar cargas horárias
+    3. Email único (com resultado da IA) para Diretor + Secretaria + aluno
+
+    O usuário NÃO espera o processamento IA.
+    """
+    if uploaded_file is None:
+        raise ValueError("Arquivo obrigatório não informado.")
+
+    required_fields = ["name", "registration", "email", "class_group", "polo", "periodo"]
+    missing = [field for field in required_fields if _is_blank(form_data.get(field, ""))]
+    if missing:
+        raise ValueError(f"Campos obrigatórios ausentes: {', '.join(missing)}")
+
+    sanitized = sanitize_submission(form_data)
+
+    # Nomes das disciplinas flexibilizadas — opcionais, mas recomendados para
+    # a secretaria/direção conferirem com o PDF anexado (histórico ou
+    # documentos agregados). Lista aberta: o aluno pode informar quantas
+    # disciplinas forem necessárias, não apenas um número fixo.
+    disciplinas_raw = form_data.get("disciplinas") or []
+    disciplinas = [sanitize_text_field(d) for d in disciplinas_raw if d and sanitize_text_field(d)]
+
+    uploaded_file.seek(0)
+    file_bytes = uploaded_file.read()
+    if not file_bytes:
+        raise ValueError("Nenhum arquivo válido para envio.")
+    file_name = getattr(uploaded_file, "name", None) or "ccf.pdf"
+
+    db_data = {
+        "name": sanitized["name"],
+        "registration": sanitized["registration"],
+        "email": sanitized["email"],
+        "class_group": sanitized["class_group"],
+        "polo": sanitized.get("polo", form_data.get("polo", "")),
+        "periodo": sanitized.get("periodo", form_data.get("periodo", "")),
+        "disciplinas": json.dumps(disciplinas, ensure_ascii=False) if disciplinas else None,
+        "file_bytes": file_bytes,
+        "file_name": file_name,
+    }
+
+    submission_id = save_ccf_submission(db_data)
+
+    recipients = _coerce_recipients(notification_recipients)
+    if recipients:
+        aluno_email = sanitized["email"]
+        if aluno_email and aluno_email not in recipients:
+            recipients.append(aluno_email)
+
+    def process_ia_background():
+        """Processa a extração/conferência de disciplinas com IA em background."""
+        try:
+            print(f"\n🤖 [BACKGROUND] Iniciando processamento IA (CCF) para matrícula {sanitized['registration']}...")
+
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
+                tmp_file.write(file_bytes)
+                tmp_pdf_path = tmp_file.name
+
+            from backend.infrastructure.file_processing.ccf_processor import processar_disciplinas_ccf
+
+            resultado = processar_disciplinas_ccf(
+                pdf_path=tmp_pdf_path,
+                matricula=sanitized["registration"],
+                nome=sanitized["name"],
+                disciplinas_informadas=disciplinas,
+            )
+
+            status_processamento = resultado.get("status", "desconhecido")
+            txt_path = resultado.get("txt_path")
+            resumo_texto = resultado.get("resumo_texto", "")
+
+            try:
+                os.remove(tmp_pdf_path)
+            except Exception as e:
+                print(f"⚠️ [BACKGROUND] Erro ao remover arquivo temporário: {e}")
+
+            if status_processamento == "erro":
+                print(f"❌ [BACKGROUND] Erro no processamento IA (CCF): {resultado.get('erro', 'Erro desconhecido')}")
+            elif status_processamento == "sem_disciplinas":
+                print("⏭️  [BACKGROUND] Nenhuma disciplina informada — IA não foi acionada.")
+                update_ccf_resultado(submission_id, resumo_texto, None)
+            else:
+                print(f"✅ [BACKGROUND] Processamento IA (CCF) concluído: {resumo_texto}")
+                update_ccf_resultado(
+                    submission_id,
+                    resumo_texto,
+                    json.dumps(resultado.get("detalhes", []), ensure_ascii=False),
+                )
+
+            if recipients:
+                data_formatada = format_local_datetime()
+
+                if status_processamento == "erro":
+                    subject = "⚠️ Submissão de CCF Recebida - Análise Manual Necessária"
+                    corpo_conferencia = (
+                        "⚠️ Status: O processamento automático com IA não pôde ser concluído.\n"
+                        "A coordenação fará a análise manual do PDF enviado."
+                    )
+                    attachments = None
+                elif status_processamento == "sem_disciplinas":
+                    subject = "📥 Submissão de CCF Recebida - Análise Manual Necessária"
+                    corpo_conferencia = (
+                        "ℹ️ O aluno não informou as disciplinas flexibilizadas no formulário.\n"
+                        "A coordenação fará a análise manual do PDF anexado para identificar as disciplinas."
+                    )
+                    attachments = None
+                else:
+                    subject = "✅ Análise de CCF Concluída"
+                    linhas_detalhe = [
+                        f"    {'✅' if item['encontrada'] else '❌'} {item['informada']}"
+                        + (f" — encontrada como: {item['correspondencia']} ({item['carga_horaria']}h)" if item['encontrada'] else " — NÃO encontrada no documento")
+                        for item in resultado.get("detalhes", [])
+                    ]
+                    corpo_conferencia = (
+                        f"🤖 Conferência automática das disciplinas informadas:\n"
+                        f"⏱️  {resumo_texto}\n\n"
+                        + "\n".join(linhas_detalhe)
+                        + "\n\n📎 Relatório detalhado (incluindo disciplinas encontradas no documento) está anexado."
+                    )
+                    attachments = [txt_path] if txt_path else None
+
+                body = f"""\
+Olá,
+
+Sua submissão de Componentes Curriculares Flexibilizados (CCF) foi processada!
+
+📅 Data: {data_formatada}
+🎓 Nome: {sanitized['name']}
+🔢 Matrícula: {sanitized['registration']}
+📧 E-mail: {sanitized['email']}
+📌 Turma: {sanitized['class_group']}
+🏫 Polo: {sanitized.get('polo', form_data.get('polo', ''))}
+🗓️ Período: {sanitized.get('periodo', form_data.get('periodo', ''))}
+
+{corpo_conferencia}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🤖 Sistema de Automação da FASI
+"""
+                send_email_with_attachments(subject, body, recipients, attachments)
+                print(f"✅ [BACKGROUND] Email (CCF) enviado para {len(recipients)} destinatário(s)")
+
+        except Exception as e:
+            print(f"⚠️ [BACKGROUND] Erro no processamento com IA (CCF): {str(e)}")
+            if recipients:
+                data_formatada = format_local_datetime()
+
+                subject_erro = "⚠️ Submissão de CCF Recebida - Análise Manual Necessária"
+                body_erro = f"""\
+Olá,
+
+Sua submissão de Componentes Curriculares Flexibilizados (CCF) foi recebida com sucesso!
+
+📅 Data: {data_formatada}
+🎓 Nome: {sanitized['name']}
+🔢 Matrícula: {sanitized['registration']}
+📧 E-mail: {sanitized['email']}
+📌 Turma: {sanitized['class_group']}
+🏫 Polo: {sanitized.get('polo', form_data.get('polo', ''))}
+🗓️ Período: {sanitized.get('periodo', form_data.get('periodo', ''))}
+
+⚠️ Status: O processamento automático com IA não pôde ser concluído.
+A coordenação fará a análise manual do PDF enviado.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🤖 Sistema de Automação da FASI
+"""
+                send_email_with_attachments(subject_erro, body_erro, recipients, None)
+
+    import threading
+    thread = threading.Thread(target=process_ia_background, daemon=True)
+    thread.start()
+    print(f"🚀 Thread de processamento IA (CCF) iniciada em background (Thread ID: {thread.ident})")
+
+    return {
+        "id": submission_id,
+        "name": sanitized["name"],
+        "registration": sanitized["registration"],
+        "email": sanitized["email"],
+        "class_group": sanitized["class_group"],
+    }
 
 
 def process_tcc_submission(

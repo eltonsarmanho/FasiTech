@@ -1,14 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { useState, useMemo } from 'react'
-import { Loader2, Play, Check, X, Trash2 } from 'lucide-react'
+import { Loader2, Play, Check, X, Trash2, Download } from 'lucide-react'
 
 import { PageShell } from '@/shared/components/PageShell'
 import { FormSection, FieldGroup, Field } from '@/shared/components/FormSection'
 import { apiAuth } from '@/shared/lib/api'
 import { POLOS } from '@/shared/lib/constants'
 
-type TipoFormulario = 'ACC' | 'TCC' | 'Estagio'
+type TipoFormulario = 'ACC' | 'TCC' | 'Estagio' | 'CCF'
 
 const COMPONENTES_ESTAGIO = [
   'Plano de Estágio (Estágio I)',
@@ -106,9 +106,24 @@ export function LancamentoConceitos() {
     onError: () => toast.error('Erro ao excluir registro'),
   })
 
+  const baixarPdfMutation = useMutation({
+    mutationFn: async (row: { submissaoId: number; matricula: string }) => {
+      const res = await apiAuth.get(`/api/admin/lancamentos/ccf/${row.submissaoId}/pdf`, {
+        responseType: 'blob',
+      })
+      const url = URL.createObjectURL(res.data as Blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `CCF_${row.matricula}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+    },
+    onError: () => toast.error('Erro ao baixar PDF'),
+  })
+
   return (
     <PageShell icon="📝" title="Lançamento de Conceitos"
-      subtitle="Painel restrito automação SIGAA para ACC, TCC e Estágio">
+      subtitle="Painel restrito automação SIGAA para ACC, TCC, Estágio e CCF">
       <div className="fasi-info-box mb-6 border-amber-200 bg-amber-50 text-amber-800">
         ⚠️ As ações de matrícula e consolidação acessam o SIGAA diretamente via automação. Use com cuidado.
       </div>
@@ -117,7 +132,7 @@ export function LancamentoConceitos() {
       <div className="fasi-card p-4 mb-4">
         <p className="text-sm font-medium text-foreground mb-3">Tipo de lançamento</p>
         <div className="flex gap-3">
-          {(['ACC', 'TCC', 'Estagio'] as TipoFormulario[]).map(t => (
+          {(['ACC', 'TCC', 'Estagio', 'CCF'] as TipoFormulario[]).map(t => (
             <button
               key={t}
               onClick={() => { setTipo(t); resetFiltros() }}
@@ -281,56 +296,96 @@ export function LancamentoConceitos() {
                     </td>
                     <td className="px-3 py-2">
                       <div className="flex gap-1.5 justify-center flex-col items-center">
-                        <div className="flex gap-1.5">
-                          <button
-                            onClick={() => matricularMutation.mutate({ matricula: row.matricula, periodo: row.periodo, polo: row.polo, componente: row.componente })}
-                            disabled={matricularMutation.isPending || consolidarMutation.isPending}
-                            className="fasi-btn-outline py-1 px-2 text-xs"
-                            title="Matricular no SIGAA"
-                          >
-                            {matricularMutation.isPending ? (
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                            ) : (
-                              <Play className="w-3 h-3" />
+                        {tipo === 'CCF' ? (
+                          <div className="flex gap-1.5">
+                            <button
+                              onClick={() => baixarPdfMutation.mutate({ submissaoId: row.submissao_id, matricula: row.matricula })}
+                              disabled={baixarPdfMutation.isPending}
+                              className="fasi-btn-outline py-1 px-2 text-xs"
+                              title="Baixar PDF submetido"
+                            >
+                              {baixarPdfMutation.isPending ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <Download className="w-3 h-3" />
+                              )}
+                              PDF
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (window.confirm(`Excluir registro de ${row.matricula} (CCF)?\n\nIsso removerá o lançamento e a submissão do formulário, incluindo o PDF salvo no banco.`)) {
+                                  deletarMutation.mutate({
+                                    id: row.id ?? null,
+                                    matricula: row.matricula,
+                                    periodo: row.periodo,
+                                    polo: row.polo,
+                                    componente: row.componente,
+                                  })
+                                }
+                              }}
+                              disabled={deletarMutation.isPending}
+                              className="fasi-btn-outline py-1 px-2 text-xs text-red-600 border-red-300 hover:bg-red-50"
+                              title="Excluir registro"
+                            >
+                              {deletarMutation.isPending
+                                ? <Loader2 className="w-3 h-3 animate-spin" />
+                                : <Trash2 className="w-3 h-3" />}
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="flex gap-1.5">
+                              <button
+                                onClick={() => matricularMutation.mutate({ matricula: row.matricula, periodo: row.periodo, polo: row.polo, componente: row.componente })}
+                                disabled={matricularMutation.isPending || consolidarMutation.isPending}
+                                className="fasi-btn-outline py-1 px-2 text-xs"
+                                title="Matricular no SIGAA"
+                              >
+                                {matricularMutation.isPending ? (
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                ) : (
+                                  <Play className="w-3 h-3" />
+                                )}
+                                {matricularMutation.isPending ? 'Aguarde...' : 'Matricular'}
+                              </button>
+                              <button
+                                onClick={() => consolidarMutation.mutate({ matricula: row.matricula, periodo: row.periodo, polo: row.polo, componente: row.componente })}
+                                disabled={matricularMutation.isPending || consolidarMutation.isPending}
+                                className="fasi-btn-secondary py-1 px-2 text-xs"
+                                title="Consolidar no SIGAA"
+                              >
+                                {consolidarMutation.isPending ? (
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                ) : (
+                                  <Play className="w-3 h-3" />
+                                )}
+                                {consolidarMutation.isPending ? 'Aguarde...' : 'Consolidar'}
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (window.confirm(`Excluir registro de ${row.matricula} (${row.componente})?\n\nIsso removerá o lançamento, a submissão do formulário e a pasta no Google Drive.`)) {
+                                    deletarMutation.mutate({
+                                      id: row.id ?? null,
+                                      matricula: row.matricula,
+                                      periodo: row.periodo,
+                                      polo: row.polo,
+                                      componente: row.componente,
+                                    })
+                                  }
+                                }}
+                                disabled={deletarMutation.isPending}
+                                className="fasi-btn-outline py-1 px-2 text-xs text-red-600 border-red-300 hover:bg-red-50"
+                                title="Excluir registro e pasta no Drive"
+                              >
+                                {deletarMutation.isPending
+                                  ? <Loader2 className="w-3 h-3 animate-spin" />
+                                  : <Trash2 className="w-3 h-3" />}
+                              </button>
+                            </div>
+                            {(matricularMutation.isPending || consolidarMutation.isPending) && (
+                              <p className="text-xs text-amber-600 font-medium">⏳ Processando...</p>
                             )}
-                            {matricularMutation.isPending ? 'Aguarde...' : 'Matricular'}
-                          </button>
-                          <button
-                            onClick={() => consolidarMutation.mutate({ matricula: row.matricula, periodo: row.periodo, polo: row.polo, componente: row.componente })}
-                            disabled={matricularMutation.isPending || consolidarMutation.isPending}
-                            className="fasi-btn-secondary py-1 px-2 text-xs"
-                            title="Consolidar no SIGAA"
-                          >
-                            {consolidarMutation.isPending ? (
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                            ) : (
-                              <Play className="w-3 h-3" />
-                            )}
-                            {consolidarMutation.isPending ? 'Aguarde...' : 'Consolidar'}
-                          </button>
-                          <button
-                            onClick={() => {
-                              if (window.confirm(`Excluir registro de ${row.matricula} (${row.componente})?\n\nIsso removerá o lançamento, a submissão do formulário e a pasta no Google Drive.`)) {
-                                deletarMutation.mutate({
-                                  id: row.id ?? null,
-                                  matricula: row.matricula,
-                                  periodo: row.periodo,
-                                  polo: row.polo,
-                                  componente: row.componente,
-                                })
-                              }
-                            }}
-                            disabled={deletarMutation.isPending}
-                            className="fasi-btn-outline py-1 px-2 text-xs text-red-600 border-red-300 hover:bg-red-50"
-                            title="Excluir registro e pasta no Drive"
-                          >
-                            {deletarMutation.isPending
-                              ? <Loader2 className="w-3 h-3 animate-spin" />
-                              : <Trash2 className="w-3 h-3" />}
-                          </button>
-                        </div>
-                        {(matricularMutation.isPending || consolidarMutation.isPending) && (
-                          <p className="text-xs text-amber-600 font-medium">⏳ Processando...</p>
+                          </>
                         )}
                       </div>
                     </td>

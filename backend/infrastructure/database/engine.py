@@ -42,6 +42,7 @@ def init_db() -> None:
     from backend.infrastructure.database.models import (
         TccSubmission,
         AccSubmission,
+        CcfSubmission,
         ProjetosSubmission,
         PlanoEnsinoSubmission,
         EstagioSubmission,
@@ -70,6 +71,10 @@ def _ensure_additional_columns() -> None:
         "acc_submissions": {
             "polo": "VARCHAR(100) DEFAULT ''",
             "periodo": "VARCHAR(20) DEFAULT ''",
+        },
+        "ccf_submissions": {
+            "disciplinas": "TEXT",
+            "disciplinas_resultado": "TEXT",
         },
         "estagio_submissions": {
             "polo": "VARCHAR(100) DEFAULT ''",

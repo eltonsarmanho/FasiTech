@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Optional
 
+from sqlalchemy import Column, LargeBinary
 from sqlmodel import Field, SQLModel
 
 
@@ -85,6 +86,55 @@ class AccSubmission(SubmissionBase, table=True):
                 "polo": "OEIRAS DO PARÁ",
                 "periodo": "2026.1",
                 "semestre": "2025.1",
+            }
+        }
+
+
+class CcfSubmission(SubmissionBase, table=True):
+    """Model for CCF (Componentes Curriculares Flexibilizados) submissions.
+
+    O PDF é armazenado diretamente no banco (bytea) — não há upload para o
+    Google Drive neste fluxo.
+    """
+
+    __tablename__ = "ccf_submissions"
+    __table_args__ = {"extend_existing": True}
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    nome: str = Field(max_length=255)
+    matricula: str = Field(max_length=50, index=True)
+    email: str = Field(max_length=255, index=True)
+    turma: str = Field(max_length=50)
+    polo: str = Field(max_length=100, default="")
+    periodo: str = Field(max_length=20, default="")
+
+    # Nomes das disciplinas flexibilizadas declaradas pelo aluno (opcional,
+    # porém recomendado) — usados pela secretaria/direção para conferir se
+    # constam no PDF anexado (histórico ou documentos agregados). Lista
+    # aberta (não limitada a 5) armazenada como JSON: '["Disciplina A", ...]'.
+    disciplinas: Optional[str] = Field(default=None)
+
+    # Resumo da conferência das disciplinas informadas x documento (preenchido
+    # em background), ex.: "3 de 4 disciplinas informadas foram confirmadas..."
+    carga_horaria_total: Optional[str] = Field(default=None, max_length=255)
+
+    # Detalhamento da conferência (JSON): para cada disciplina informada,
+    # se foi encontrada no documento, com qual item e a carga horária.
+    disciplinas_resultado: Optional[str] = Field(default=None)
+
+    # PDF consolidado das atividades, salvo diretamente no banco
+    arquivo_pdf: bytes = Field(sa_column=Column(LargeBinary))
+    arquivo_nome: str = Field(max_length=255, default="ccf.pdf")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "nome": "Ana Souza",
+                "matricula": "202298765",
+                "email": "ana@ufpa.br",
+                "turma": "2026",
+                "polo": "CAMETÁ",
+                "periodo": "2026.1",
             }
         }
 

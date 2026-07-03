@@ -14,6 +14,7 @@ from backend.infrastructure.database.engine import engine, get_db_session
 from backend.infrastructure.database.models import (
     AccSubmission,
     AlertaAcademico,
+    CcfSubmission,
     EstagioSubmission,
     PlanoEnsinoSubmission,
     PeriodoSubmissao,
@@ -225,6 +226,71 @@ def save_acc_submission(data: Dict[str, Any]) -> int:
         session.commit()
         session.refresh(submission)
         return submission.id
+
+
+def ccf_already_submitted(matricula: str, polo: str, periodo: str) -> bool:
+    """Retorna True se o aluno já enviou CCF para este polo+periodo."""
+    with get_db_session() as session:
+        return session.exec(
+            select(CcfSubmission).where(
+                CcfSubmission.matricula == matricula,
+                CcfSubmission.polo == polo,
+                CcfSubmission.periodo == periodo,
+            )
+        ).first() is not None
+
+
+def save_ccf_submission(data: Dict[str, Any]) -> int:
+    """Salva nova submissão CCF (PDF gravado em bytea). Levanta ValueError se já existir envio para matricula+polo+periodo."""
+    with get_db_session() as session:
+        existing = session.exec(
+            select(CcfSubmission).where(
+                CcfSubmission.matricula == data["registration"],
+                CcfSubmission.polo == data.get("polo", ""),
+                CcfSubmission.periodo == data.get("periodo", ""),
+            )
+        ).first()
+        if existing:
+            raise ValueError(
+                f"Você já enviou seu CCF para o período {data.get('periodo', '')}. "
+                "Não é permitido um segundo envio."
+            )
+        submission = CcfSubmission(
+            nome=data["name"],
+            matricula=data["registration"],
+            email=data["email"],
+            turma=data["class_group"],
+            polo=data.get("polo", ""),
+            periodo=data.get("periodo", ""),
+            disciplinas=data.get("disciplinas"),
+            arquivo_pdf=data["file_bytes"],
+            arquivo_nome=data.get("file_name") or "ccf.pdf",
+        )
+        session.add(submission)
+        session.commit()
+        session.refresh(submission)
+        return submission.id
+
+
+def update_ccf_resultado(submission_id: int, resumo_texto: str, disciplinas_resultado_json: Optional[str]) -> None:
+    """Atualiza o resultado da conferência de disciplinas (extraído pela IA em background)."""
+    with get_db_session() as session:
+        submission = session.get(CcfSubmission, submission_id)
+        if submission is None:
+            return
+        submission.carga_horaria_total = resumo_texto
+        submission.disciplinas_resultado = disciplinas_resultado_json
+        session.add(submission)
+        session.commit()
+
+
+def get_ccf_pdf(submission_id: int) -> Optional[tuple[bytes, str]]:
+    """Retorna (bytes do PDF, nome do arquivo) de uma submissão CCF."""
+    with get_db_session() as session:
+        submission = session.get(CcfSubmission, submission_id)
+        if submission is None:
+            return None
+        return submission.arquivo_pdf, submission.arquivo_nome
 
 
 def save_projetos_submission(data: Dict[str, Any]) -> int:
@@ -957,6 +1023,20 @@ def get_lancamento_conceitos(
                         "componente": componente_label,
                     }
                 )
+        elif tipo == "CCF":
+            registros = session.exec(select(CcfSubmission)).all()
+            source_rows = [
+                {
+                    "tipo_formulario": "CCF",
+                    "matricula": _normalize_text(item.matricula),
+                    "turma": _normalize_text(item.turma),
+                    "polo": _normalize_text(item.polo),
+                    "periodo": _normalize_text(item.periodo),
+                    "componente": "CCF",
+                    "submissao_id": item.id,
+                }
+                for item in registros
+            ]
         else:
             return []
 
@@ -1238,6 +1318,17 @@ def delete_lancamento_conceitos_with_source(records: List[Dict[str, Any]]) -> tu
                     if _normalize_estagio_component(source.componente) == componente:
                         session.delete(source)
                         source_deleted = True
+            elif tipo_formulario == "CCF":
+                source_rows = session.exec(
+                    select(CcfSubmission).where(
+                        CcfSubmission.matricula == matricula,
+                        CcfSubmission.periodo == periodo,
+                        CcfSubmission.polo == polo,
+                    )
+                ).all()
+                for source in source_rows:
+                    session.delete(source)
+                    source_deleted = True
 
             if registro is not None:
                 session.delete(registro)

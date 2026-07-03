@@ -22,6 +22,12 @@ const studentForms = [
     to: '/estagio',
   },
   {
+    icon: '📑',
+    title: 'Componentes Curriculares Flexibilizados (CCF)',
+    description: 'Registro de Componentes Curriculares Flexibilizados. Envie o PDF consolidado das atividades para análise.',
+    to: '/ccf',
+  },
+  {
     icon: '📝',
     title: 'Requerimento de TCC',
     description: 'Registro dos dados para defesa do TCC com banca examinadora e informações adicionais.',

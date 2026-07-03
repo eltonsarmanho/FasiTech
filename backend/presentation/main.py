@@ -68,7 +68,7 @@ app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])
 
 # ── Routers ──────────────────────────────────────────────────────────────────
 from backend.presentation.api.v1.forms import (
-    acc, tcc, estagio, requerimento_tcc,
+    acc, ccf, tcc, estagio, requerimento_tcc,
     emissao_documentos, social, plano_ensino,
     projetos, avaliacao_gestao,
 )
@@ -80,6 +80,7 @@ from backend.presentation.api.admin import alertas, lancamentos, periodos_submis
 
 # Formulários
 app.include_router(acc.router, prefix="/api/v1/forms", tags=["Formulários"])
+app.include_router(ccf.router, prefix="/api/v1/forms", tags=["Formulários"])
 app.include_router(tcc.router, prefix="/api/v1/forms", tags=["Formulários"])
 app.include_router(estagio.router, prefix="/api/v1/forms", tags=["Formulários"])
 app.include_router(requerimento_tcc.router, prefix="/api/v1/forms", tags=["Formulários"])

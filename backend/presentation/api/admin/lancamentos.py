@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi.responses import Response
 from pydantic import BaseModel
 from typing import Optional
 import logging
@@ -77,6 +78,23 @@ async def list_lancamentos(
         )
     except Exception as e:
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, str(e))
+
+
+@router.get("/lancamentos/ccf/{submissao_id}/pdf")
+async def baixar_pdf_ccf(submissao_id: int, _: str = Depends(get_admin_dependency)):
+    """Retorna o PDF consolidado de uma submissão CCF (armazenado no banco)."""
+    from backend.infrastructure.database.repository import get_ccf_pdf
+
+    resultado = get_ccf_pdf(submissao_id)
+    if resultado is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "PDF não encontrado")
+
+    content, filename = resultado
+    return Response(
+        content=content,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+    )
 
 
 @router.post("/lancamentos/matricular", status_code=202)

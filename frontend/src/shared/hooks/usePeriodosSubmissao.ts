@@ -10,7 +10,7 @@ export interface PeriodoSubmissao {
   semestre: string | null
 }
 
-export function usePeriodosSubmissao(tipo: 'tcc' | 'acc' | 'estagio') {
+export function usePeriodosSubmissao(tipo: 'tcc' | 'acc' | 'estagio' | 'ccf') {
   return useQuery({
     queryKey: ['periodos-submissao', tipo],
     queryFn: async () => {
