@@ -150,7 +150,7 @@ export function FormCCF() {
           </FieldGroup>
         </FormSection>
 
-        <FormSection title="Disciplinas Flexibilizadas (opcional, porém recomendado)">
+        <FormSection title="Disciplinas Flexibilizadas">
           <p className="text-xs text-muted-foreground mb-3">
             Informe os nomes das disciplinas flexibilizadas para que a secretaria/direção
             possa conferi-las com o PDF anexado. Adicione quantas forem necessárias.
