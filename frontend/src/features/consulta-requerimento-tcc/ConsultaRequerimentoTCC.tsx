@@ -241,7 +241,7 @@ export function ConsultaRequerimentoTCC() {
   const [filtroDataDe, setFiltroDataDe] = useState('')
   const [filtroDataAte, setFiltroDataAte] = useState('')
   const [selected, setSelected] = useState<Set<number>>(new Set())
-  const [selectedRecordId, setSelectedRecordId] = useState<number | null>(null)
+  const [editingRecordId, setEditingRecordId] = useState<number | null>(null)
   const [confirmAtaLote, setConfirmAtaLote] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [gerandoAtaId, setGerandoAtaId] = useState<number | null>(null)
@@ -280,9 +280,9 @@ export function ConsultaRequerimentoTCC() {
 
   const hasFilters = filtroOrientador || filtroModalidade || filtroDataDe || filtroDataAte
 
-  const selectedRecord = useMemo(
-    () => rows.find(r => r.id === selectedRecordId) ?? null,
-    [rows, selectedRecordId],
+  const editingRecord = useMemo(
+    () => rows.find(r => r.id === editingRecordId) ?? null,
+    [rows, editingRecordId],
   )
   const selectedRows = useMemo(
     () => sorted.filter(r => selected.has(r.id)),
@@ -318,6 +318,10 @@ export function ConsultaRequerimentoTCC() {
     })
   }
 
+  function clearSelection() {
+    setSelected(new Set())
+  }
+
   function toggleAll() {
     if (allSelected) {
       setSelected(prev => {
@@ -335,10 +339,10 @@ export function ConsultaRequerimentoTCC() {
     setDeleting(true)
     try {
       await Promise.all([...selected].map(id => apiAuth.delete(`/api/v1/requerimento-tcc/${id}`)))
-      if (selectedRecordId && selected.has(selectedRecordId)) {
-        setSelectedRecordId(null)
+      if (editingRecordId && selected.has(editingRecordId)) {
+        setEditingRecordId(null)
       }
-      setSelected(new Set())
+      clearSelection()
       queryClient.invalidateQueries({ queryKey: ['requerimento-tcc-list'] })
     } finally {
       setDeleting(false)
@@ -450,9 +454,9 @@ export function ConsultaRequerimentoTCC() {
               {hasFilters && rows.length !== sorted.length && ` (de ${rows.length} total)`}
             </span>
             <div className="flex items-center gap-2 flex-wrap">
-              {selectedRecord && (
+              {someSelected && (
                 <button
-                  onClick={() => setSelectedRecordId(null)}
+                  onClick={clearSelection}
                   className="fasi-btn-outline py-1 px-3 text-sm"
                 >
                   <X className="w-4 h-4" />
@@ -507,7 +511,6 @@ export function ConsultaRequerimentoTCC() {
                       className="cursor-pointer"
                     />
                   </th>
-                  <th className="px-3 py-2.5 w-10 whitespace-nowrap">Sel.</th>
                   <th className="w-[16%] px-3 py-2.5 text-left font-medium whitespace-nowrap">
                     <button
                       type="button"
@@ -548,28 +551,18 @@ export function ConsultaRequerimentoTCC() {
                 {sorted.map((r, i) => {
                   const id = r.id
                   const isSelected = selected.has(id)
-                  const isActive = selectedRecordId === id
+                  const isEditing = editingRecordId === id
                   return (
                     <tr
                       key={id}
                       className={
-                        isActive
+                        isEditing
                           ? 'bg-blue-50 ring-1 ring-inset ring-blue-200'
                           : (isSelected ? 'bg-fasi-50' : (i % 2 === 0 ? 'bg-white' : 'bg-fasi-50/30'))
                       }
-                      onClick={() => setSelectedRecordId(id)}
                     >
                       <td className="px-3 py-2 cursor-pointer" onClick={e => { e.stopPropagation(); toggleRow(id) }}>
                         <input type="checkbox" checked={isSelected} onChange={() => toggleRow(id)} className="cursor-pointer" />
-                      </td>
-                      <td className="px-3 py-2 cursor-pointer" onClick={e => { e.stopPropagation(); setSelectedRecordId(id) }}>
-                        <input
-                          type="radio"
-                          name="requerimento-tcc-selecionado"
-                          checked={isActive}
-                          onChange={() => setSelectedRecordId(id)}
-                          className="cursor-pointer"
-                        />
                       </td>
                       <td className="px-3 py-2 truncate" title={r.nome_aluno}>{r.nome_aluno}</td>
                       <td className="px-3 py-2 whitespace-nowrap">{r.matricula}</td>
@@ -580,13 +573,13 @@ export function ConsultaRequerimentoTCC() {
                       <td className="px-3 py-2" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center gap-2 flex-wrap">
                           <button
-                            onClick={() => setSelectedRecordId(id)}
+                            onClick={() => setEditingRecordId(id)}
                             className={`fasi-btn-outline py-1 px-2 text-xs flex items-center gap-1 whitespace-nowrap ${
-                              isActive ? 'border-blue-300 bg-blue-50 text-blue-700' : ''
+                              isEditing ? 'border-blue-300 bg-blue-50 text-blue-700' : ''
                             }`}
                           >
                             <PencilLine className="w-3 h-3" />
-                            {isActive ? 'Selecionado' : 'Editar'}
+                            {isEditing ? 'Editando' : 'Editar'}
                           </button>
                           <button
                             onClick={() => handleGerarAta(id)}
@@ -610,11 +603,11 @@ export function ConsultaRequerimentoTCC() {
         </div>
       )}
 
-      {selectedRecord && (
+      {editingRecord && (
         <div className="mt-6">
           <RequerimentoTccEditor
-            record={selectedRecord}
-            onClose={() => setSelectedRecordId(null)}
+            record={editingRecord}
+            onClose={() => setEditingRecordId(null)}
             onSaved={() => {
               queryClient.invalidateQueries({ queryKey: ['requerimento-tcc-list'] })
             }}
