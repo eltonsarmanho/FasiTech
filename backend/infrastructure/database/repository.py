@@ -530,7 +530,11 @@ def _banca_members_from_row(row) -> set:
     return {v.strip().lower() for v in fields if v}
 
 
-def check_tcc_scheduling_conflicts(data: Dict[str, Any], exclude_matricula: Optional[str] = None) -> List[str]:
+def check_tcc_scheduling_conflicts(
+    data: Dict[str, Any],
+    exclude_matricula: Optional[str] = None,
+    exclude_submission_id: Optional[int] = None,
+) -> List[str]:
     """
     Verifica conflitos de agenda para defesas de TCC.
     Retorna lista de mensagens de conflito (vazia = sem conflito).
@@ -554,6 +558,8 @@ def check_tcc_scheduling_conflicts(data: Dict[str, Any], exclude_matricula: Opti
         query = select(RequerimentoTccSubmission).where(
             RequerimentoTccSubmission.data_defesa == data_defesa
         )
+        if exclude_submission_id is not None:
+            query = query.where(RequerimentoTccSubmission.id != exclude_submission_id)
         if exclude_matricula:
             query = query.where(RequerimentoTccSubmission.matricula != exclude_matricula)
         existing = session.exec(query).all()
@@ -592,6 +598,31 @@ def check_tcc_scheduling_conflicts(data: Dict[str, Any], exclude_matricula: Opti
                             f"O intervalo mínimo entre bancas é de 1 hora."
                         )
     return conflicts
+
+
+def _serialize_requerimento_tcc_submission(row: RequerimentoTccSubmission) -> Dict[str, Any]:
+    return {
+        "id": row.id,
+        "nome_aluno": row.nome_aluno,
+        "matricula": row.matricula,
+        "email": row.email,
+        "telefone": row.telefone,
+        "turma": row.turma,
+        "orientador": row.orientador,
+        "coorientador": row.coorientador,
+        "titulo_trabalho": row.titulo_trabalho,
+        "resumo": row.resumo,
+        "palavra_chave": row.palavra_chave,
+        "modalidade": row.modalidade,
+        "membro_banca1": row.membro_banca1,
+        "membro_banca2": row.membro_banca2,
+        "membro_banca3": getattr(row, "membro_banca3", None),
+        "data_defesa": row.data_defesa,
+        "horario_defesa": row.horario_defesa,
+        "local_defesa": row.local_defesa,
+        "status": row.status,
+        "submission_date": row.submission_date.isoformat() if row.submission_date else None,
+    }
 
 
 def save_requerimento_tcc_submission(data: Dict[str, Any]) -> tuple[int, bool]:
@@ -642,6 +673,62 @@ def save_requerimento_tcc_submission(data: Dict[str, Any]) -> tuple[int, bool]:
         return submission.id, True
 
 
+def update_requerimento_tcc_submission(submission_id: int, data: Dict[str, Any]) -> Optional[int]:
+    """Atualiza uma submissão do Requerimento de TCC pelo ID."""
+    _ensure_requerimento_tcc_schema_columns()
+
+    fields = dict(
+        nome_aluno=data["nome_aluno"],
+        matricula=data["matricula"],
+        email=data["email"],
+        telefone=data.get("telefone"),
+        turma=data["turma"],
+        orientador=data["orientador"],
+        coorientador=data.get("coorientador"),
+        titulo_trabalho=data["titulo_trabalho"],
+        resumo=data.get("resumo"),
+        palavra_chave=data.get("palavra_chave"),
+        modalidade=data["modalidade"],
+        membro_banca1=data.get("membro_banca1"),
+        membro_banca2=data.get("membro_banca2"),
+        membro_banca3=data.get("membro_banca3"),
+        data_defesa=data.get("data_defesa"),
+        horario_defesa=data.get("horario_defesa"),
+        local_defesa=data.get("local_defesa"),
+    )
+
+    with get_db_session() as session:
+        submission = session.get(RequerimentoTccSubmission, submission_id)
+        if submission is None:
+            return None
+
+        duplicate = session.exec(
+            select(RequerimentoTccSubmission).where(
+                RequerimentoTccSubmission.matricula == data["matricula"],
+                RequerimentoTccSubmission.id != submission_id,
+            )
+        ).first()
+        if duplicate:
+            raise ValueError("Já existe outro requerimento cadastrado com esta matrícula.")
+
+        for key, value in fields.items():
+            setattr(submission, key, value)
+        session.add(submission)
+        session.commit()
+        session.refresh(submission)
+        return submission.id
+
+
+def get_requerimento_tcc_submission(submission_id: int) -> Optional[Dict[str, Any]]:
+    """Retorna uma submissão do Requerimento TCC por ID."""
+    _ensure_requerimento_tcc_schema_columns()
+    with get_db_session() as session:
+        row = session.get(RequerimentoTccSubmission, submission_id)
+        if row is None:
+            return None
+        return _serialize_requerimento_tcc_submission(row)
+
+
 def list_requerimento_tcc_submissions(
     pagina: int = 1,
     por_pagina: int = 20,
@@ -662,31 +749,7 @@ def list_requerimento_tcc_submissions(
             "total": total,
             "pagina": pagina,
             "por_pagina": por_pagina,
-            "items": [
-                {
-                    "id": r.id,
-                    "nome_aluno": r.nome_aluno,
-                    "matricula": r.matricula,
-                    "email": r.email,
-                    "telefone": r.telefone,
-                    "turma": r.turma,
-                    "orientador": r.orientador,
-                    "coorientador": r.coorientador,
-                    "titulo_trabalho": r.titulo_trabalho,
-                    "resumo": r.resumo,
-                    "palavra_chave": r.palavra_chave,
-                    "modalidade": r.modalidade,
-                    "membro_banca1": r.membro_banca1,
-                    "membro_banca2": r.membro_banca2,
-                    "membro_banca3": getattr(r, "membro_banca3", None),
-                    "data_defesa": r.data_defesa,
-                    "horario_defesa": r.horario_defesa,
-                    "local_defesa": r.local_defesa,
-                    "status": r.status,
-                    "submission_date": r.submission_date.isoformat() if r.submission_date else None,
-                }
-                for r in rows
-            ],
+            "items": [_serialize_requerimento_tcc_submission(r) for r in rows],
         }
 
 
@@ -1717,4 +1780,3 @@ def get_funcionario_emails_by_nomes(nomes: List[str]) -> List[str]:
             seen.add(email.lower())
             emails.append(email)
     return emails
-
