@@ -44,6 +44,7 @@ Desenvolvendo um domínio?   → COMPONENTES_ARQUITETURA.md
 - ✅ **Formulário ACC** para atividades complementares curriculares (com análise por IA em background)
 - ✅ **Formulário TCC** para submissão de TCC 1 e TCC 2
 - ✅ **Formulário Requerimento TCC** para registro de banca e defesa
+- ✅ **Formulário CCF** para Componentes Curriculares Flexibilizados (com validação de disciplinas)
 - ✅ **Formulário Estágio** para envio de documentos de estágio
 - ✅ **Formulário Plano de Ensino** aceita PDF, DOC, DOCX, ODT e imagens
 - ✅ **Formulário Projetos** para submissão de projetos de ensino, pesquisa e extensão
@@ -52,6 +53,7 @@ Desenvolvendo um domínio?   → COMPONENTES_ARQUITETURA.md
 - ✅ **Avaliação de Gestão** pesquisa de satisfação anônima
 - ✅ **Consulta de Projetos Docentes** visualização com filtros e métricas
 - ✅ **Ofertas de Disciplinas** grades por período/turma
+- ✅ **Dashboard Social** visualização de dados socioeconômicos com filtros e métricas
 - ✅ **Diretor Virtual (RAG)** chatbot inteligente com busca semântica em documentos institucionais
 - ✅ **Dados Sociais** download CSV/Excel anonimizado (LGPD)
 - ✅ **Upload seguro** de arquivos ao Google Drive com estrutura hierárquica de pastas
@@ -89,11 +91,13 @@ Desenvolvendo um domínio?   → COMPONENTES_ARQUITETURA.md
 │   │   │   ├── home/           # HomePage com cards de formulários
 │   │   │   ├── form-acc/       # Formulário ACC
 │   │   │   ├── form-tcc/       # Formulário TCC
+│   │   │   ├── form-ccf/       # Formulário CCF (Componentes Curriculares Flexibilizados)
 │   │   │   ├── form-estagio/   # Formulário Estágio
 │   │   │   ├── form-requerimento-tcc/
 │   │   │   ├── form-plano-ensino/
 │   │   │   ├── form-projetos/
-│   │   │   ├── form-social/
+│   │   │   ├── form-social/    # Formulário Social
+│   │   │   ├── social-dashboard/ # Dashboard de dados sociais (admin)
 │   │   │   ├── form-emissao-docs/
 │   │   │   ├── avaliacao-gestao/
 │   │   │   ├── diretor-virtual/ # ChatWidget flutuante
@@ -121,9 +125,11 @@ Desenvolvendo um domínio?   → COMPONENTES_ARQUITETURA.md
 | `/tcc` | Formulário TCC 1/2 |
 | `/estagio` | Formulário Estágio |
 | `/requerimento-tcc` | Requerimento de banca |
+| `/ccf` | Componentes Curriculares Flexibilizados |
 | `/plano-ensino` | Plano de Ensino |
 | `/projetos` | Submissão de Projetos |
 | `/social` | Dados Socioeconômicos |
+| `/social/dashboard` | Dashboard de Dados Sociais (admin) |
 | `/emissao-documentos` | Emissão de Comprovantes |
 | `/avaliacao-gestao` | Avaliação de Gestão |
 | `/documentos` | Consulta de Projetos Docentes |
@@ -285,6 +291,7 @@ docker restart fasitech-api-prod
 - `GET  /api/v1/config/periodos-letivos` — Períodos disponíveis
 - `POST /api/v1/forms/acc` — Submissão ACC
 - `POST /api/v1/forms/tcc` — Submissão TCC
+- `POST /api/v1/forms/ccf` — Submissão CCF
 - `POST /api/v1/forms/estagio` — Submissão Estágio
 - `POST /api/v1/forms/requerimento-tcc` — Requerimento de banca
 - `POST /api/v1/forms/plano-ensino` — Plano de Ensino
@@ -295,6 +302,7 @@ docker restart fasitech-api-prod
 - `GET  /api/v1/dados-sociais/download` — Portal de download (HTML)
 - `GET  /api/v1/dados-sociais/download/csv` — CSV anonimizado
 - `GET  /api/v1/dados-sociais/download/excel` — Excel anonimizado
+- `GET  /api/v1/dados-sociais/dashboard` — Dashboard de dados sociais (admin)
 - `GET  /api/v1/requerimento-tcc` — Listagem de requerimentos (admin)
 - `GET  /api/v1/projetos` — Listagem de projetos (admin)
 
@@ -390,6 +398,40 @@ PERIODOS_LETIVOS=2026.1,2026.2,2026.3,2026.4
 ADMIN_API_KEYS=chave-secreta-admin
 ```
 
+## ⚖️ Licença e Propriedade Intelectual
+
+Este projeto é protegido pela **Licença de Uso Restrito com Proteção Acadêmica v1.0**.
+
+### Resumo dos Direitos
+
+✅ **Permitido**:
+- Uso educacional e acadêmico
+- Estudo do código-fonte
+- Clonagem e fork para fins pessoais não comerciais
+- Contribuições via pull requests
+
+❌ **Proibido**:
+- Uso comercial sem autorização explícita
+- Plágio ou apresentação como criação própria
+- Distribuição modificada sem atribuição de origem
+- Integração em produtos pagos sem permissão
+
+### Penalidades
+
+Violações da licença resultarão em:
+- Processo administrativo/acadêmico
+- Ações civis com multa de **R$ 5.000,00 a R$ 100.000,00**
+- Ações criminais conforme Lei 9.610/98
+- Bloqueio e remoção de conteúdo
+
+**Leia a licença completa**: [`LICENSE.md`](../LICENSE.md)
+
+Para solicitar **licença comercial**: `eltonsarmanho@gmail.com`
+
+---
+
 ## 📧 Suporte
 
 Em caso de dúvidas, entre em contato com a equipe de TI ou secretaria acadêmica.
+
+Para denúncias de plágio ou violação: `eltonsarmanho@gmail.com`
