@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
 from typing import Optional
 
 from backend.presentation.dependencies import get_admin_dependency
@@ -187,7 +187,7 @@ async def gerar_ata_defesa(
 
 @router.post("/requerimento-tcc/gerar-ata-lote", tags=["Consultas"])
 async def gerar_ata_defesa_lote(
-    payload: dict,
+    payload: dict = Body(...),
     _: str = Depends(get_admin_dependency),
 ):
     """Gera e envia ATAs em lote para os requerimentos selecionados."""
