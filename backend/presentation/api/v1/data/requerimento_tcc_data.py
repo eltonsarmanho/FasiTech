@@ -94,97 +94,6 @@ async def list_requerimento_tcc(
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, str(e))
 
 
-@router.get("/requerimento-tcc/{submission_id}", tags=["Consultas"])
-async def get_requerimento_tcc(
-    submission_id: int,
-    _: str = Depends(get_admin_dependency),
-):
-    try:
-        from backend.infrastructure.database.repository import get_requerimento_tcc_submission
-
-        row = get_requerimento_tcc_submission(submission_id)
-        if not row:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Registro não encontrado")
-        return row
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, str(e))
-
-
-@router.delete("/requerimento-tcc/{submission_id}", tags=["Consultas"], status_code=200)
-async def delete_requerimento_tcc(
-    submission_id: int,
-    _: str = Depends(get_admin_dependency),
-):
-    try:
-        from backend.infrastructure.database.repository import (
-            delete_requerimento_tcc_submission,
-            get_requerimento_tcc_drive_info,
-        )
-
-        drive_info = get_requerimento_tcc_drive_info(submission_id)
-
-        deleted = delete_requerimento_tcc_submission(submission_id)
-        if not deleted:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Registro não encontrado")
-
-        drive_deleted = False
-        if drive_info and drive_info.get("type") == "folder":
-            from backend.infrastructure.google.drive import trash_folder_by_path
-            drive_deleted = trash_folder_by_path(drive_info["root"], drive_info["path"])
-
-        return {"ok": True, "drive_deleted": drive_deleted}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, str(e))
-
-
-@router.put("/requerimento-tcc/{submission_id}", response_model=SubmissionResult, tags=["Consultas"])
-async def update_requerimento_tcc(
-    submission_id: int,
-    data: RequerimentoTccFormRequest,
-    _: str = Depends(get_admin_dependency),
-):
-    try:
-        _validate_requerimento_tcc_payload(data, exclude_submission_id=submission_id)
-
-        from backend.infrastructure.database.repository import update_requerimento_tcc_submission
-
-        updated_id = update_requerimento_tcc_submission(submission_id, data.model_dump())
-        if updated_id is None:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "Registro não encontrado")
-        return SubmissionResult(
-            id=updated_id,
-            status="recebido",
-            message="Requerimento de TCC atualizado com sucesso!",
-        )
-    except HTTPException:
-        raise
-    except ValueError as e:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(e))
-    except Exception as e:
-        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, str(e))
-
-
-@router.post("/requerimento-tcc/{submission_id}/gerar-ata", tags=["Consultas"])
-async def gerar_ata_defesa(
-    submission_id: int,
-    _: str = Depends(get_admin_dependency),
-):
-    """Gera a ATA de Defesa em .docx e envia por e-mail ao orientador."""
-    try:
-        requerimento = _enviar_ata_requerimento(submission_id)
-        return {"ok": True, "message": f"ATA enviada para o e-mail do orientador ({requerimento.get('orientador')})"}
-    except HTTPException:
-        raise
-    except ValueError as e:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(e))
-    except Exception as e:
-        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, str(e))
-
-
 @router.post("/requerimento-tcc/gerar-ata-lote", tags=["Consultas"])
 async def gerar_ata_defesa_lote(
     payload: dict = Body(...),
@@ -224,3 +133,94 @@ async def gerar_ata_defesa_lote(
         "falhas": falhas,
         "message": f"{len(enviados)} ATA(s) enviada(s) e {len(falhas)} falha(s).",
     }
+
+
+@router.post("/requerimento-tcc/{submission_id}/gerar-ata", tags=["Consultas"])
+async def gerar_ata_defesa(
+    submission_id: int,
+    _: str = Depends(get_admin_dependency),
+):
+    """Gera a ATA de Defesa em .docx e envia por e-mail ao orientador."""
+    try:
+        requerimento = _enviar_ata_requerimento(submission_id)
+        return {"ok": True, "message": f"ATA enviada para o e-mail do orientador ({requerimento.get('orientador')})"}
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(e))
+    except Exception as e:
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, str(e))
+
+
+@router.get("/requerimento-tcc/{submission_id}", tags=["Consultas"])
+async def get_requerimento_tcc(
+    submission_id: int,
+    _: str = Depends(get_admin_dependency),
+):
+    try:
+        from backend.infrastructure.database.repository import get_requerimento_tcc_submission
+
+        row = get_requerimento_tcc_submission(submission_id)
+        if not row:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Registro não encontrado")
+        return row
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, str(e))
+
+
+@router.put("/requerimento-tcc/{submission_id}", response_model=SubmissionResult, tags=["Consultas"])
+async def update_requerimento_tcc(
+    submission_id: int,
+    data: RequerimentoTccFormRequest,
+    _: str = Depends(get_admin_dependency),
+):
+    try:
+        _validate_requerimento_tcc_payload(data, exclude_submission_id=submission_id)
+
+        from backend.infrastructure.database.repository import update_requerimento_tcc_submission
+
+        updated_id = update_requerimento_tcc_submission(submission_id, data.model_dump())
+        if updated_id is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Registro não encontrado")
+        return SubmissionResult(
+            id=updated_id,
+            status="recebido",
+            message="Requerimento de TCC atualizado com sucesso!",
+        )
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(e))
+    except Exception as e:
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, str(e))
+
+
+@router.delete("/requerimento-tcc/{submission_id}", tags=["Consultas"], status_code=200)
+async def delete_requerimento_tcc(
+    submission_id: int,
+    _: str = Depends(get_admin_dependency),
+):
+    try:
+        from backend.infrastructure.database.repository import (
+            delete_requerimento_tcc_submission,
+            get_requerimento_tcc_drive_info,
+        )
+
+        drive_info = get_requerimento_tcc_drive_info(submission_id)
+
+        deleted = delete_requerimento_tcc_submission(submission_id)
+        if not deleted:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Registro não encontrado")
+
+        drive_deleted = False
+        if drive_info and drive_info.get("type") == "folder":
+            from backend.infrastructure.google.drive import trash_folder_by_path
+            drive_deleted = trash_folder_by_path(drive_info["root"], drive_info["path"])
+
+        return {"ok": True, "drive_deleted": drive_deleted}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, str(e))
