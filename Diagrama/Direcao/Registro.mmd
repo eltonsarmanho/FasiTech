@@ -1,0 +1,16 @@
+---
+config:
+  layout: dagre
+title: Processo de Registro de TCC
+---
+flowchart LR
+    A("Matricular em TCC 2<br><b>(Direção)</b>") --> B("Cadastrar Banca<br><b>(Direção)</b>")
+    B --> C("Apresentação do TCC<br><b>(Aluno/Banca)</b>")
+    C --> D("ATA no SIPAC<br><b>(Orientador)</b>")
+    D --> E("Consolidar Conceito TCC 2<br><b>(Orientador)</b>")
+
+     A:::direcao
+     B:::orientador
+     C:::geral
+     D:::direcao
+     E:::orientador
