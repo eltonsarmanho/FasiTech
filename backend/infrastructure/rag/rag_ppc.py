@@ -57,11 +57,17 @@ RERANK_CANDIDATE_POOL = 40
 RETRIEVER_FANOUT = 30
 
 # Configuração do cache semântico
-# Apenas entradas "trusted" podem ser servidas para o usuário.
+# Promoção por FREQUÊNCIA de repetição (não há avaliação/rating do usuário no
+# produto). Apenas entradas "trusted" podem ser servidas para o usuário.
 SEMANTIC_CACHE_SIMILARITY_THRESHOLD = 0.80
 SEMANTIC_CACHE_TABLE_NAME = "semantic_cache"
-SEMANTIC_CACHE_TRUSTED_MIN_AVG_RATING = 4.4
-SEMANTIC_CACHE_MIN_RATINGS_FOR_PROMOTION = 2
+# Nº de vezes que a MESMA pergunta (question_key exato, não similaridade vetorial)
+# precisa se repetir para a entrada virar "trusted" e passar a ser servida do cache.
+SEMANTIC_CACHE_FREQUENCY_PROMOTION_THRESHOLD = 3
+# TTL é renovado (sliding) a cada repetição da pergunta — na prática, uma pergunta
+# que continua sendo feita nunca expira; uma que parou de ser feita expira normalmente.
+# Isso evita "tempo indeterminado" de verdade, que deixaria respostas erradas presas
+# para sempre sem nenhuma chance de reavaliação.
 SEMANTIC_CACHE_TTL_DAYS_TRUSTED = 60
 SEMANTIC_CACHE_TTL_DAYS_CANDIDATE = 14
 
@@ -515,9 +521,7 @@ class ChatbotService:
                     "question_key",
                     "documents_hash",
                     "status",
-                    "avg_rating",
-                    "rating_count",
-                    "confidence_score",
+                    "hit_count",
                     "cached_at",
                     "last_feedback_at",
                     "expires_at",
@@ -652,24 +656,13 @@ class ChatbotService:
         except Exception:
             return None
 
-    def _compute_cache_confidence(self, avg_rating: float, rating_count: int) -> float:
+    def _compute_frequency_status(self, hit_count: int) -> str:
         """
-        Calcula score de confiança [0,1] combinando qualidade média e volume de avaliações.
+        Determina status da entrada por FREQUÊNCIA de repetição da pergunta:
+        "trusted" a partir de SEMANTIC_CACHE_FREQUENCY_PROMOTION_THRESHOLD repetições,
+        "candidate" antes disso.
         """
-        rating_factor = max(0.0, min(1.0, (avg_rating - 1.0) / 4.0))
-        volume_factor = max(0.0, min(1.0, rating_count / SEMANTIC_CACHE_MIN_RATINGS_FOR_PROMOTION))
-        return round(rating_factor * volume_factor, 4)
-
-    def _compute_cache_status(self, avg_rating: float, rating_count: int, last_rating: int) -> str:
-        """
-        Determina status da entrada: candidate ou trusted.
-        """
-        if last_rating <= 2:
-            return "candidate"
-        if (
-            rating_count >= SEMANTIC_CACHE_MIN_RATINGS_FOR_PROMOTION
-            and avg_rating >= SEMANTIC_CACHE_TRUSTED_MIN_AVG_RATING
-        ):
+        if hit_count >= SEMANTIC_CACHE_FREQUENCY_PROMOTION_THRESHOLD:
             return "trusted"
         return "candidate"
 
@@ -678,21 +671,22 @@ class ChatbotService:
         question: str,
         answer: str,
         question_embedding: List[float],
-        rating: int,
         existing_entry: Optional[Dict[str, Any]],
     ) -> Dict[str, Any]:
-        """Monta payload canônico da entrada de cache semântico."""
+        """Monta payload canônico da entrada de cache semântico.
+
+        O TTL é renovado (sliding) a cada repetição: enquanto a pergunta continuar
+        sendo feita, a entrada não expira; se parar de ser feita, expira normalmente.
+        """
         now_utc = datetime.now(timezone.utc)
         documents_hash = self._get_current_documents_hash()
         question_key = hashlib.sha256(
             self._normalize_question_for_key(question).encode("utf-8")
         ).hexdigest()
 
-        previous_count = int(existing_entry.get("rating_count", 0)) if existing_entry else 0
-        previous_avg = float(existing_entry.get("avg_rating", 0.0)) if existing_entry else 0.0
-        new_count = previous_count + 1
-        new_avg = ((previous_avg * previous_count) + float(rating)) / new_count if new_count > 0 else float(rating)
-        status = self._compute_cache_status(new_avg, new_count, rating)
+        previous_hit_count = int(existing_entry.get("hit_count", 0)) if existing_entry else 0
+        new_hit_count = previous_hit_count + 1
+        status = self._compute_frequency_status(new_hit_count)
 
         ttl_days = (
             SEMANTIC_CACHE_TTL_DAYS_TRUSTED
@@ -708,9 +702,7 @@ class ChatbotService:
             "question_key": question_key,
             "documents_hash": documents_hash,
             "status": status,
-            "avg_rating": round(new_avg, 4),
-            "rating_count": int(new_count),
-            "confidence_score": self._compute_cache_confidence(new_avg, new_count),
+            "hit_count": int(new_hit_count),
             "cached_at": existing_entry.get("cached_at") if existing_entry else now_utc.isoformat(),
             "last_feedback_at": now_utc.isoformat(),
             "expires_at": expires_at,
@@ -854,8 +846,7 @@ class ChatbotService:
                     "similarity": similarity,
                     "cached_at": candidate.get("cached_at", ""),
                     "status": candidate.get("status", "candidate"),
-                    "avg_rating": float(candidate.get("avg_rating", 0.0) or 0.0),
-                    "rating_count": int(candidate.get("rating_count", 0) or 0),
+                    "hit_count": int(candidate.get("hit_count", 0) or 0),
                 }
 
             logger.info(
@@ -868,107 +859,118 @@ class ChatbotService:
             logger.warning(f"Erro ao buscar no cache: {e}")
             return None
 
-    def _save_to_cache(self, question: str, answer: str, rating: int) -> bool:
+    def _find_similar_cache_entry(
+        self, question_embedding: List[float], current_documents_hash: str
+    ) -> Optional[Dict[str, Any]]:
         """
-        Registra feedback no cache semântico com política candidate/trusted.
-        
-        Args:
-            question: Pergunta original
-            answer: Resposta gerada pelo modelo
-            rating: Avaliação de 1 a 5
-            
+        Busca a entrada de cache (candidate OU trusted) mais próxima por
+        similaridade vetorial, restrita à versão atual dos documentos.
+
+        Usada para tratar paráfrases ("Quantas horas são ACC?", "Qual a carga
+        horária de ACC?", "Carga horária de ACC?") como a MESMA pergunta para
+        fins de contagem de frequência — sem isso, cada variação de texto
+        teria seu próprio ``question_key`` exato e nunca somaria repetições.
+        """
+        try:
+            if self._cache_table is None:
+                return None
+
+            results = (
+                self._cache_table.search(question_embedding).metric("cosine").limit(20).to_list()
+            )
+            for candidate in results:
+                cosine_distance = candidate.get("_distance", 1.0)
+                similarity = max(0.0, min(1.0, 1 - cosine_distance))
+                if similarity < SEMANTIC_CACHE_SIMILARITY_THRESHOLD:
+                    continue
+                if candidate.get("documents_hash", "") != current_documents_hash:
+                    continue
+                return candidate
+            return None
+        except Exception as e:
+            logger.warning(f"Erro ao buscar entrada similar no cache: {e}")
+            return None
+
+    def _track_question_frequency(self, question: str, answer: str) -> Optional[Dict[str, Any]]:
+        """
+        Registra automaticamente toda pergunta respondida (cache hit ou geração
+        nova pelo modelo) e incrementa a contagem de repetições.
+
+        A contagem é feita por SIMILARIDADE VETORIAL (mesmo threshold usado para
+        servir do cache), não por match exato de texto — assim, perguntas com
+        redações diferentes mas mesma intenção somam repetições para a mesma
+        entrada em vez de criar contadores separados que nunca cruzam o limiar.
+
+        Chamado em TODO ciclo de pergunta/resposta — não depende de feedback
+        explícito do usuário (não há rating no produto). Quando o número de
+        repetições atinge ``SEMANTIC_CACHE_FREQUENCY_PROMOTION_THRESHOLD``, a
+        entrada é promovida a "trusted" e passa a ser servida do cache para
+        perguntas semanticamente similares.
+
         Returns:
-            True se salvou com sucesso, False caso contrário
+            O cache_entry persistido, ou None se o cache semântico estiver
+            desabilitado ou a operação falhar (fail-open: nunca interrompe o
+            fluxo de resposta ao usuário).
         """
         try:
             if self._cache_db is None:
-                return False
+                return None
 
-            if rating < 1 or rating > 5:
-                logger.warning(f"Avaliação inválida para cache semântico: {rating}")
-                return False
-            
-            # Gerar embedding da pergunta
-            question_embedding = self._get_question_embedding(question)
+            normalized_question = (question or "").strip()
+            normalized_answer = (answer or "").strip()
+            if not normalized_question or not normalized_answer:
+                return None
+
+            question_embedding = self._get_question_embedding(normalized_question)
             if question_embedding is None:
-                return False
+                return None
 
-            question_key = hashlib.sha256(
-                self._normalize_question_for_key(question).encode("utf-8")
-            ).hexdigest()
             documents_hash = self._get_current_documents_hash()
-            existing_entry = self._find_cache_entry_by_question_key(question_key, documents_hash)
+
+            # 1. Tenta achar uma entrada semanticamente equivalente já existente
+            #    (qualquer redação) — é ela que acumula a repetição.
+            existing_entry = self._find_similar_cache_entry(question_embedding, documents_hash)
+
+            # 2. Sem entrada similar: cai para o match exato por question_key
+            #    (cobre o caso de reforçar a MESMA entrada que acabou de ser criada).
+            if existing_entry is None:
+                question_key = hashlib.sha256(
+                    self._normalize_question_for_key(normalized_question).encode("utf-8")
+                ).hexdigest()
+                existing_entry = self._find_cache_entry_by_question_key(question_key, documents_hash)
+
+            # A entrada persistida é ancorada na pergunta/vetor ORIGINAIS (quando já
+            # existir uma similar) — evita que o vetor represente uma "média" de
+            # redações e vá gradualmente "derivando" para fora do tópico original.
+            anchor_question = existing_entry["question"] if existing_entry else normalized_question
+            anchor_embedding = (
+                np.array(existing_entry["vector"], dtype=np.float32).tolist()
+                if existing_entry
+                else question_embedding
+            )
 
             cache_entry = self._build_cache_entry(
-                question=question,
-                answer=answer,
-                question_embedding=question_embedding,
-                rating=rating,
+                question=anchor_question,
+                answer=normalized_answer,
+                question_embedding=anchor_embedding,
                 existing_entry=existing_entry,
             )
 
             saved = self._upsert_cache_entry(cache_entry)
             if saved:
                 logger.info(
-                    "💾 Cache atualizado: status=%s, avg=%.2f, count=%d, pergunta='%s...'",
+                    "💾 Frequência do cache atualizada: status=%s, hit_count=%d, pergunta original='%s...', pergunta recebida='%s...'",
                     cache_entry["status"],
-                    cache_entry["avg_rating"],
-                    cache_entry["rating_count"],
-                    question[:50],
+                    cache_entry["hit_count"],
+                    anchor_question[:50],
+                    normalized_question[:50],
                 )
-            return saved
-            
+                return cache_entry
+            return None
+
         except Exception as e:
-            logger.warning(f"Erro ao salvar no cache: {e}")
-            return False
-
-    def save_to_semantic_cache(self, question: str, answer: str, rating: Optional[int] = None) -> bool:
-        """
-        Método público para registrar feedback no cache semântico.
-        
-        Args:
-            question: Pergunta original
-            answer: Resposta gerada pelo modelo
-            rating: Avaliação do usuário (1-5). Se omitido, assume 5 para compatibilidade.
-            
-        Returns:
-            True se salvou com sucesso, False caso contrário
-        """
-        logger.info(f"🔄 Tentando salvar no cache semântico: '{question[:50]}...'")
-        
-        # Verificar se o cache está habilitado
-        if self._cache_db is None:
-            logger.warning("⚠️ Cache semântico não está habilitado (_cache_db é None)")
-            return False
-        
-        # Normalizar a pergunta antes de salvar (strip simples)
-        normalized_question = (question or "").strip()
-        if not normalized_question:
-            logger.warning("⚠️ Pergunta vazia após normalização")
-            return False
-
-        normalized_answer = (answer or "").strip()
-        if not normalized_answer:
-            logger.warning("⚠️ Resposta vazia após normalização")
-            return False
-
-        try:
-            normalized_rating = int(rating) if rating is not None else 5
-        except (TypeError, ValueError):
-            logger.warning("⚠️ Avaliação inválida recebida para cache: %s", rating)
-            return False
-        if normalized_rating < 1 or normalized_rating > 5:
-            logger.warning("⚠️ Avaliação fora do intervalo permitido (1-5): %s", normalized_rating)
-            return False
-            
-        result = self._save_to_cache(normalized_question, normalized_answer, normalized_rating)
-        
-        if result:
-            logger.info("✅ Feedback registrado no cache semântico com sucesso!")
-        else:
-            logger.warning("❌ Falha ao registrar feedback no cache semântico")
-        
-        return result
+            logger.warning(f"Erro ao registrar frequência no cache semântico: {e}")
+            return None
 
     def _get_agent(self, session_id: str) -> Agent:
         """
@@ -1640,7 +1642,11 @@ class ChatbotService:
                 self._last_question_at = datetime.utcnow()
                 self._last_latency = latency
                 self._total_questions += 1
-                
+
+                # Repetição da pergunta conta pra frequência mesmo servindo do cache
+                # (sliding TTL — a entrada continua "viva" enquanto for repetida).
+                self._track_question_frequency(normalized_question, cached_result["answer"])
+
                 return {
                     "success": True,
                     "answer": cached_result["answer"],
@@ -1652,8 +1658,7 @@ class ChatbotService:
                         "similarity": cached_result["similarity"],
                         "cached_at": cached_result["cached_at"],
                         "status": cached_result.get("status"),
-                        "avg_rating": cached_result.get("avg_rating"),
-                        "rating_count": cached_result.get("rating_count"),
+                        "hit_count": cached_result.get("hit_count"),
                     }
                 }
             
@@ -1787,10 +1792,14 @@ class ChatbotService:
             self._total_questions += 1
 
             logger.info("Resposta gerada em %.2fs (processamento incluído)", latency)
-            
-            # NOTA: O cache semântico é alimentado pelo feedback do usuário
-            # via save_to_semantic_cache(question, answer, rating).
-            
+
+            # Cache semântico alimentado automaticamente por FREQUÊNCIA de repetição
+            # (não há rating do usuário no produto): toda pergunta respondida pelo
+            # modelo é registrada; ao atingir o limiar de repetições vira "trusted"
+            # e passa a ser servida do cache para perguntas similares.
+            self._track_question_frequency(normalized_question, answer_text)
+
+
             result = {
                 "success": True,
                 "answer": answer_text,
