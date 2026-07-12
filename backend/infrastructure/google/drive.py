@@ -39,6 +39,14 @@ def _get_credentials():
     return credentials
 
 
+def get_tcc_folder_root_id() -> str:
+    """Retorna o ID da pasta raiz para TCC no Google Drive."""
+    from backend.config.settings import settings
+    if not settings.tcc_folder_id:
+        raise ValueError("tcc_folder_id não configurado no arquivo .env")
+    return settings.tcc_folder_id
+
+
 def find_or_create_folder(folder_name: str, parent_folder_id: str) -> str:
     """
     Encontra ou cria uma pasta no Google Drive.

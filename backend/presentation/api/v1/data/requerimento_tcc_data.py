@@ -216,8 +216,11 @@ async def delete_requerimento_tcc(
 
         drive_deleted = False
         if drive_info and drive_info.get("type") == "folder":
-            from backend.infrastructure.google.drive import trash_folder_by_path
-            drive_deleted = trash_folder_by_path(drive_info["root"], drive_info["path"])
+            try:
+                from backend.infrastructure.google.drive import trash_folder_by_path
+                drive_deleted = trash_folder_by_path(drive_info["root"], drive_info["path"])
+            except Exception as drive_error:
+                print(f"⚠️ Erro ao deletar pasta no Drive: {str(drive_error)}")
 
         return {"ok": True, "drive_deleted": drive_deleted}
     except HTTPException:
