@@ -242,7 +242,7 @@ def gerar_ata_docx(requerimento: dict, funcionarios: list[dict]) -> bytes:
     _set_paragraph_spacing(para_body, before=0, after=240, line=276)
 
     # Constrói a lista de membros para o texto
-    membros_texto = f"{m1_prefix} {m1_nome}".strip() + f" e {m2_prefix} {m2_nome}".strip()
+    membros_texto = f"{m1_prefix} {m1_nome}".strip() +" e " + f"{m2_prefix} {m2_nome}".strip()
     if m3_f and m3_nome:
         membros_texto += f", e {m3_prefix} {m3_nome}".strip()
 
