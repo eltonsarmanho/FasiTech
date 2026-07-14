@@ -244,8 +244,9 @@ def gerar_ata_docx(requerimento: dict, funcionarios: list[dict]) -> bytes:
     # Constrói a lista de membros para o texto
     membros_texto = f"{m1_prefix} {m1_nome}".strip() +" e " + f"{m2_prefix} {m2_nome}".strip()
     if m3_f and m3_nome:
+        membros_texto = f"{m1_prefix} {m1_nome}".strip() +", " + f"{m2_prefix} {m2_nome}".strip()
         membros_texto += f", e {m3_prefix} {m3_nome}".strip()
-
+    
     _add_run(para_body,
         f"Aos {dia_ext} ({dia_num}) dias do mês de {mes_ext} de {ano_ext} ({ano_num}), "
         f"às {hora_ext} ({hora_num}h) reuniu-se via {local_str}, a Banca Examinadora para "
