@@ -68,11 +68,16 @@ services:
     restart: always
     networks:
       - fasitech-network
+      - proxy_network
 
 networks:
   fasitech-network:
     driver: bridge
+  proxy_network:
+    external: true
 
 volumes:
   ollama_data:
   app_cache:
+
+
