@@ -1,0 +1,299 @@
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202016040002';
+
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202016040011';
+
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202016040028';
+
+UPDATE public.social_submissions
+	SET  genero='Feminino'
+	WHERE matricula = '202016040030';
+
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202116040002';
+
+UPDATE public.social_submissions
+	SET  genero='Feminino'
+	WHERE matricula = '202116040005';
+
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202116040006';
+
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202116040010';
+
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202116040022';
+
+UPDATE public.social_submissions
+	SET  genero='Feminino'
+	WHERE matricula = '202116040023';
+
+UPDATE public.social_submissions
+	SET  genero='Feminino'
+	WHERE matricula = '202285640010';
+
+UPDATE public.social_submissions
+	SET  genero='Feminino'
+	WHERE matricula = '202285640022';
+
+UPDATE public.social_submissions
+	SET  genero='Feminino'
+	WHERE matricula = '202285640023';
+
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202285640033';
+
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202285940003';
+
+UPDATE public.social_submissions
+	SET  genero='Feminino'
+	WHERE matricula = '202285940006';
+
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202285940007';
+
+UPDATE public.social_submissions
+	SET  genero='Feminino'
+	WHERE matricula = '202285940010';
+
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202285940014';
+
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202285940016';
+
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202285940019';
+
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202285940020';
+
+UPDATE public.social_submissions
+	SET  genero='Feminino'
+	WHERE matricula = '202285940022';
+
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202285940023';
+
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202316040005';
+
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202316040007';
+
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202316040010';
+
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202316040013';
+
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202316040015';
+
+UPDATE public.social_submissions
+	SET  genero='Feminino'
+	WHERE matricula = '202316040016';
+
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202316040031';
+
+UPDATE public.social_submissions
+	SET  genero=NULL
+	WHERE matricula = '202416040002';
+
+UPDATE public.social_submissions
+	SET  genero='Feminino'
+	WHERE matricula = '202416040004';
+
+UPDATE public.social_submissions
+	SET  genero='Feminino'
+	WHERE matricula = '202416040005';
+
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202416040008';
+
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202416040009';
+
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202416040010';
+
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202416040011';
+
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202416040013';
+
+UPDATE public.social_submissions
+	SET  genero='Feminino'
+	WHERE matricula = '202416040014';
+
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202416040015';
+
+UPDATE public.social_submissions
+	SET  genero='Feminino'
+	WHERE matricula = '202416040016';
+
+UPDATE public.social_submissions
+	SET  genero='Feminino'
+	WHERE matricula = '202416040019';
+
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202416040020';
+
+UPDATE public.social_submissions
+	SET  genero='Feminino'
+	WHERE matricula = '202416040022';
+
+UPDATE public.social_submissions
+	SET  genero='Feminino'
+	WHERE matricula = '202416040023';
+
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202416040025';
+
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202416040026';
+
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202416040027';
+
+UPDATE public.social_submissions
+	SET  genero='Feminino'
+	WHERE matricula = '202416040028';
+
+UPDATE public.social_submissions
+	SET  genero='Feminino'
+	WHERE matricula = '202416040030';
+
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202416040031';
+
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202516040002';
+
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202516040003';
+
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202516040005';
+
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202516040007';
+
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202516040009';
+
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202516040010';
+
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202516040011';
+
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202516040016';
+
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202516040017';
+
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202516040018';
+
+UPDATE public.social_submissions
+	SET  genero='Feminino'
+	WHERE matricula = '202516040020';
+
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202516040022';
+
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202516040025';
+
+UPDATE public.social_submissions
+	SET  genero='Feminino'
+	WHERE matricula = '202516040027';
+
+UPDATE public.social_submissions
+	SET  genero='Feminino'
+	WHERE matricula = '202516040028';
+
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202516040029';
+
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202516040030';
+
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202516040031';
+
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202516040033';
+
+UPDATE public.social_submissions
+	SET  genero='Feminino'
+	WHERE matricula = '202516040036';
+
+UPDATE public.social_submissions
+	SET  genero='Feminino'
+	WHERE matricula = '202516040038';
+
+UPDATE public.social_submissions
+	SET  genero='Masculino'
+	WHERE matricula = '202516040040';
+
+UPDATE public.social_submissions
+	SET  genero='Feminino'
+	WHERE matricula = '202516040043';

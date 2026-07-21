@@ -25,6 +25,8 @@ import { GestorPeriodos } from '@/features/gestor-periodos/GestorPeriodos'
 import { GestorFuncionarios } from '@/features/gestor-funcionarios/GestorFuncionarios'
 import { DocumentosPage } from '@/features/documentos/DocumentosPage'
 import { CalendariosPage } from '@/features/calendarios/CalendariosPage'
+import { PoliticaPrivacidadePage } from '@/features/privacidade/PoliticaPrivacidadePage'
+import { TermosServicoPage } from '@/features/termos-servico/TermosServicoPage'
 
 export default function App() {
   return (
@@ -50,6 +52,8 @@ export default function App() {
         <Route path="faq" element={<FAQPage />} />
         <Route path="documentos" element={<DocumentosPage />} />
         <Route path="calendarios" element={<CalendariosPage />} />
+        <Route path="privacidade" element={<PoliticaPrivacidadePage />} />
+        <Route path="termos-de-servico" element={<TermosServicoPage />} />
 
         {/* Admin */}
         <Route path="admin/alertas" element={<GestorAlertas />} />
