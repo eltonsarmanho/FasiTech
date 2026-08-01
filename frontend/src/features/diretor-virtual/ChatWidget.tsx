@@ -4,6 +4,33 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { cn } from '@/shared/lib/utils'
 
+// Chatwoot SDK global
+declare global {
+  interface Window {
+    chatwootSDK?: { run: (opts: { websiteToken: string; baseUrl: string }) => void }
+    $chatwoot?: {
+      open: () => void
+      setUser: (id: string, attrs: { name?: string; email?: string }) => void
+      reset: () => void
+    }
+  }
+}
+
+const CHATWOOT_BASE_URL = 'https://chatwoot.fasitech.cameta.ufpa.br'
+const CHATWOOT_TOKEN = 'oUy6xunsEJMzcXDvzscMHj7M'
+
+function loadChatwootSDK() {
+  if (document.getElementById('chatwoot-sdk')) return
+  const script = document.createElement('script')
+  script.id = 'chatwoot-sdk'
+  script.src = `${CHATWOOT_BASE_URL}/packs/js/sdk.js`
+  script.async = true
+  script.onload = () => {
+    window.chatwootSDK?.run({ websiteToken: CHATWOOT_TOKEN, baseUrl: CHATWOOT_BASE_URL })
+  }
+  document.head.appendChild(script)
+}
+
 interface Message {
   role: 'user' | 'assistant'
   content: string
@@ -89,6 +116,12 @@ export function ChatWidget() {
       setOptions(data.options ?? null)
       if (data.ticket_id) setTicketId(data.ticket_id)
       setMessages(prev => [...prev, { role: 'assistant', content: data.response }])
+
+      // Se escalou para humano, abre o Chatwoot SDK para chat em tempo real
+      if (data.state === 'escalated') {
+        loadChatwootSDK()
+        setTimeout(() => window.$chatwoot?.open(), 1500)
+      }
     } catch {
       setMessages(prev => [
         ...prev,

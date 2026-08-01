@@ -138,14 +138,32 @@ def assign_team(conversation_id: int, team_id: int) -> None:
         logger.warning("Chatwoot: team_id=0, atribuição de equipe ignorada")
         return
     base, acct, token = _cfg()
-    r = httpx.post(
-        _url(base, acct, f"conversations/{conversation_id}/assignments"),
-        json={"team_id": team_id},
-        headers=_headers(token),
-        timeout=10,
-    )
-    r.raise_for_status()
-    logger.info("Chatwoot: conversa %s atribuída à equipe %s", conversation_id, team_id)
+    # Chatwoot API v2+: atribuição de equipe via PATCH na conversa
+    try:
+        r = httpx.patch(
+            _url(base, acct, f"conversations/{conversation_id}"),
+            json={"team_id": team_id},
+            headers=_headers(token),
+            timeout=10,
+        )
+        r.raise_for_status()
+        logger.info("Chatwoot: conversa %s atribuída à equipe %s (PATCH)", conversation_id, team_id)
+        return
+    except Exception as exc:
+        logger.warning("Chatwoot: PATCH team falhou (conv=%s team=%s): %s", conversation_id, team_id, exc)
+
+    # Fallback: POST /assignments com team_id
+    try:
+        r = httpx.post(
+            _url(base, acct, f"conversations/{conversation_id}/assignments"),
+            json={"team_id": team_id},
+            headers=_headers(token),
+            timeout=10,
+        )
+        r.raise_for_status()
+        logger.info("Chatwoot: conversa %s atribuída à equipe %s (POST)", conversation_id, team_id)
+    except Exception as exc:
+        logger.warning("Chatwoot: team assignment ignorado (conv=%s team=%s): %s", conversation_id, team_id, exc)
 
 
 def send_message(conversation_id: int, content: str, *, private: bool = False) -> None:
@@ -177,7 +195,8 @@ def escalate_to_team(
     """
     Cria contato + conversa no Chatwoot e atribui à equipe indicada.
     Retorna o conversation_id criado.
-    Lança exceção em caso de falha (para o chamador registrar no log).
+    Lança exceção apenas se não conseguir criar a conversa.
+    Team assignment e mensagem são best-effort.
     """
     contact_id = create_or_get_contact(name=name, email=email)
     conversation_id = create_conversation(
@@ -185,6 +204,10 @@ def escalate_to_team(
         inbox_id=inbox_id,
         additional_attributes={"matricula": matricula, "ticket_id": ticket_id},
     )
+    # Best-effort: falha não impede o retorno do conversation_id
     assign_team(conversation_id, team_id)
-    send_message(conversation_id, context_message, private=True)
+    try:
+        send_message(conversation_id, context_message, private=True)
+    except Exception as exc:
+        logger.warning("Chatwoot: send_message falhou (conv=%s): %s", conversation_id, exc)
     return conversation_id
