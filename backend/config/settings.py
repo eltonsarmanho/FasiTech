@@ -68,6 +68,14 @@ class Settings(BaseSettings):
     destinatarios: str = Field(default="")  # DESTINATARIOS no .env
     pareceristas: str = Field(default="")  # "Nome:email,Nome:email,..."
 
+    # Chatwoot
+    chatwoot_api_url: str = Field(default="")
+    chatwoot_api_token: str = Field(default="")
+    chatwoot_account_id: int = Field(default=1)
+    chatwoot_inbox_id_chatweb: int = Field(default=5)
+    chatwoot_team_id_secretaria: int = Field(default=0)
+    chatwoot_team_id_diretor: int = Field(default=0)
+
     # App
     environment: str = Field(default="development")
     api_base_url: str = Field(default="http://localhost:8000")

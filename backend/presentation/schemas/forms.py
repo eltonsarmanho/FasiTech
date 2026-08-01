@@ -163,3 +163,16 @@ class AlertaRequest(BaseModel):
     destination_type: str = "docentes"
     destination_emails: Optional[str] = None
     ativo: bool = True
+
+
+class ChatbotRequest(BaseModel):
+    message: str
+    session_id: Optional[str] = None
+
+
+class ChatbotResponse(BaseModel):
+    session_id: str
+    response: str
+    options: Optional[list[str]] = None
+    ticket_id: Optional[str] = None
+    state: str
