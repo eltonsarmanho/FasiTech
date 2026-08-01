@@ -77,6 +77,7 @@ from backend.presentation.api.v1.rag import diretor_virtual
 from backend.presentation.api.v1.ofertas import disciplinas
 from backend.presentation.api.v1 import config as config_router
 from backend.presentation.api.admin import alertas, lancamentos, periodos_submissao as periodos_admin, funcionarios as funcionarios_admin
+from backend.presentation.api.v1.chatbot import chatbot_router
 
 # Formulários
 app.include_router(acc.router, prefix="/api/v1/forms", tags=["Formulários"])
@@ -110,6 +111,9 @@ app.include_router(alertas.router, prefix="/api/admin", tags=["Admin"])
 app.include_router(lancamentos.router, prefix="/api/admin", tags=["Admin"])
 app.include_router(periodos_admin.router, prefix="/api/admin", tags=["Admin"])
 app.include_router(funcionarios_admin.router, prefix="/api/admin", tags=["Admin"])
+
+# Chatbot
+app.include_router(chatbot_router.router, prefix="/api/v1", tags=["Chatbot"])
 
 
 # ── Endpoints base ────────────────────────────────────────────────────────────
