@@ -1,4 +1,3 @@
-streamlit
 fastapi
 uvicorn[standard]
 google-api-python-client
@@ -39,5 +38,4 @@ python-dotenv
 pydantic[email]
 pydantic-settings
 python-multipart
-playwright
 python-docx
