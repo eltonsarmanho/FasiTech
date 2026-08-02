@@ -73,6 +73,83 @@ services:
     networks:
       - fasitech-network
 
+  # Redis — Cache/Sessions para Chatwoot
+  redis-chatwoot:
+    image: redis:7-alpine
+    container_name: fasitech-redis-chatwoot-prod
+    expose:
+      - "6379"
+    restart: unless-stopped
+    volumes:
+      - redis_chatwoot_data:/data
+    networks:
+      - fasitech-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # PostgreSQL — Banco para Chatwoot
+  postgres-chatwoot:
+    image: postgres:15-alpine
+    container_name: fasitech-postgres-chatwoot-prod
+    environment:
+      - POSTGRES_USER=chatwoot
+      - POSTGRES_PASSWORD=chatwoot_secure_pass_2024
+      - POSTGRES_DB=chatwoot
+    expose:
+      - "5432"
+    restart: unless-stopped
+    volumes:
+      - postgres_chatwoot_data:/var/lib/postgresql/data
+    networks:
+      - fasitech-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chatwoot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Chatwoot — Live Chat & Support Platform
+  chatwoot:
+    image: chatwoot/chatwoot:latest
+    container_name: fasitech-chatwoot-prod
+    environment:
+      - RAILS_ENV=production
+      - SECRET_KEY_BASE=a5e3d9c2f8b1a4e6d9f2c5b8e1a4d7e0a3c6f9b2e5d8a1c4f7a0d3e6b9c2f5
+      - FRONTEND_URL=https://chatwoot.fasitech.cameta.ufpa.br
+      - MAILER_SENDER_NAME=FasiTech Chatwoot
+      - MAILER_SENDER_EMAIL=fasicuntins@ufpa.br
+      - SMTP_ADDRESS=smtp.gmail.com
+      - SMTP_PORT=587
+      - SMTP_USERNAME=fasicuntins@ufpa.br
+      - SMTP_PASSWORD=${EMAIL_PASSWORD}
+      - SMTP_AUTHENTICATION=login
+      - SMTP_ENABLE_STARTTLS_AUTO=true
+      - DATABASE_URL=postgresql://chatwoot:chatwoot_secure_pass_2024@postgres-chatwoot:5432/chatwoot
+      - REDIS_URL=redis://redis-chatwoot:6379
+      - ACCOUNT_NAME=FasiTech
+      - USE_INBOX_AVATAR_FOR_BOT=true
+    expose:
+      - "3000"
+    depends_on:
+      postgres-chatwoot:
+        condition: service_healthy
+      redis-chatwoot:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - fasitech-network
+    volumes:
+      - chatwoot_storage:/app/storage
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
   # Nginx Proxy Reverso com SSL Let's Encrypt
   nginx:
     image: nginx:alpine
@@ -87,6 +164,7 @@ services:
     depends_on:
       - api
       - frontend
+      - chatwoot
     restart: always
     networks:
       - fasitech-network
@@ -101,3 +179,6 @@ networks:
 volumes:
   ollama_models:
   app_cache:
+  chatwoot_storage:
+  postgres_chatwoot_data:
+  redis_chatwoot_data:

@@ -19,16 +19,64 @@ declare global {
 const CHATWOOT_BASE_URL = 'https://chatwoot.fasitech.cameta.ufpa.br'
 const CHATWOOT_TOKEN = 'oUy6xunsEJMzcXDvzscMHj7M'
 
-function loadChatwootSDK() {
-  if (document.getElementById('chatwoot-sdk')) return
-  const script = document.createElement('script')
-  script.id = 'chatwoot-sdk'
-  script.src = `${CHATWOOT_BASE_URL}/packs/js/sdk.js`
-  script.async = true
-  script.onload = () => {
-    window.chatwootSDK?.run({ websiteToken: CHATWOOT_TOKEN, baseUrl: CHATWOOT_BASE_URL })
+let chatwootLoadPromise: Promise<void> | null = null
+
+function loadChatwootSDK(): Promise<void> {
+  // Evita múltiplas tentativas simultâneas
+  if (chatwootLoadPromise) return chatwootLoadPromise
+
+  // Se já está carregado, retorna imediatamente
+  if (window.chatwootSDK) {
+    return Promise.resolve()
   }
-  document.head.appendChild(script)
+
+  chatwootLoadPromise = new Promise((resolve, reject) => {
+    if (document.getElementById('chatwoot-sdk')) {
+      resolve()
+      return
+    }
+
+    const script = document.createElement('script')
+    script.id = 'chatwoot-sdk'
+    script.src = `${CHATWOOT_BASE_URL}/packs/js/sdk.js`
+    script.async = true
+    script.type = 'module'
+
+    script.onload = () => {
+      // Aguarda o SDK estar disponível
+      const waitForSDK = setInterval(() => {
+        if (window.chatwootSDK) {
+          clearInterval(waitForSDK)
+          try {
+            window.chatwootSDK.run({ websiteToken: CHATWOOT_TOKEN, baseUrl: CHATWOOT_BASE_URL })
+            resolve()
+          } catch (err) {
+            console.error('Erro ao inicializar Chatwoot:', err)
+            reject(err)
+          }
+        }
+      }, 100)
+
+      // Timeout de 10s
+      setTimeout(() => {
+        clearInterval(waitForSDK)
+        reject(new Error('Chatwoot SDK não inicializou a tempo'))
+      }, 10000)
+    }
+
+    script.onerror = () => {
+      console.error('Falha ao carregar SDK do Chatwoot de:', script.src)
+      reject(new Error('Falha ao carregar SDK do Chatwoot'))
+    }
+
+    document.head.appendChild(script)
+  })
+
+  chatwootLoadPromise.catch(() => {
+    chatwootLoadPromise = null // Reset para próximas tentativas
+  })
+
+  return chatwootLoadPromise
 }
 
 interface Message {
@@ -120,7 +168,16 @@ export function ChatWidget() {
       // Se escalou para humano, abre o Chatwoot SDK para chat em tempo real
       if (data.state === 'escalated') {
         loadChatwootSDK()
-        setTimeout(() => window.$chatwoot?.open(), 1500)
+          .then(() => {
+            setTimeout(() => window.$chatwoot?.open(), 500)
+          })
+          .catch((err) => {
+            console.error('Falha ao carregar Chatwoot:', err)
+            setMessages(prev => [
+              ...prev,
+              { role: 'assistant', content: 'Erro ao conectar com atendimento humano. Por favor, tente novamente.' },
+            ])
+          })
       }
     } catch {
       setMessages(prev => [
