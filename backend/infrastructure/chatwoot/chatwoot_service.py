@@ -138,7 +138,24 @@ def assign_team(conversation_id: int, team_id: int) -> None:
         logger.warning("Chatwoot: team_id=0, atribuição de equipe ignorada")
         return
     base, acct, token = _cfg()
-    # Chatwoot API v2+: atribuição de equipe via PATCH na conversa
+
+    # POST /assignments é o método que efetivamente atribui a equipe nesta
+    # instância — o PATCH direto na conversa retorna 200 sem aplicar a
+    # mudança (não lança erro, então um fallback nunca seria acionado).
+    try:
+        r = httpx.post(
+            _url(base, acct, f"conversations/{conversation_id}/assignments"),
+            json={"team_id": team_id},
+            headers=_headers(token),
+            timeout=10,
+        )
+        r.raise_for_status()
+        logger.info("Chatwoot: conversa %s atribuída à equipe %s (POST /assignments)", conversation_id, team_id)
+        return
+    except Exception as exc:
+        logger.warning("Chatwoot: POST /assignments falhou (conv=%s team=%s): %s", conversation_id, team_id, exc)
+
+    # Fallback: PATCH direto na conversa
     try:
         r = httpx.patch(
             _url(base, acct, f"conversations/{conversation_id}"),
@@ -148,20 +165,6 @@ def assign_team(conversation_id: int, team_id: int) -> None:
         )
         r.raise_for_status()
         logger.info("Chatwoot: conversa %s atribuída à equipe %s (PATCH)", conversation_id, team_id)
-        return
-    except Exception as exc:
-        logger.warning("Chatwoot: PATCH team falhou (conv=%s team=%s): %s", conversation_id, team_id, exc)
-
-    # Fallback: POST /assignments com team_id
-    try:
-        r = httpx.post(
-            _url(base, acct, f"conversations/{conversation_id}/assignments"),
-            json={"team_id": team_id},
-            headers=_headers(token),
-            timeout=10,
-        )
-        r.raise_for_status()
-        logger.info("Chatwoot: conversa %s atribuída à equipe %s (POST)", conversation_id, team_id)
     except Exception as exc:
         logger.warning("Chatwoot: team assignment ignorado (conv=%s team=%s): %s", conversation_id, team_id, exc)
 

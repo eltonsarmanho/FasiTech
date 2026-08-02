@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 MENU_TEXT = (
     "\n\nEscolha uma opção:\n"
     "1️⃣  Fazer uma pergunta\n"
-    "2️⃣  Falar com Secretaria\n"
+    "2️⃣  Falar com Secretário\n"
     "3️⃣  Falar com Diretor\n"
     "4️⃣  Encerrar"
 )
@@ -209,7 +209,7 @@ def process_message(session: ChatSession, user_msg: str) -> dict:
         )
         result["options"] = [
             "1 - Fazer uma pergunta",
-            "2 - Falar com Secretaria",
+            "2 - Falar com Secretário",
             "3 - Falar com Diretor",
             "4 - Encerrar",
         ]
@@ -244,7 +244,7 @@ def process_message(session: ChatSession, user_msg: str) -> dict:
         result["response"] = "Por favor, escolha uma opção válida:" + MENU_TEXT
         result["options"] = [
             "1 - Fazer uma pergunta",
-            "2 - Falar com Secretaria",
+            "2 - Falar com Secretário",
             "3 - Falar com Diretor",
             "4 - Encerrar",
         ]
@@ -257,7 +257,7 @@ def process_message(session: ChatSession, user_msg: str) -> dict:
         result["response"] = f"{rag_answer}" + MENU_TEXT
         result["options"] = [
             "1 - Fazer outra pergunta",
-            "2 - Falar com Secretaria",
+            "2 - Falar com Secretário",
             "3 - Falar com Diretor",
             "4 - Encerrar",
         ]
