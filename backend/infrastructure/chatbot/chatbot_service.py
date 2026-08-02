@@ -314,16 +314,27 @@ def _escalate(session: ChatSession, team: str) -> dict:
     )
 
     try:
-        from backend.infrastructure.chatwoot.chatwoot_service import escalate_to_team
-        conv_id = escalate_to_team(
-            name=session.nome,
-            email=session.email,
-            matricula=session.matricula,
-            ticket_id=session.ticket_id,
-            team_id=team_id,
-            inbox_id=settings.chatwoot_inbox_id_chatweb,
-            context_message=context,
-        )
+        if session.chatwoot_conversation_id:
+            # Sessão originada de um webhook do Chatwoot (widget do site ou WhatsApp):
+            # já existe uma conversa em andamento — apenas atribui a equipe e
+            # avisa nela, em vez de criar uma segunda conversa duplicada.
+            from backend.infrastructure.chatwoot.chatwoot_service import assign_team, send_message
+            assign_team(session.chatwoot_conversation_id, team_id)
+            send_message(session.chatwoot_conversation_id, context, private=True)
+            conv_id = session.chatwoot_conversation_id
+        else:
+            # Sessão originada do endpoint REST genérico (sem conversa Chatwoot prévia):
+            # cria contato + conversa novos, como antes.
+            from backend.infrastructure.chatwoot.chatwoot_service import escalate_to_team
+            conv_id = escalate_to_team(
+                name=session.nome,
+                email=session.email,
+                matricula=session.matricula,
+                ticket_id=session.ticket_id,
+                team_id=team_id,
+                inbox_id=settings.chatwoot_inbox_id_chatweb,
+                context_message=context,
+            )
         session.chatwoot_conversation_id = conv_id
         session.state = ChatState.ESCALATED
         logger.info(

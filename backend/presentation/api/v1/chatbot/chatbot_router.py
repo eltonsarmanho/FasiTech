@@ -145,10 +145,11 @@ async def chatwoot_webhook(request: Request) -> dict:
         )
         from backend.infrastructure.chatwoot.chatwoot_service import send_message, send_quick_replies
 
-        # Inbox diferente da do widget web (ex.: outro canal na mesma conta) — ignora.
+        # Só roda o bot nos inboxes configurados (site + WhatsApp) — outros canais
+        # (ex.: e-mail) na mesma conta ficam de fora.
         inbox_id = conversation.get("inbox_id") or payload.get("inbox", {}).get("id")
-        if inbox_id and settings.chatwoot_inbox_id_chatweb and inbox_id != settings.chatwoot_inbox_id_chatweb:
-            return {"ok": True, "skipped": f"inbox {inbox_id} não é o inbox do chatbot"}
+        if inbox_id and inbox_id not in settings.chatwoot_bot_inbox_ids:
+            return {"ok": True, "skipped": f"inbox {inbox_id} não é um inbox do chatbot"}
 
         session, is_new = get_or_create_session_by_conversation(int(conversation_id))
 

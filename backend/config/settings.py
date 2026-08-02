@@ -73,6 +73,7 @@ class Settings(BaseSettings):
     chatwoot_api_token: str = Field(default="")
     chatwoot_account_id: int = Field(default=1)
     chatwoot_inbox_id_chatweb: int = Field(default=5)
+    chatwoot_inbox_id_whatsapp: int = Field(default=0)
     chatwoot_team_id_secretaria: int = Field(default=0)
     chatwoot_team_id_diretor: int = Field(default=0)
 
@@ -88,6 +89,14 @@ class Settings(BaseSettings):
     @property
     def admin_keys_list(self) -> list[str]:
         return [k.strip() for k in self.admin_api_keys.split(",") if k.strip()]
+
+    @property
+    def chatwoot_bot_inbox_ids(self) -> set[int]:
+        """Inboxes onde o fluxo do chatbot roda automaticamente (site + WhatsApp)."""
+        ids = {self.chatwoot_inbox_id_chatweb}
+        if self.chatwoot_inbox_id_whatsapp:
+            ids.add(self.chatwoot_inbox_id_whatsapp)
+        return ids
 
     @property
     def is_production(self) -> bool:
