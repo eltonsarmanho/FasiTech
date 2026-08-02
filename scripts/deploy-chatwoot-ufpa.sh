@@ -23,23 +23,29 @@ if ! command -v docker &> /dev/null; then
     exit 1
 fi
 
-if ! command -v docker-compose &> /dev/null; then
+# Detectar versão do Docker Compose (v1 com hífen ou v2 sem hífen)
+if command -v docker-compose &> /dev/null; then
+    DOCKER_COMPOSE="docker-compose"
+elif docker compose version &> /dev/null; then
+    DOCKER_COMPOSE="docker compose"
+else
     echo -e "${RED}❌ Docker Compose não está instalado${NC}"
     exit 1
 fi
 
-echo -e "${GREEN}✅ Docker e Docker Compose encontrados${NC}"
+echo -e "${GREEN}✅ Docker: $(docker --version)${NC}"
+echo -e "${GREEN}✅ Docker Compose: $($DOCKER_COMPOSE version | head -1)${NC}"
 echo ""
 
 # Parar containers existentes
 echo -e "${YELLOW}🛑 Parando containers existentes...${NC}"
-docker-compose -f docker-compose.productionUFPA.yml down 2>/dev/null || true
+$DOCKER_COMPOSE -f docker-compose.productionUFPA.yml down 2>/dev/null || true
 echo -e "${GREEN}✅ Containers parados${NC}"
 echo ""
 
 # Build e start dos containers
 echo -e "${YELLOW}🔨 Buildando e iniciando containers...${NC}"
-docker-compose -f docker-compose.productionUFPA.yml up -d --build
+$DOCKER_COMPOSE -f docker-compose.productionUFPA.yml up -d --build
 
 echo -e "${GREEN}✅ Containers iniciados${NC}"
 echo ""
@@ -49,7 +55,7 @@ echo -e "${YELLOW}⏳ Aguardando Chatwoot inicializar (até 3 min)...${NC}"
 RETRY=0
 MAX_RETRIES=36  # 3 minutos com 5s entre tentativas
 while [ $RETRY -lt $MAX_RETRIES ]; do
-    if docker-compose -f docker-compose.productionUFPA.yml exec -T chatwoot curl -s http://localhost:3000/health > /dev/null 2>&1; then
+    if $DOCKER_COMPOSE -f docker-compose.productionUFPA.yml exec -T chatwoot curl -s http://localhost:3000/health > /dev/null 2>&1; then
         echo -e "${GREEN}✅ Chatwoot está saudável${NC}"
         break
     fi
@@ -60,7 +66,7 @@ done
 
 if [ $RETRY -eq $MAX_RETRIES ]; then
     echo -e "${RED}❌ Chatwoot não iniciou no tempo esperado${NC}"
-    echo "Verifique os logs com: docker-compose -f docker-compose.productionUFPA.yml logs chatwoot"
+    echo "Verifique os logs com: $DOCKER_COMPOSE -f docker-compose.productionUFPA.yml logs chatwoot"
     exit 1
 fi
 
@@ -77,13 +83,13 @@ echo ""
 echo -e "${YELLOW}🔧 Próximos Passos:${NC}"
 echo ""
 echo "1️⃣  Acessar Chatwoot e criar Admin User (primeira vez apenas):"
-echo "   docker-compose -f docker-compose.productionUFPA.yml exec chatwoot bundle exec rake db:seed"
+echo "   $DOCKER_COMPOSE -f docker-compose.productionUFPA.yml exec chatwoot bundle exec rake db:seed"
 echo ""
 echo "2️⃣  Verificar status dos serviços:"
-echo "   docker-compose -f docker-compose.productionUFPA.yml ps"
+echo "   $DOCKER_COMPOSE -f docker-compose.productionUFPA.yml ps"
 echo ""
 echo "3️⃣  Ver logs em tempo real:"
-echo "   docker-compose -f docker-compose.productionUFPA.yml logs -f chatwoot"
+echo "   $DOCKER_COMPOSE -f docker-compose.productionUFPA.yml logs -f chatwoot"
 echo ""
 echo "4️⃣  Testar conectividade (no navegador ou curl):"
 echo "   curl -s https://chatwoot.fasitech.cameta.ufpa.br/api/v1/accounts"
