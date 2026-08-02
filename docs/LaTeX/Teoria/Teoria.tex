@@ -18,7 +18,13 @@
 \usepackage{graphicx}
 \usepackage{float}
 \usepackage{tikz}
-\usetikzlibrary{arrows.meta,shapes.geometric,positioning,fit,backgrounds}
+\usetikzlibrary{arrows.meta,shapes.geometric,positioning,fit,backgrounds,calc}
+
+% ── Ícones (arquitetura omnichannel) ────────────────────────────────────────
+\usepackage{fontawesome5}
+\usepackage{ccicons}
+% Nota: academicons requer fonte TU (Unicode) — só disponível via XeLaTeX/
+% LuaLaTeX nesta instalação. Omitido para manter compilação com pdfLaTeX.
 
 % ── Tabelas ───────────────────────────────────────────────────────────────────
 \usepackage{booktabs}
@@ -713,6 +719,421 @@ o defeito.
 \end{figure}
 
 % ─────────────────────────────────────────────────────────────────────────────
+\chapter{Arquitetura Omnichannel de Atendimento}
+% ─────────────────────────────────────────────────────────────────────────────
+
+\section{Motivação e Visão Geral}
+
+O Diretor Virtual, apresentado no capítulo anterior como um pipeline de RAG,
+precisa alcançar o usuário em múltiplos pontos de contato — o \textit{widget}
+do portal web e o WhatsApp — sem duplicar a lógica de negócio em cada canal.
+Essa exigência corresponde ao conceito de \textbf{atendimento omnichannel}:
+uma experiência na qual o histórico, o estado da conversa e as regras de
+negócio são unificados independentemente do canal de entrada
+\autocite{verhoef2015omnichannel}, em contraste com uma estratégia
+\textit{multichannel}, em que cada canal opera de forma isolada e com lógica
+própria.
+
+O FasiTech implementa esse requisito com uma arquitetura de três camadas:
+
+\begin{enumerate}
+  \item \textbf{Canais} (\textit{channels}) — pontos de entrada específicos de
+        cada plataforma: o \textit{widget} embutido no portal
+        (\faGlobe~\textit{Website}) e o WhatsApp Business
+        (\faWhatsapp~\textit{WhatsApp}).
+  \item \textbf{Chatwoot} \autocite{chatwoot2023} (\textit{open-source}) — plataforma
+        \textit{open-source} de atendimento que abstrai os canais em
+        \textit{inboxes} e \textit{conversations}, oferecendo uma única API
+        e um mecanismo de \textit{webhooks} para eventos de mensagem.
+  \item \textbf{Backend FastAPI (FasiTech)} — concentra \emph{toda} a lógica
+        do bot (máquina de estados, RAG, geração de ticket e escalação) em
+        um único serviço, consumido por qualquer canal através do mesmo
+        \textit{webhook}.
+\end{enumerate}
+
+\begin{insight}[title={Chatwoot como camada de roteamento}]
+Entrega, confirmação de leitura, histórico e painel de atendimento humano
+já são problemas resolvidos por plataformas de \textit{live chat}
+dedicadas. Reimplementar isso para cada canal não traria benefício algum —
+por isso o FasiTech delega esse transporte ao Chatwoot e mantém para si
+apenas a \emph{lógica de negócio} do bot.
+\end{insight}
+
+\section{Canais e \textit{Inboxes}}
+
+Cada canal é registrado no Chatwoot como uma \textit{inbox}, associada a um
+\texttt{channel\_type} que determina o transporte usado. A
+Tabela~\ref{tab:inboxes} lista as \textit{inboxes} da conta FASI e indica
+quais delas são processadas automaticamente pelo bot.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{lllX}
+\toprule
+\textbf{Inbox} & \textbf{ID} & \textbf{\texttt{channel\_type}} & \textbf{Bot ativo?} \\
+\midrule
+ChatWeb       & 5 & \texttt{Channel::WebWidget} & Sim --- canal de origem deste capítulo \\
+WhatsApp Fasi & 3 & \texttt{Channel::Whatsapp}  & Sim --- reaproveita o mesmo \textit{webhook} \\
+E-mail FASI   & 4 & \texttt{Channel::Email}     & Não --- fora do escopo do bot conversacional \\
+\bottomrule
+\end{tabularx}
+\caption{Inboxes da conta Chatwoot da FASI e participação no fluxo do bot.}
+\label{tab:inboxes}
+\end{table}
+
+A Figura~\ref{fig:canais} ilustra a convergência dos dois canais habilitados
+para o Chatwoot e, a partir dele, para o \textit{webhook} único consumido
+pelo backend.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  node distance=0.55cm and 1.0cm,
+  channel/.style={draw,rounded corners,fill=blue!8,minimum width=4.0cm,
+                  minimum height=0.9cm,align=center,font=\small},
+  inbox/.style={draw,rounded corners,fill=orange!10,minimum width=3.6cm,
+                minimum height=0.8cm,align=center,font=\footnotesize},
+  core/.style={draw,rounded corners,fill=green!10,minimum width=4.4cm,
+               minimum height=0.85cm,align=center,font=\small},
+  team/.style={draw,rounded corners,fill=purple!8,minimum width=3.0cm,
+               minimum height=0.7cm,align=center,font=\footnotesize},
+  arrow/.style={-{Stealth},thick},
+]
+  \node[channel] (web)  {\faGlobe\ Widget Web (\textit{ChatWeb})};
+  \node[channel,right=2.2cm of web] (wa) {\faWhatsapp\ WhatsApp Business};
+
+  \node[inbox,below=1.0cm of web]  (i5) {Inbox \textit{ChatWeb} --- id 5\\\texttt{Channel::WebWidget}};
+  \node[inbox,below=1.0cm of wa]   (i3) {Inbox \textit{WhatsApp Fasi} --- id 3\\\texttt{Channel::Whatsapp}};
+
+  \node[core,below=1.3cm of $(i5)!0.5!(i3)$] (cw) {\faComments\ \textbf{Chatwoot} (conta FASI)};
+  \node[core,below=of cw] (wh) {Webhook \texttt{message\_created}\\(nível de conta, não de inbox)};
+  \node[core,below=of wh] (sm) {\faRobot\ \texttt{chatbot\_service}\\(máquina de estados)};
+
+  \node[team,below left=1.1cm and -0.3cm of sm] (sec) {\faUserTie\ Secretário};
+  \node[team,below right=1.1cm and -0.3cm of sm] (dir) {\faUserTie\ Diretor};
+
+  \draw[arrow] (web) -- (i5);
+  \draw[arrow] (wa)  -- (i3);
+  \draw[arrow] (i5) -- (cw);
+  \draw[arrow] (i3) -- (cw);
+  \draw[arrow] (cw) -- (wh);
+  \draw[arrow] (wh) -- (sm);
+  \draw[arrow] (sm.south) -| (sec.north);
+  \draw[arrow] (sm.south) -| (dir.north);
+\end{tikzpicture}
+\caption{Panorama geral: dois canais convergem para o Chatwoot; o
+\textit{webhook} de conta aciona o backend, que pode escalar a conversa para
+os times humanos.}
+\label{fig:canais}
+\end{figure}
+
+\begin{insight}[title={Webhooks de conta, não de inbox}]
+No Chatwoot, um \textit{webhook} é assinado no nível da \textbf{conta}: uma
+vez configurado o evento \texttt{message\_created}, ele dispara para
+mensagens de \emph{qualquer} inbox daquela conta. Essa característica é o
+que permite reaproveitar o mesmo \textit{endpoint} para o widget web
+\emph{e} para o WhatsApp sem nenhuma configuração adicional no Chatwoot —
+apenas uma \textit{allowlist} de \texttt{inbox\_id} no backend
+(Seção~\ref{sec:multicanal}) decide quais mensagens acionam o bot.
+\end{insight}
+
+\section{Roteamento por \textit{Webhook}: Chatwoot~$\rightarrow$~FastAPI}
+
+O \textit{endpoint} \texttt{POST /api/v1/chatbot/webhook/chatwoot} é o único
+ponto de entrada do bot para mensagens recebidas via Chatwoot, independente
+do canal de origem. A Figura~\ref{fig:fluxo-webhook} detalha o processamento
+de cada requisição recebida.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  node distance=0.5cm and 0.4cm,
+  proc/.style={draw,rounded corners,fill=green!8,minimum width=6.4cm,
+               minimum height=0.75cm,align=center,font=\footnotesize},
+  dec/.style={draw,diamond,fill=orange!12,aspect=2.6,
+              minimum width=5.6cm,minimum height=0.6cm,
+              align=center,font=\footnotesize},
+  term/.style={draw,rounded corners,fill=gray!12,minimum width=4.6cm,
+               minimum height=0.6cm,align=center,font=\footnotesize},
+  arrow/.style={-{Stealth},thick},
+]
+  \node[proc] (msg)   {\faCommentDots\ Usuário envia mensagem (site ou WhatsApp)};
+  \node[proc,below=of msg]  (cwrecv) {Chatwoot recebe e persiste na conversa};
+  \node[proc,below=of cwrecv] (fire) {Dispara \texttt{POST} para todos os \textit{webhooks} da conta};
+  \node[dec,below=0.7cm of fire]   (evt)  {\texttt{event == message\_created}?};
+  \node[term,right=2.2cm of evt]   (skip1) {Ignora};
+  \node[dec,below=0.7cm of evt]    (typ)   {\texttt{message\_type == incoming}?};
+  \node[term,right=2.2cm of typ]   (skip2) {Ignora (eco do próprio bot)};
+  \node[dec,below=0.7cm of typ]    (inbox) {Inbox permitido?\\(\texttt{chatwoot\_bot\_inbox\_ids})};
+  \node[term,right=2.2cm of inbox] (skip3) {Ignora (ex.: e-mail)};
+  \node[proc,below=0.7cm of inbox] (sess) {\texttt{get\_or\_create\_session\_by\_conversation}};
+  \node[proc,below=of sess]        (proc) {\faRobot\ \texttt{process\_message} (estado atual)};
+  \node[proc,below=of proc]        (send) {\texttt{chatwoot\_service.send\_message}\\(+ \texttt{send\_quick\_replies} se houver menu)};
+  \node[proc,below=of send]        (back) {Chatwoot entrega a resposta no mesmo canal de origem};
+
+  \draw[arrow] (msg) -- (cwrecv);
+  \draw[arrow] (cwrecv) -- (fire);
+  \draw[arrow] (fire) -- (evt);
+  \draw[arrow] (evt) -- node[above,font=\tiny]{Sim} (typ);
+  \draw[arrow] (evt) -- node[above,font=\tiny]{Não} (skip1);
+  \draw[arrow] (typ) -- node[above,font=\tiny]{Sim} (inbox);
+  \draw[arrow] (typ) -- node[above,font=\tiny]{Não} (skip2);
+  \draw[arrow] (inbox) -- node[above,font=\tiny]{Sim} (sess);
+  \draw[arrow] (inbox) -- node[above,font=\tiny]{Não} (skip3);
+  \draw[arrow] (sess) -- (proc);
+  \draw[arrow] (proc) -- (send);
+  \draw[arrow] (send) -- (back);
+\end{tikzpicture}
+\caption{Fluxo ponta a ponta de uma mensagem através do
+\texttt{webhook}~\texttt{/api/v1/chatbot/webhook/chatwoot}.}
+\label{fig:fluxo-webhook}
+\end{figure}
+
+O filtro de \texttt{message\_type} é o mecanismo que impede um laço
+infinito: como o próprio bot publica suas respostas no Chatwoot via
+\texttt{send\_message} (mensagens \texttt{outgoing}), sem esse filtro cada
+resposta do bot geraria um novo evento \texttt{message\_created} que seria,
+por sua vez, reprocessado pelo próprio bot.
+
+\begin{lstlisting}[language=Python,caption={Filtros de entrada do webhook (\texttt{chatbot\_router.py}).}]
+if payload.get("event") != "message_created":
+    return {"ok": True, "skipped": "evento ignorado"}
+
+if payload.get("message_type") != "incoming":
+    return {"ok": True, "skipped": "nao e mensagem do visitante"}
+
+inbox_id = conversation.get("inbox_id")
+if inbox_id and inbox_id not in settings.chatwoot_bot_inbox_ids:
+    return {"ok": True, "skipped": f"inbox {inbox_id} nao e um inbox do chatbot"}
+\end{lstlisting}
+
+\section{Sessão por Conversa}
+
+Diferentemente do fluxo REST legado (\texttt{POST /chatbot/start} e
+\texttt{POST /chatbot/message}), em que o cliente gerencia um
+\texttt{session\_id} próprio, o fluxo omnichannel não tem acesso a esse
+identificador — o widget nativo do Chatwoot e o WhatsApp não sabem nada
+sobre a sessão do backend. A função
+\texttt{get\_or\_create\_session\_by\_conversation} resolve isso indexando a
+sessão pelo \texttt{conversation\_id} do Chatwoot, estável durante toda a
+conversa, em qualquer canal:
+
+\begin{lstlisting}[language=Python,caption={Sessão endereçada por conversa (\texttt{chatbot\_service.py}).}]
+_sessions_by_conversation: dict[int, ChatSession] = {}
+
+def get_or_create_session_by_conversation(conversation_id: int) -> tuple[ChatSession, bool]:
+    existing = _sessions_by_conversation.get(conversation_id)
+    if existing:
+        existing.touch()
+        return existing, False
+    sess = ChatSession(session_id=str(uuid.uuid4()),
+                        chatwoot_conversation_id=conversation_id)
+    _sessions_by_conversation[conversation_id] = sess
+    return sess, True
+\end{lstlisting}
+
+Quando a sessão é criada pela primeira vez, a primeira mensagem do usuário
+\emph{não} é interpretada como dado de cadastro — o backend responde
+imediatamente com a saudação e o pedido de matrícula, replicando o
+comportamento do fluxo REST legado (onde a primeira chamada a
+\texttt{/chatbot/start} também ignora qualquer texto e retorna a saudação).
+Na prática, isso é o que faz o fluxo de perguntas começar assim que o chat é
+aberto: seja qual for o conteúdo da primeira mensagem, ela já inicia a
+sessão e recebe a saudação como resposta.
+
+\section{Máquina de Estados do Diretor Virtual}
+
+A lógica conversacional é implementada como uma máquina de estados finita
+(\texttt{ChatState}), completamente desacoplada do canal de transporte — a
+mesma máquina atende ao widget web, ao WhatsApp e ao fluxo REST legado. A
+Figura~\ref{fig:fsm} apresenta as transições.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  node distance=1.5cm and 1.6cm,
+  st/.style={draw,rounded corners,fill=blue!8,minimum width=3.0cm,
+             minimum height=0.8cm,align=center,font=\footnotesize},
+  final/.style={draw,rounded corners,fill=gray!15,minimum width=2.6cm,
+                minimum height=0.7cm,align=center,font=\footnotesize},
+  arrow/.style={-{Stealth},thick},
+]
+  \node[st] (s0) {AWAITING\_MATRICULA};
+  \node[st,below=of s0] (s1) {AWAITING\_NOME};
+  \node[st,below=of s1] (s2) {AWAITING\_EMAIL};
+  \node[st,below=1.7cm of s2] (s3) {MENU};
+  \node[st,left=3.4cm of s3]  (s4) {ASKING\_QUESTION};
+  \node[final,below right=1.5cm and 1.0cm of s3] (s5) {ESCALATED};
+  \node[final,below=1.5cm of s3] (s6) {ENDED};
+
+  \draw[arrow] (s0) -- node[right,font=\tiny]{matrícula válida} (s1);
+  \draw[arrow] (s1) -- node[right,font=\tiny]{nome válido} (s2);
+  \draw[arrow] (s2) -- node[right,font=\tiny,align=center]{e-mail válido\\gera ticket} (s3);
+  \draw[arrow] (s3.north west) to[bend left=25] node[above,font=\tiny]{opção 1} (s4.north east);
+  \draw[arrow] (s4.south east) to[bend left=25] node[below,font=\tiny]{resposta RAG} (s3.south west);
+  \draw[arrow] (s3) -- node[above,font=\tiny]{opção 2 ou 3} (s5);
+  \draw[arrow] (s3) -- node[right,font=\tiny]{opção 4} (s6);
+\end{tikzpicture}
+\caption{Máquina de estados finita do Diretor Virtual (\texttt{ChatState}).}
+\label{fig:fsm}
+\end{figure}
+
+O estado \texttt{ASKING\_QUESTION} delega ao pipeline RAG apresentado no
+capítulo anterior (Equação~\eqref{eq:rag} e seguintes) e retorna a
+\texttt{MENU} após responder, permitindo múltiplas perguntas na mesma
+sessão. Os estados \texttt{ESCALATED} e \texttt{ENDED} são absorventes: uma
+vez atingidos, o \textit{webhook} para de processar novas mensagens daquela
+conversa (Seção~\ref{sec:escalacao}), devolvendo o controle ao atendente
+humano ou encerrando o atendimento.
+
+\section{Endpoints Principais}
+
+A Tabela~\ref{tab:endpoints} resume os \textit{endpoints} relevantes para a
+arquitetura omnichannel, todos expostos pelo backend FastAPI sob o prefixo
+\texttt{/api/v1}.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{lp{4.3cm}X}
+\toprule
+\textbf{Método/Rota} & \textbf{Consumidor} & \textbf{Descrição} \\
+\midrule
+\texttt{POST /chatbot/webhook/chatwoot} & Chatwoot (\textit{webhook} de conta) &
+  Ponto único de entrada omnichannel; roda a máquina de estados e publica a
+  resposta de volta no Chatwoot. \\
+\texttt{POST /chatbot/start} & Clientes REST legados (ex.: integrações
+  futuras) &
+  Cria uma sessão endereçada por \texttt{session\_id} e retorna a saudação. \\
+\texttt{POST /chatbot/message} & Clientes REST legados &
+  Processa uma mensagem em uma sessão \texttt{session\_id} existente. \\
+\texttt{GET /chatbot/chatwoot-check} & Operação / diagnóstico &
+  Testa a conectividade com o Chatwoot e lista \textit{inboxes} e times
+  configurados. \\
+\texttt{GET /chatbot/health} & \textit{Health check} &
+  Disponibilidade do serviço de chatbot. \\
+\texttt{POST /diretor-virtual/chat} & Página \texttt{/diretor-virtual} (RAG avulso) &
+  Consulta direta ao RAG, sem máquina de estados nem integração Chatwoot;
+  mantido para o caso de uso de pergunta única fora do fluxo de ticket. \\
+\bottomrule
+\end{tabularx}
+\caption{Endpoints do backend FastAPI relevantes à arquitetura omnichannel.}
+\label{tab:endpoints}
+\end{table}
+
+\section{Escalação para Atendimento Humano}
+\label{sec:escalacao}
+
+Ao escolher ``Falar com Secretário'' ou ``Falar com Diretor'' no menu, a
+sessão é encaminhada à equipe (\textit{team}) correspondente no Chatwoot. A
+lógica de escalação bifurca conforme a origem da sessão:
+
+\begin{itemize}
+  \item \textbf{Sessão originada do \textit{webhook}} (widget web ou
+        WhatsApp) — já existe uma \texttt{conversation} no Chatwoot (a
+        mesma que disparou o \textit{webhook}). A escalação apenas
+        \emph{atribui a equipe} a essa conversa e publica uma nota interna
+        com o resumo do atendimento, preservando o histórico já em
+        andamento.
+  \item \textbf{Sessão originada do fluxo REST legado} — não há conversa
+        prévia no Chatwoot; a escalação cria um contato e uma conversa
+        novos.
+\end{itemize}
+
+\begin{lstlisting}[language=Python,caption={Bifurcação de escalação (\texttt{chatbot\_service.py}).}]
+if session.chatwoot_conversation_id:
+    # Conversa ja existe (webhook): apenas atribui e avisa nela
+    assign_team(session.chatwoot_conversation_id, team_id)
+    send_message(session.chatwoot_conversation_id, context, private=True)
+    conv_id = session.chatwoot_conversation_id
+else:
+    # Sem conversa previa (REST legado): cria contato + conversa
+    conv_id = escalate_to_team(name=session.nome, email=session.email,
+                                matricula=session.matricula,
+                                ticket_id=session.ticket_id, team_id=team_id,
+                                inbox_id=settings.chatwoot_inbox_id_chatweb,
+                                context_message=context)
+\end{lstlisting}
+
+\begin{insight}[title=Por que não sempre criar uma conversa nova?]
+Criar uma segunda conversa para uma sessão que já chegou via
+\textit{webhook} duplicaria o atendimento no painel do Chatwoot — o
+atendente veria duas conversas para o mesmo usuário: uma vazia (a nova) e
+outra com o histórico real (a original). Reutilizar
+\texttt{chatwoot\_conversation\_id} quando ele já existe preserva a
+continuidade do atendimento.
+\end{insight}
+
+\section{Extensibilidade Multi-Canal: o Caso do WhatsApp}
+\label{sec:multicanal}
+
+Como o \textit{webhook} do Chatwoot é assinado por conta, habilitar o bot no
+WhatsApp não exigiu nenhuma configuração adicional no Chatwoot — apenas
+incluir o \texttt{inbox\_id} do canal WhatsApp na \textit{allowlist} do
+backend:
+
+\begin{lstlisting}[language=Python,caption={\textit{Allowlist} de inboxes (\texttt{settings.py}).}]
+chatwoot_inbox_id_chatweb: int = Field(default=5)
+chatwoot_inbox_id_whatsapp: int = Field(default=0)
+
+@property
+def chatwoot_bot_inbox_ids(self) -> set[int]:
+    ids = {self.chatwoot_inbox_id_chatweb}
+    if self.chatwoot_inbox_id_whatsapp:
+        ids.add(self.chatwoot_inbox_id_whatsapp)
+    return ids
+\end{lstlisting}
+
+\begin{historico}
+Antes da integração via \textit{webhook}, o fluxo de WhatsApp — orquestrado
+por uma automação n8n \autocite{n8n2019} (\textit{fair-code}), que já consumia
+\textit{webhooks} do Chatwoot para outras finalidades — chamava diretamente
+o \textit{endpoint} \texttt{/diretor-virtual/chat}: RAG puro, sem máquina de
+estados, sem coleta de matrícula/e-mail e sem geração de ticket.
+\end{historico}
+
+\begin{problema}
+Como o Chatwoot dispara \texttt{message\_created} para \emph{todos} os
+\textit{webhooks} da conta, habilitar o bot no inbox do WhatsApp fazia com
+que \textbf{duas} respostas concorrentes fossem geradas para a mesma
+mensagem: a automação n8n (RAG puro, fluxo antigo) e o novo \textit{webhook}
+do backend (máquina de estados completa). O usuário do WhatsApp recebia
+respostas duplicadas e divergentes.
+\end{problema}
+
+A resolução foi arquitetural, não apenas de código: a etapa do fluxo n8n que
+chamava \texttt{/diretor-virtual/chat} e publicava a resposta foi
+desativada, deixando o \textit{webhook} do backend como única fonte de
+resposta automática para o inbox do WhatsApp — o n8n permanece disponível
+para outras automações que não conflitem com o fluxo de atendimento.
+
+\section{Considerações de Segurança}
+
+\begin{itemize}
+  \item \textbf{Prevenção de laço} — o filtro \texttt{message\_type ==
+        incoming} (Seção anterior) é a defesa primária contra o bot
+        reprocessar suas próprias respostas.
+  \item \textbf{Escopo por \textit{inbox}} — a \textit{allowlist}
+        \texttt{chatwoot\_bot\_inbox\_ids} garante que canais fora do
+        escopo do bot (ex.: e-mail institucional) nunca acionam a máquina
+        de estados, mesmo compartilhando a mesma conta Chatwoot.
+  \item \textbf{Segredo do \textit{webhook}} — o Chatwoot permite associar
+        um segredo compartilhado a cada \textit{webhook}. A verificação
+        dessa assinatura no backend ainda não está implementada e é
+        registrada como trabalho futuro (item~\ref{item:webhook-sig}).
+  \item \textbf{Menor privilégio da API} — o \textit{token} de API do
+        Chatwoot usado pelo backend (\texttt{CHATWOOT\_API\_TOKEN}) concede
+        acesso à conta inteira; um \textit{agent bot} dedicado, com escopo
+        restrito às \textit{inboxes} do bot, é uma evolução natural desse
+        desenho.
+\end{itemize}
+
+\bigskip
+\noindent{\footnotesize\textit{Os diagramas desta seção são produção
+original do autor, licenciados \ccby\ (CC~BY~4.0).}}
+
+% ─────────────────────────────────────────────────────────────────────────────
 \chapter{Módulo ACC — Extração Inteligente de Documentos}
 % ─────────────────────────────────────────────────────────────────────────────
 
@@ -1387,6 +1808,14 @@ O pipeline contempla três pontos de falha e seus respectivos tratamentos:
   \item \textbf{Validação Cruzada ACC} — comparar resultado do Gemini
         com extração por OCR clássico (Tesseract) para medir
         concordância e detectar certificados problemáticos.
+  \item\label{item:webhook-sig} \textbf{Verificação de assinatura do
+        \textit{webhook}} — validar, no \textit{endpoint}
+        \texttt{/chatbot/webhook/chatwoot}, o segredo compartilhado (HMAC)
+        enviado pelo Chatwoot em cada requisição, rejeitando payloads cuja
+        assinatura não confira.
+  \item \textbf{\textit{Agent Bot} dedicado} — migrar do \textit{token} de
+        API de conta inteira para um \textit{agent bot} do Chatwoot com
+        escopo restrito às \textit{inboxes} do bot conversacional.
 \end{enumerate}
 
 % ─────────────────────────────────────────────────────────────────────────────

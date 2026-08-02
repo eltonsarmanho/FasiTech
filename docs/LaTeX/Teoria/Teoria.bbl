@@ -427,6 +427,28 @@
       \field{pages}{1\bibrangedash 50}
       \range{pages}{50}
     \endentry
+    \entry{chatwoot2023}{misc}{}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=981c838d22e7896fc75dd98d75c749c0}{%
+           family={{Chatwoot}},
+           familyi={C\bibinitperiod}}}%
+      }
+      \strng{namehash}{981c838d22e7896fc75dd98d75c749c0}
+      \strng{fullhash}{981c838d22e7896fc75dd98d75c749c0}
+      \strng{bibnamehash}{981c838d22e7896fc75dd98d75c749c0}
+      \strng{authorbibnamehash}{981c838d22e7896fc75dd98d75c749c0}
+      \strng{authornamehash}{981c838d22e7896fc75dd98d75c749c0}
+      \strng{authorfullhash}{981c838d22e7896fc75dd98d75c749c0}
+      \field{sortinit}{C}
+      \field{sortinithash}{4d103a86280481745c9c897c925753c0}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{howpublished}{\url{https://www.chatwoot.com}}
+      \field{title}{Chatwoot: Open-source customer engagement suite}
+      \field{year}{2023}
+    \endentry
     \entry{cormack2009rrf}{inproceedings}{}
       \name{author}{3}{}{%
         {{un=0,uniquepart=base,hash=8d007d505d39a8bbd47859edd9f4e9b6}{%
@@ -935,6 +957,28 @@
       \field{title}{Small-to-Big Retrieval and Parent Document Retriever}
       \field{year}{2023}
     \endentry
+    \entry{n8n2019}{misc}{}
+      \name{author}{1}{}{%
+        {{un=0,uniquepart=base,hash=bd4e51ccbfbaa622015563370c10e87f}{%
+           family={{n8n.io}},
+           familyi={n\bibinitperiod}}}%
+      }
+      \strng{namehash}{bd4e51ccbfbaa622015563370c10e87f}
+      \strng{fullhash}{bd4e51ccbfbaa622015563370c10e87f}
+      \strng{bibnamehash}{bd4e51ccbfbaa622015563370c10e87f}
+      \strng{authorbibnamehash}{bd4e51ccbfbaa622015563370c10e87f}
+      \strng{authornamehash}{bd4e51ccbfbaa622015563370c10e87f}
+      \strng{authorfullhash}{bd4e51ccbfbaa622015563370c10e87f}
+      \field{sortinit}{n}
+      \field{sortinithash}{22369a73d5f88983a108b63f07f37084}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{howpublished}{\url{https://n8n.io}}
+      \field{title}{n8n: Fair-code workflow automation platform}
+      \field{year}{2019}
+    \endentry
     \entry{nussbaum2024nomic}{misc}{}
       \name{author}{4}{}{%
         {{un=0,uniquepart=base,hash=2be6b67653c54e559951288a868a4040}{%
@@ -1121,6 +1165,47 @@
       \verb{url}
       \verb https://arxiv.org/abs/2302.00093
       \endverb
+    \endentry
+    \entry{verhoef2015omnichannel}{article}{}
+      \name{author}{3}{}{%
+        {{un=0,uniquepart=base,hash=c9eb2ea99edb17813e705d43204e1b17}{%
+           family={Verhoef},
+           familyi={V\bibinitperiod},
+           given={Peter\bibnamedelima C.},
+           giveni={P\bibinitperiod\bibinitdelim C\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=fe53c870e19c719acc39f8d2f42a8cec}{%
+           family={Kannan},
+           familyi={K\bibinitperiod},
+           given={P.\bibnamedelimi K.},
+           giveni={P\bibinitperiod\bibinitdelim K\bibinitperiod},
+           givenun=0}}%
+        {{un=0,uniquepart=base,hash=55cc89acc69add83291925a4eb845fa4}{%
+           family={Inman},
+           familyi={I\bibinitperiod},
+           given={J.\bibnamedelimi Jeffrey},
+           giveni={J\bibinitperiod\bibinitdelim J\bibinitperiod},
+           givenun=0}}%
+      }
+      \strng{namehash}{0e72d21030d39c9cb609f890e450cbbc}
+      \strng{fullhash}{0e72d21030d39c9cb609f890e450cbbc}
+      \strng{bibnamehash}{0e72d21030d39c9cb609f890e450cbbc}
+      \strng{authorbibnamehash}{0e72d21030d39c9cb609f890e450cbbc}
+      \strng{authornamehash}{0e72d21030d39c9cb609f890e450cbbc}
+      \strng{authorfullhash}{0e72d21030d39c9cb609f890e450cbbc}
+      \field{sortinit}{V}
+      \field{sortinithash}{afb52128e5b4dc4b843768c0113d673b}
+      \field{extradatescope}{labelyear}
+      \field{labeldatesource}{}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Journal of Retailing}
+      \field{number}{2}
+      \field{title}{From Multi-Channel Retailing to Omni-Channel Retailing: Introduction to the Special Issue on Multi-Channel Retailing}
+      \field{volume}{91}
+      \field{year}{2015}
+      \field{pages}{174\bibrangedash 181}
+      \range{pages}{8}
     \endentry
     \entry{zhu2023semsimilaritycache}{article}{}
       \true{moreauthor}
