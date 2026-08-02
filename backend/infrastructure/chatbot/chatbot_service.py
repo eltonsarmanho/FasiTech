@@ -57,6 +57,7 @@ class ChatSession:
     email: Optional[str] = None
     ticket_id: Optional[str] = None
     chatwoot_conversation_id: Optional[int] = None
+    welcomed: bool = False
     created_at: float = field(default_factory=time.time)
     last_activity: float = field(default_factory=time.time)
 
@@ -70,12 +71,16 @@ class ChatSession:
 # ── Registro de sessões (em memória) ─────────────────────────────────────────
 
 _sessions: dict[str, ChatSession] = {}
+_sessions_by_conversation: dict[int, ChatSession] = {}
 
 
 def _cleanup_expired() -> None:
     expired = [sid for sid, s in _sessions.items() if s.is_expired()]
     for sid in expired:
         del _sessions[sid]
+    expired_conv = [cid for cid, s in _sessions_by_conversation.items() if s.is_expired()]
+    for cid in expired_conv:
+        del _sessions_by_conversation[cid]
 
 
 def get_or_create_session(session_id: Optional[str]) -> ChatSession:
@@ -88,6 +93,22 @@ def get_or_create_session(session_id: Optional[str]) -> ChatSession:
     sess = ChatSession(session_id=new_id)
     _sessions[new_id] = sess
     return sess
+
+
+def get_or_create_session_by_conversation(conversation_id: int) -> tuple[ChatSession, bool]:
+    """
+    Sessão endereçada pelo conversation_id do Chatwoot (usada pelo webhook —
+    o widget nativo do Chatwoot não conhece nosso session_id de UUID).
+    Retorna (sessão, criada_agora).
+    """
+    _cleanup_expired()
+    existing = _sessions_by_conversation.get(conversation_id)
+    if existing:
+        existing.touch()
+        return existing, False
+    sess = ChatSession(session_id=str(uuid.uuid4()), chatwoot_conversation_id=conversation_id)
+    _sessions_by_conversation[conversation_id] = sess
+    return sess, True
 
 
 # ── Validações ───────────────────────────────────────────────────────────────

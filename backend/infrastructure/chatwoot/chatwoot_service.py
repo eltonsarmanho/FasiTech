@@ -180,6 +180,28 @@ def send_message(conversation_id: int, content: str, *, private: bool = False) -
     logger.info("Chatwoot: mensagem enviada na conversa %s (private=%s)", conversation_id, private)
 
 
+def send_quick_replies(conversation_id: int, options: list[str]) -> None:
+    """
+    Envia as opções do menu como botões clicáveis (content_type=input_select),
+    suportado nativamente pelo widget do Chatwoot.
+    """
+    base, acct, token = _cfg()
+    payload = {
+        "content": "Escolha uma opção:",
+        "message_type": "outgoing",
+        "content_type": "input_select",
+        "content_attributes": {"items": [{"title": opt, "value": opt} for opt in options]},
+    }
+    r = httpx.post(
+        _url(base, acct, f"conversations/{conversation_id}/messages"),
+        json=payload,
+        headers=_headers(token),
+        timeout=10,
+    )
+    r.raise_for_status()
+    logger.info("Chatwoot: quick-replies enviadas na conversa %s (%d opções)", conversation_id, len(options))
+
+
 # ── Helper alto nível ─────────────────────────────────────────────────────────
 
 def escalate_to_team(
