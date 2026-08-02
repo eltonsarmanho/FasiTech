@@ -39,13 +39,13 @@ Se preferir fazer sem o script:
 
 ```bash
 # Parar containers
-docker-compose -f docker-compose.productionUFPA.yml down
+docker compose -p fasitech -f docker-compose.productionUFPA.yml down
 
 # Build e iniciar (pode levar 5-10 minutos)
-docker-compose -f docker-compose.productionUFPA.yml up -d --build
+docker compose -p fasitech -f docker-compose.productionUFPA.yml up -d --build
 
 # Aguardar inicialização
-docker-compose -f docker-compose.productionUFPA.yml logs -f chatwoot
+docker compose -p fasitech -f docker-compose.productionUFPA.yml logs -f chatwoot
 
 # Quando aparecer "ready to accept connections", pressione Ctrl+C
 ```
@@ -54,10 +54,10 @@ docker-compose -f docker-compose.productionUFPA.yml logs -f chatwoot
 
 ```bash
 # Entrar no container do Chatwoot
-docker-compose -f docker-compose.productionUFPA.yml exec chatwoot bash
+docker compose -p fasitech -f docker-compose.productionUFPA.yml exec chatwoot bash
 
 # Dentro do container, executar seed:
-bundle exec rake db:seed
+bundle exec rake db:chatwoot_prepare
 
 # Sair do container (Ctrl+D ou exit)
 ```
@@ -86,19 +86,19 @@ window.$chatwoot?.open();
 
 ```bash
 # Ver logs do Chatwoot
-docker-compose -f docker-compose.productionUFPA.yml logs chatwoot
+docker compose -p fasitech -f docker-compose.productionUFPA.yml logs chatwoot
 
 # Ver todos os logs
-docker-compose -f docker-compose.productionUFPA.yml logs -f
+docker compose -p fasitech -f docker-compose.productionUFPA.yml logs -f
 
 # Restart específico
-docker-compose -f docker-compose.productionUFPA.yml restart chatwoot
+docker compose -p fasitech -f docker-compose.productionUFPA.yml restart chatwoot
 
 # Status dos containers
-docker-compose -f docker-compose.productionUFPA.yml ps
+docker compose -p fasitech -f docker-compose.productionUFPA.yml ps
 
 # Parar tudo
-docker-compose -f docker-compose.productionUFPA.yml down
+docker compose -p fasitech -f docker-compose.productionUFPA.yml down
 ```
 
 ## 📚 Documentação de Referência

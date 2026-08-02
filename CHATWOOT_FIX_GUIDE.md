@@ -45,28 +45,40 @@ O widget só aparecia após escalação (`state === 'escalated'`).
 
 ## Passos para Implementar a Correção
 
-### Passo 1: Gerar/Renovar Certificado SSL para Chatwoot
+### Passo 1: Certificado SSL para Chatwoot (automático)
+
+O DNS de `chatwoot.fasitech.cameta.ufpa.br` já aponta para o IP público da VM
+(mesmo IP usado por `n8n.fasitech.cameta.ufpa.br` e `www.fasitech.com.br`), e a
+porta 80 já está acessível — então o desafio HTTP-01 (webroot) do Let's Encrypt
+funciona sem passos manuais. **Não use `--preferred-challenges=dns`** (exigiria
+criar registros TXT manualmente); o método correto é webroot, igual ao já usado
+para os outros domínios deste projeto (ver `docker/nginx/nginx.ufpa.bootstrap.conf`).
+
+O script `scripts/deploy-chatwoot-ufpa.sh` já faz isso automaticamente, reaproveitando
+o `scripts/ufpa-issue-cert.sh` que já é usado para `fasitech.cameta.ufpa.br`:
+1. Sobe o nginx com `nginx.ufpa.bootstrap.conf` — uma config mínima que só serve o
+   desafio ACME (não referencia nenhum certificado, então nunca falha ao subir).
+2. Roda o certbot **dentro de um container** (`certbot/certbot`, via `docker run`) —
+   não precisa instalar certbot no host.
+3. Troca o nginx de volta para a config completa (`nginx.ufpa.conf`) assim que o
+   certificado é emitido, e testa/recarrega com `nginx -t` + `nginx -s reload`.
+
+A renovação futura já é coberta pelo cron existente (`scripts/ufpa-renew-cert.sh`),
+que renova todos os certificados emitidos — nada extra a configurar.
+
+Se quiser rodar manualmente para depurar (mesmo mecanismo, domínio explícito):
 
 ```bash
-# SSH na VM UFPA
-ssh root@172.16.28.198
-
-# Se ainda não tem certificado para Chatwoot
-sudo certbot certonly --manual --preferred-challenges=dns \
-  -d chatwoot.fasitech.cameta.ufpa.br
-
-# Ou renovar todos os certificados
-sudo certbot renew --dry-run
+# Na VM UFPA, na raiz do projeto
+DOMAIN=chatwoot.fasitech.cameta.ufpa.br bash scripts/ufpa-issue-cert.sh
 
 # Verificar certificados existentes
 sudo ls -la /etc/letsencrypt/live/
 ```
 
-**IMPORTANTE:** Certifique-se de que existe:
+**IMPORTANTE:** Confirme que existe:
 - `/etc/letsencrypt/live/chatwoot.fasitech.cameta.ufpa.br/fullchain.pem`
 - `/etc/letsencrypt/live/chatwoot.fasitech.cameta.ufpa.br/privkey.pem`
-
-Se não existirem, crie o certificado via Let's Encrypt conforme acima.
 
 ---
 

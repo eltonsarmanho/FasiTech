@@ -45,17 +45,23 @@ git pull origin main
 ### Passo 3: Executar Script de Deploy
 
 ```bash
-# Opção A: Usar o script automático (RECOMENDADO)
 bash scripts/deploy-chatwoot-ufpa.sh
-
-# Opção B: Ou fazer manualmente
-docker-compose -f docker-compose.productionUFPA.yml down
-docker-compose -f docker-compose.productionUFPA.yml up -d --build
-
-# Aguardar inicialização (2-3 minutos)
-docker-compose -f docker-compose.productionUFPA.yml logs -f chatwoot
-# Quando vir "ready to accept connections", pressione Ctrl+C
 ```
+
+O script detecta sozinho o binário certo (`docker-compose` ou `docker compose`),
+resolve a raiz do projeto (funciona mesmo se você rodar de dentro de `scripts/`)
+e faz o deploy em duas etapas:
+
+1. Se o certificado SSL do Chatwoot ainda não existir, emite um automaticamente
+   chamando `scripts/ufpa-issue-cert.sh` (o mesmo script já usado para
+   `fasitech.cameta.ufpa.br` — sobe o nginx com a config mínima de bootstrap,
+   roda o certbot via container, e troca de volta pra config completa).
+2. Builda e sobe a stack inteira (`docker compose up -d --build`) com o código
+   novo do frontend/API e o Chatwoot já com HTTPS válido.
+
+Isso evita o cenário em que o nginx inteiro cai (derrubando também
+`fasitech.cameta.ufpa.br` e o n8n) por causa de um `ssl_certificate` apontando
+pra um arquivo que ainda não existe.
 
 ---
 
@@ -193,15 +199,14 @@ curl -s https://chatwoot.fasitech.cameta.ufpa.br | head
 # Deve retornar HTML, não erro
 ```
 
-### Certificado SSL inválido
+### Certificado SSL inválido ou ausente
 
 ```bash
-# Regenerar certificado (na VM UFPA)
-sudo certbot certonly --manual --preferred-challenges=dns \
-  -d chatwoot.fasitech.cameta.ufpa.br
+# Reemite o certificado usando o mesmo mecanismo do site principal
+DOMAIN=chatwoot.fasitech.cameta.ufpa.br bash scripts/ufpa-issue-cert.sh
 
-# Restart Nginx
-docker-compose -f docker-compose.productionUFPA.yml restart nginx
+# Depois, rode o deploy de novo pra garantir que tudo está com a config completa
+bash scripts/deploy-chatwoot-ufpa.sh
 ```
 
 ---

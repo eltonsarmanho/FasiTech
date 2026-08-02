@@ -1,18 +1,25 @@
 # Guia de Deploy do Chatwoot — FasiTech
 
-## Problema Identificado
+> ⚠️ **Status: Opção 1 já foi implementada** no `docker-compose.productionUFPA.yml`
+> (serviços `chatwoot`, `postgres-chatwoot`, `redis-chatwoot` já existem no arquivo,
+> com `SECRET_KEY_BASE` e senha do Postgres reais — diferentes dos placeholders
+> mostrados no passo 1.1 abaixo, que ficou aqui só como referência histórica).
+> Para deploy, use `bash scripts/deploy-chatwoot-ufpa.sh` (ver `DEPLOY_COMMANDS.md`
+> ou `CHATWOOT_QUICK_START.md`) em vez de repetir os passos manuais desta seção.
 
-**Chatwoot está retornando 404** → O serviço não está rodando na VM UFPA.
+## Problema Original (histórico)
 
-O Nginx está configurado para fazer proxy para `http://chatwoot:3000`, mas:
-- ❌ Não há container Chatwoot rodando
-- ❌ Não há serviço Chatwoot definido no `docker-compose.productionUFPA.yml`
+**Chatwoot estava retornando 404** → o serviço não existia na VM UFPA.
+
+O Nginx estava configurado para fazer proxy para `http://chatwoot:3000`, mas:
+- ❌ Não havia container Chatwoot rodando
+- ❌ Não havia serviço Chatwoot definido no `docker-compose.productionUFPA.yml`
 
 ---
 
-## 2 Opções de Solução
+## 2 Opções de Solução (histórico — Opção 1 foi a escolhida e já está aplicada)
 
-### **Opção 1: Chatwoot via Docker Compose** ✅ RECOMENDADO
+### **Opção 1: Chatwoot via Docker Compose** ✅ ESCOLHIDA E JÁ APLICADA
 Integrar Chatwoot como serviço Docker junto com o projeto.
 
 **Vantagens:**
@@ -117,14 +124,14 @@ cd /path/to/project
 git pull
 
 # Rebuild e restart
-docker-compose -f docker-compose.productionUFPA.yml down
-docker-compose -f docker-compose.productionUFPA.yml up -d --build
+docker compose -p fasitech -f docker-compose.productionUFPA.yml down
+docker compose -p fasitech -f docker-compose.productionUFPA.yml up -d --build
 
 # Aguardar inicialização (pode levar 2-3 min)
-docker-compose -f docker-compose.productionUFPA.yml logs -f chatwoot
+docker compose -p fasitech -f docker-compose.productionUFPA.yml logs -f chatwoot
 
 # Criar admin user (primeira vez)
-docker-compose -f docker-compose.productionUFPA.yml exec chatwoot bundle exec rake db:seed
+docker compose -p fasitech -f docker-compose.productionUFPA.yml exec chatwoot bundle exec rake db:chatwoot_prepare
 ```
 
 #### 1.5 Verificar se está rodando
@@ -202,7 +209,7 @@ git push
 # Na VM:
 cd /path/to/project
 git pull
-docker-compose -f docker-compose.productionUFPA.yml restart nginx
+docker compose -p fasitech -f docker-compose.productionUFPA.yml restart nginx
 ```
 
 ---
