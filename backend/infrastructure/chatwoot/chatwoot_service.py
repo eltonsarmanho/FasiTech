@@ -106,6 +106,40 @@ def create_or_get_contact(*, name: str, email: str, phone: Optional[str] = None)
     return contact_id
 
 
+def update_contact_attributes(contact_id: int, *, custom_attributes: dict) -> None:
+    """
+    Espelha atributos no contato do Chatwoot (matrícula, ticket, etc.).
+
+    Serve para o atendente ver a identificação direto no painel do Chatwoot, sem
+    precisar caçar a nota privada. É conveniência — a fonte da verdade é a
+    tabela `chatbot_contatos_conhecidos` no banco do FasiTech.
+
+    Deliberadamente NÃO mexe no `name` do contato: isso muda o que o atendente
+    vê e pode apagar um nome que ele ajustou à mão.
+
+    Best-effort: falha é logada e engolida, nunca interrompe o atendimento.
+    """
+    if not contact_id or not custom_attributes:
+        return
+    base, acct, token = _cfg()
+    try:
+        r = httpx.put(
+            _url(base, acct, f"contacts/{contact_id}"),
+            json={"custom_attributes": custom_attributes},
+            headers=_headers(token),
+            timeout=5,
+        )
+        r.raise_for_status()
+        logger.info(
+            "Chatwoot: atributos espelhados no contato %s (%s)",
+            contact_id, ", ".join(sorted(custom_attributes)),
+        )
+    except Exception as exc:
+        logger.warning(
+            "Chatwoot: falha ao espelhar atributos no contato %s: %s", contact_id, exc
+        )
+
+
 # ── Conversas ─────────────────────────────────────────────────────────────────
 
 def create_conversation(
@@ -183,14 +217,23 @@ def send_message(conversation_id: int, content: str, *, private: bool = False) -
     logger.info("Chatwoot: mensagem enviada na conversa %s (private=%s)", conversation_id, private)
 
 
-def send_quick_replies(conversation_id: int, options: list[str]) -> None:
+def send_quick_replies(
+    conversation_id: int,
+    options: list[str],
+    *,
+    content: str = "Escolha uma opção:",
+) -> None:
     """
     Envia as opções do menu como botões clicáveis (content_type=input_select),
     suportado nativamente pelo widget do Chatwoot.
+
+    `content` é o texto exibido acima dos botões. Passando a própria resposta do
+    bot, a mensagem e o menu ficam em uma única bolha — em vez de uma bolha com
+    o texto e outra só com "Escolha uma opção:".
     """
     base, acct, token = _cfg()
     payload = {
-        "content": "Escolha uma opção:",
+        "content": content,
         "message_type": "outgoing",
         "content_type": "input_select",
         "content_attributes": {"items": [{"title": opt, "value": opt} for opt in options]},

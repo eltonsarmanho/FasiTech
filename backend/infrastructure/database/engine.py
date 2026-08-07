@@ -52,6 +52,7 @@ def init_db() -> None:
         AlertaAcademico,
         LancamentoConceito,
         Funcionario,
+        ChatbotContatoConhecido,
     )
     
     print("🔧 Inicializando banco de dados...")

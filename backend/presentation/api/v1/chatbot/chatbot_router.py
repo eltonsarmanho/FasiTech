@@ -14,20 +14,20 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import secrets
 
 from fastapi import APIRouter, HTTPException, Request, status
 
+from backend.infrastructure.chatbot.chatbot_service import WELCOME_MESSAGE
 from backend.presentation.schemas.forms import ChatbotRequest, ChatbotResponse
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-WELCOME_MESSAGE = (
-    "Olá! Sou o Diretor Virtual da FASI 🤖\n\n"
-    "Posso ajudá-lo com dúvidas sobre matrículas, TCC, ACC, estágio, PPC e normas do curso.\n\n"
-    "Para começar, diga sua **matrícula**:"
-)
+# WELCOME_MESSAGE vive em chatbot_service (junto do resto do texto do fluxo) e é
+# reexportado aqui porque os endpoints REST e os testes o importam deste módulo.
+__all__ = ["router", "WELCOME_MESSAGE"]
 
 
 @router.post("/chatbot/message", response_model=ChatbotResponse, summary="Enviar mensagem ao chatbot")
@@ -106,16 +106,73 @@ async def chatwoot_check() -> dict:
     return check_connection()
 
 
+def _deliver(conversation_id: int, text: str, options: list[str] | None) -> None:
+    """
+    Entrega a resposta do bot na conversa do Chatwoot.
+
+    Com opções, tenta uma única mensagem `input_select` que já traz o texto e os
+    botões (evita a bolha extra só com "Escolha uma opção:"). Se o canal não
+    aceitar botões — o WhatsApp varia conforme o provedor —, cai para texto puro,
+    que continua legível porque a resposta já embute o menu numerado.
+    """
+    from backend.infrastructure.chatwoot.chatwoot_service import send_message, send_quick_replies
+
+    if options:
+        try:
+            send_quick_replies(conversation_id, options, content=text)
+            return
+        except Exception as exc:
+            logger.warning(
+                "Chatwoot: quick-replies indisponíveis na conversa %s (%s) — enviando texto puro",
+                conversation_id, exc,
+            )
+
+    send_message(conversation_id, text)
+
+
+def _webhook_autenticado(request: Request) -> bool:
+    """
+    Confere o segredo compartilhado do webhook.
+
+    O endpoint é público (o Chatwoot precisa alcançá-lo) e o Chatwoot self-hosted
+    não assina o payload. O segredo vai na querystring da URL configurada lá —
+    é o que distingue um POST do Chatwoot de um POST forjado por qualquer um na
+    internet, que poderia alegar o telefone de um aluno e se passar por ele.
+
+    Sem `CHATWOOT_WEBHOOK_TOKEN` configurado devolve False: o bot continua
+    funcionando como antes, mas sem reconhecimento de contato.
+    """
+    from backend.config.settings import settings
+
+    esperado = settings.chatwoot_webhook_token
+    if not esperado:
+        return False
+    recebido = (
+        request.query_params.get("token")
+        or request.headers.get("x-webhook-token")
+        or ""
+    )
+    # Comparação em bytes: `compare_digest` com str levanta TypeError quando há
+    # caractere não-ASCII, e um `?token=café` de qualquer origem derrubaria o
+    # webhook. Em bytes o tempo de comparação continua constante.
+    return secrets.compare_digest(recebido.encode("utf-8"), esperado.encode("utf-8"))
+
+
 @router.post("/chatbot/webhook/chatwoot", summary="Webhook do Chatwoot — roda o fluxo do bot dentro da conversa")
 async def chatwoot_webhook(request: Request) -> dict:
     """
     Configurar em: Chatwoot → Configurações → Integrações → Webhooks
-    URL: https://fasitech.cameta.ufpa.br/api/v1/chatbot/webhook/chatwoot
+    URL: https://fasitech.cameta.ufpa.br/api/v1/chatbot/webhook/chatwoot?token=<CHATWOOT_WEBHOOK_TOKEN>
     Evento necessário: apenas "Mensagem criada (message_created)".
+
+    O `token` é obrigatório para que o reconhecimento de contato por telefone
+    seja ativado — ver `_webhook_autenticado`.
 
     Sempre responde 200 (mesmo em erro interno) para não disparar retries
     agressivos do Chatwoot — falhas são apenas logadas.
     """
+    autenticado = _webhook_autenticado(request)
+
     try:
         payload = await request.json()
     except Exception:
@@ -142,8 +199,10 @@ async def chatwoot_webhook(request: Request) -> dict:
             ChatState,
             get_or_create_session_by_conversation,
             process_message,
+            reset_session_for_conversation,
+            start_session,
         )
-        from backend.infrastructure.chatwoot.chatwoot_service import send_message, send_quick_replies
+        from backend.infrastructure.chatwoot.chatwoot_payload import extrair_contato
 
         # Só roda o bot nos inboxes configurados (site + WhatsApp) — outros canais
         # (ex.: e-mail) na mesma conta ficam de fora.
@@ -153,22 +212,57 @@ async def chatwoot_webhook(request: Request) -> dict:
 
         session, is_new = get_or_create_session_by_conversation(int(conversation_id))
 
-        # Conversa já encaminhada para humano ou encerrada: bot fica em silêncio.
-        if session.state in (ChatState.ESCALATED, ChatState.ENDED):
+        # Identidade do canal (no WhatsApp, o telefone). Leitura pura de dict,
+        # feita em toda mensagem porque nem todo payload traz os mesmos campos —
+        # a primeira que trouxer carimba a sessão.
+        # Duas condições, ambas necessárias:
+        #  • o inbox é o do WhatsApp — só lá o telefone é atestado pelo canal
+        #    (no widget do site o visitante define os próprios dados);
+        #  • o webhook veio autenticado — sem o segredo, qualquer POST da
+        #    internet poderia alegar o telefone de um aluno.
+        contato = extrair_contato(
+            payload,
+            inbox_id=inbox_id,
+            whatsapp_inbox_id=(
+                settings.chatwoot_inbox_id_whatsapp if autenticado else None
+            ),
+        )
+        if contato.identificado:
+            session.contact_channel = contato.canal
+            session.contact_key = contato.chave
+        if contato.contact_id:
+            session.chatwoot_contact_id = contato.contact_id
+
+        # Conversa já encaminhada para um humano: bot fica em silêncio para não
+        # atropelar o atendimento da equipe.
+        if session.state == ChatState.ESCALATED:
             return {"ok": True, "skipped": f"sessão em estado {session.state.value}"}
+
+        # Atendimento encerrado pelo próprio aluno (opção 4): uma nova mensagem
+        # significa um novo atendimento — recomeça em vez de ficar mudo até o TTL.
+        # Passa pelo reconhecimento de novo, e o ticket gerado será outro.
+        if session.state == ChatState.ENDED:
+            session = reset_session_for_conversation(int(conversation_id))
+            session.welcomed = True
+            abertura = await asyncio.to_thread(start_session, session)
+            await asyncio.to_thread(
+                _deliver, int(conversation_id), abertura["response"], abertura.get("options"),
+            )
+            return {"ok": True, "action": "novo atendimento iniciado"}
 
         if is_new or not session.welcomed:
             session.welcomed = True
+            abertura = await asyncio.to_thread(start_session, session)
             await asyncio.to_thread(
-                send_message, int(conversation_id), WELCOME_MESSAGE,
+                _deliver, int(conversation_id), abertura["response"], abertura.get("options"),
             )
-            return {"ok": True, "action": "boas-vindas enviadas"}
+            return {"ok": True, "action": abertura["action"]}
 
         result = await asyncio.to_thread(process_message, session, content)
 
-        await asyncio.to_thread(send_message, int(conversation_id), result["response"])
-        if result.get("options"):
-            await asyncio.to_thread(send_quick_replies, int(conversation_id), result["options"])
+        await asyncio.to_thread(
+            _deliver, int(conversation_id), result["response"], result.get("options"),
+        )
 
         return {"ok": True, "state": result["state"].value if hasattr(result["state"], "value") else result["state"]}
     except Exception as exc:

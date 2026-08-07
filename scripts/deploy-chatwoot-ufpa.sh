@@ -78,7 +78,7 @@ DC() {
 # Se subirmos direto com o nginx.ufpa.conf completo e o certificado do
 # Chatwoot ainda não existir, o nginx INTEIRO falha ao iniciar (ssl_certificate
 # aponta pra um arquivo inexistente) — derrubando também fasitech.cameta.ufpa.br
-# e o n8n. Por isso emitimos o certificado ANTES de subir a stack completa,
+# Por isso emitimos o certificado ANTES de subir a stack completa,
 # reaproveitando o mesmo fluxo já testado em ufpa-issue-cert.sh.
 # ─────────────────────────────────────────────────────────────────────────
 if [ -f "$CERT_DIR/fullchain.pem" ]; then
@@ -101,7 +101,7 @@ else
         echo "   • DNS de $CHATWOOT_DOMAIN não aponta para o IP público desta VM"
         echo "   • Porta 80 bloqueada por firewall (necessária para o desafio HTTP-01)"
         echo ""
-        echo "   O restante do site (fasitech.cameta.ufpa.br, n8n) não foi afetado."
+        echo "   O restante do site (fasitech.cameta.ufpa.br) não foi afetado."
         exit 1
     fi
 fi

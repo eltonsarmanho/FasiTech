@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Optional
 
-from sqlalchemy import Column, LargeBinary
+from sqlalchemy import Column, LargeBinary, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 
@@ -498,3 +498,51 @@ class AlertaAcademico(SQLModel, table=True):
                 "destination_emails": None,
             }
         }
+
+
+class ChatbotContatoConhecido(SQLModel, table=True):
+    """
+    Identidade já confirmada de um contato do chatbot (Diretor Virtual).
+
+    Permite reconhecer um aluno recorrente — no WhatsApp o número é uma
+    identidade estável — e pular matrícula/nome/e-mail em atendimentos
+    seguintes, mediante confirmação explícita do próprio aluno.
+
+    A tabela se alimenta sozinha: cada identificação manual bem-sucedida grava
+    o vínculo. Não é populada a partir de outras tabelas — telefone coletado
+    para outra finalidade (ex.: agendar defesa de TCC) não tem consentimento
+    para esse uso, e um número mal formatado faria o bot cumprimentar um
+    desconhecido pelo nome de um aluno.
+    """
+
+    __tablename__ = "chatbot_contatos_conhecidos"
+    __table_args__ = (
+        UniqueConstraint("canal", "chave", name="uq_chatbot_contato_canal_chave"),
+        {"extend_existing": True},
+    )
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+
+    # Chave de identificação, propositalmente genérica:
+    #   canal="whatsapp" → chave = telefone canônico ("5591991744186")
+    #   canal="email"    → chave = e-mail minúsculo (widget do site, futuro)
+    # É o que permite atender o widget por e-mail depois sem mudar o schema.
+    canal: str = Field(max_length=20, index=True)
+    chave: str = Field(max_length=180, index=True)
+
+    chatwoot_contact_id: Optional[int] = Field(default=None, index=True)
+
+    matricula: str = Field(max_length=50, index=True)
+    nome: str = Field(max_length=255)
+    email: str = Field(max_length=255)
+
+    ativo: bool = Field(default=True)          # desligado após "não sou eu"
+    confirmacoes: int = Field(default=0)
+    negacoes: int = Field(default=0)
+    origem: str = Field(default="chatbot", max_length=30)
+    ultimo_ticket_id: Optional[str] = Field(default=None, max_length=20)
+
+    criado_em: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    atualizado_em: Optional[datetime] = Field(default=None)
+    # Indexado: sustenta a janela de revalidação e a futura purga de retenção.
+    ultimo_atendimento_em: Optional[datetime] = Field(default=None, index=True)

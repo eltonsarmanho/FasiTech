@@ -76,6 +76,12 @@ class Settings(BaseSettings):
     chatwoot_inbox_id_whatsapp: int = Field(default=0)
     chatwoot_team_id_secretaria: int = Field(default=0)
     chatwoot_team_id_diretor: int = Field(default=0)
+    # Segredo compartilhado do webhook. Configure a URL no Chatwoot como
+    # .../api/v1/chatbot/webhook/chatwoot?token=<valor>.
+    # Sem ele o endpoint aceita qualquer POST da internet — e o reconhecimento
+    # de contato por telefone fica DESLIGADO, porque um payload forjado poderia
+    # alegar o telefone de qualquer aluno.
+    chatwoot_webhook_token: str = Field(default="")
 
     # App
     environment: str = Field(default="development")

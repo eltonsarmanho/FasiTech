@@ -160,7 +160,8 @@ uvicorn.log
 ._*
 .Spotlight-V100
 .Trashes
-
+.lance/
+/lancedb
 # Windows
 Thumbs.db
 Thumbs.db:encryptable
@@ -256,3 +257,4 @@ SECURITY_INCIDENT.md
 *.pfx
 docs/LaTeX/Teoria/Teoria.pdf
 *.bcf
+docs/RelatorioSegurancao/Relatorio.md

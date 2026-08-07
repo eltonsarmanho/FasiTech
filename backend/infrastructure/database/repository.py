@@ -25,8 +25,11 @@ from backend.infrastructure.database.models import (
     AvaliacaoGestaoSubmission,
     LancamentoConceito,
     Funcionario,
+    ChatbotContatoConhecido,
 )
 
+_chatbot_contatos_schema_lock = threading.Lock()
+_chatbot_contatos_schema_ready = False
 _alerta_schema_lock = threading.Lock()
 _alerta_schema_ready = False
 _forms_schema_lock = threading.Lock()
@@ -1780,3 +1783,189 @@ def get_funcionario_emails_by_nomes(nomes: List[str]) -> List[str]:
             seen.add(email.lower())
             emails.append(email)
     return emails
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Diretório de contatos conhecidos do chatbot
+#
+# Sustenta o reconhecimento de aluno recorrente no WhatsApp: dado o telefone
+# canônico, devolve a identidade que o próprio aluno já confirmou antes.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _ensure_chatbot_contatos_schema() -> None:
+    """
+    Garante que `chatbot_contatos_conhecidos` existe.
+
+    `init_db()` já cria a tabela no boot; este guarda cobre o caso de um banco
+    restaurado de dump sem reinício da aplicação — o lifespan em `main.py` só
+    loga aviso se falhar, então não dá para depender só dele.
+    """
+    global _chatbot_contatos_schema_ready
+    with _chatbot_contatos_schema_lock:
+        if _chatbot_contatos_schema_ready:
+            return
+        inspector = inspect(engine)
+        if "chatbot_contatos_conhecidos" not in inspector.get_table_names():
+            ChatbotContatoConhecido.__table__.create(engine, checkfirst=True)
+        _chatbot_contatos_schema_ready = True
+
+
+def _serialize_chatbot_contato(row: ChatbotContatoConhecido) -> Dict[str, Any]:
+    return {
+        "id": row.id,
+        "canal": row.canal,
+        "chave": row.chave,
+        "chatwoot_contact_id": row.chatwoot_contact_id,
+        "matricula": row.matricula,
+        "nome": row.nome,
+        "email": row.email,
+        "ativo": row.ativo,
+        "confirmacoes": row.confirmacoes,
+        "negacoes": row.negacoes,
+        "origem": row.origem,
+        "ultimo_ticket_id": row.ultimo_ticket_id,
+        "criado_em": row.criado_em,
+        "atualizado_em": row.atualizado_em,
+        "ultimo_atendimento_em": row.ultimo_atendimento_em,
+    }
+
+
+def buscar_chatbot_contato_conhecido(
+    canal: str, chaves: List[str]
+) -> Optional[Dict[str, Any]]:
+    """
+    Procura um vínculo ativo para qualquer uma das `chaves` informadas.
+
+    Recebe uma LISTA porque o mesmo celular chega ora com o 9º dígito, ora sem
+    (ver `backend/utils/phone.variantes_telefone`). A ordem da lista é a ordem
+    de preferência.
+    """
+    if not canal or not chaves:
+        return None
+    _ensure_chatbot_contatos_schema()
+    with get_db_session() as session:
+        rows = session.exec(
+            select(ChatbotContatoConhecido).where(
+                ChatbotContatoConhecido.canal == canal,
+                ChatbotContatoConhecido.chave.in_(chaves),  # type: ignore[attr-defined]
+                ChatbotContatoConhecido.ativo == True,  # noqa: E712
+            )
+        ).all()
+        if not rows:
+            return None
+        por_chave = {r.chave: r for r in rows}
+        for chave in chaves:
+            if chave in por_chave:
+                return _serialize_chatbot_contato(por_chave[chave])
+        return _serialize_chatbot_contato(rows[0])
+
+
+def upsert_chatbot_contato_conhecido(
+    *,
+    canal: str,
+    chave: str,
+    matricula: str,
+    nome: str,
+    email: str,
+    chatwoot_contact_id: Optional[int] = None,
+    ticket_id: Optional[str] = None,
+    origem: str = "chatbot",
+) -> int:
+    """
+    Grava (ou atualiza) o vínculo contato → aluno. Retorna o id da linha.
+
+    Sobrescrever e reativar é intencional: é assim que um número reciclado se
+    cura sozinho quando o novo dono se identifica manualmente.
+    """
+    _ensure_chatbot_contatos_schema()
+    agora = datetime.utcnow()
+    with get_db_session() as session:
+        existente = session.exec(
+            select(ChatbotContatoConhecido).where(
+                ChatbotContatoConhecido.canal == canal,
+                ChatbotContatoConhecido.chave == chave,
+            )
+        ).first()
+
+        if existente:
+            existente.matricula = matricula
+            existente.nome = nome
+            existente.email = email
+            existente.origem = origem
+            existente.ativo = True
+            existente.negacoes = 0
+            existente.atualizado_em = agora
+            existente.ultimo_atendimento_em = agora
+            if chatwoot_contact_id:
+                existente.chatwoot_contact_id = chatwoot_contact_id
+            if ticket_id:
+                existente.ultimo_ticket_id = ticket_id
+            session.add(existente)
+            session.commit()
+            session.refresh(existente)
+            return existente.id
+
+        novo = ChatbotContatoConhecido(
+            canal=canal,
+            chave=chave,
+            chatwoot_contact_id=chatwoot_contact_id,
+            matricula=matricula,
+            nome=nome,
+            email=email,
+            origem=origem,
+            ultimo_ticket_id=ticket_id,
+            ultimo_atendimento_em=agora,
+        )
+        session.add(novo)
+        session.commit()
+        session.refresh(novo)
+        return novo.id
+
+
+def registrar_confirmacao_chatbot_contato(
+    canal: str, chave: str, *, ticket_id: Optional[str] = None
+) -> None:
+    """Marca que o aluno confirmou ser ele — renova a janela de revalidação."""
+    _ensure_chatbot_contatos_schema()
+    agora = datetime.utcnow()
+    with get_db_session() as session:
+        row = session.exec(
+            select(ChatbotContatoConhecido).where(
+                ChatbotContatoConhecido.canal == canal,
+                ChatbotContatoConhecido.chave == chave,
+            )
+        ).first()
+        if not row:
+            return
+        row.confirmacoes = (row.confirmacoes or 0) + 1
+        row.ultimo_atendimento_em = agora
+        row.atualizado_em = agora
+        if ticket_id:
+            row.ultimo_ticket_id = ticket_id
+        session.add(row)
+        session.commit()
+
+
+def desativar_chatbot_contato_conhecido(canal: str, chave: str) -> None:
+    """
+    Desativa o vínculo — usado no "não sou eu" e no "esquecer meus dados".
+
+    A linha é mantida (com `negacoes` incrementado) em vez de apagada: preserva
+    o histórico de que aquele número já foi negado, o que é o sinal para não
+    voltar a oferecer reconhecimento em telefone compartilhado.
+    """
+    _ensure_chatbot_contatos_schema()
+    with get_db_session() as session:
+        row = session.exec(
+            select(ChatbotContatoConhecido).where(
+                ChatbotContatoConhecido.canal == canal,
+                ChatbotContatoConhecido.chave == chave,
+            )
+        ).first()
+        if not row:
+            return
+        row.ativo = False
+        row.negacoes = (row.negacoes or 0) + 1
+        row.atualizado_em = datetime.utcnow()
+        session.add(row)
+        session.commit()
